@@ -128,7 +128,7 @@ async function loadAccounts() {
 async function loadIncomeRecords() {
   const { data, error } = await db
     .from(tables.income)
-    .select("*, business_entity:school_business_entities(name, code), account:school_accounts(name, currency)")
+    .select("*, business_entity:school_business_entities(name, code), account:school_accounts(name, currency), student:school_students(name)")
     .order("income_date", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) return showMessage(error.message, "error");
@@ -277,6 +277,7 @@ function renderIncomeTable() {
       <td>${esc(item.year_month || "")}</td>
       <td>${esc(item.business_entity?.name || "")}</td>
       <td>${esc(incomeCategoryLabel(item.income_category))}</td>
+      <td>${esc(item.student?.name || "")}</td>
       <td>${esc(short(item.description || item.note, 28))}</td>
       <td>${esc(item.account?.name || "")}</td>
       <td>${esc(item.currency || "")}</td>
@@ -473,6 +474,7 @@ function buildForm(type, data = {}) {
 function renderField(field, value, formData = {}) {
   const val = value ?? field.default ?? "";
   const full = field.full ? " full" : "";
+  const extraClass = field.className ? " " + field.className : "";
   const required = field.required ? "required" : "";
 
   if (field.type === "select") {
@@ -482,7 +484,7 @@ function renderField(field, value, formData = {}) {
       options = subjectTertiaryCategoryOptions(currentCategory);
     }
     return `
-      <div class="form-row${full}">
+      <div class="form-row${full}${extraClass}">
         <label>${field.label}</label>
         <select name="${field.name}" ${required}>
           ${options.map(opt => `<option value="${escAttr(opt.value)}" ${String(val) === String(opt.value) ? "selected" : ""}>${esc(opt.label)}</option>`).join("")}
@@ -493,7 +495,7 @@ function renderField(field, value, formData = {}) {
 
   if (field.type === "textarea") {
     return `
-      <div class="form-row${full}">
+      <div class="form-row${full}${extraClass}">
         <label>${field.label}</label>
         <textarea name="${field.name}" ${required}>${esc(val)}</textarea>
       </div>
@@ -503,7 +505,7 @@ function renderField(field, value, formData = {}) {
   if (field.type === "color-palette") {
     const colors = subjectColorOptions();
     return `
-      <div class="form-row${full}">
+      <div class="form-row${full}${extraClass}">
         <label>${field.label}</label>
         <div class="color-field">
           <input name="${field.name}" type="color" value="${escAttr(val || "#dff2fb")}" ${required} />
@@ -519,7 +521,7 @@ function renderField(field, value, formData = {}) {
 
   if (field.type === "checkbox") {
     return `
-      <div class="form-row${full}">
+      <div class="form-row${full}${extraClass}">
         <label>${field.label}</label>
         <select name="${field.name}">
           <option value="true" ${val === true || val === "true" ? "selected" : ""}>是</option>
@@ -530,7 +532,7 @@ function renderField(field, value, formData = {}) {
   }
 
   return `
-    <div class="form-row${full}">
+    <div class="form-row${full}${extraClass}">
       <label>${field.label}</label>
       <input name="${field.name}" type="${field.type || "text"}" value="${escAttr(val)}" ${required} />
     </div>
@@ -608,6 +610,7 @@ function getFields(type) {
     { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
     { name: "account_id", label: "入账账户", type: "select", options: accountOptions(), required: true },
     { name: "income_category", label: "收入分类", type: "select", default: "tuition", options: incomeCategoryOptions() },
+    { name: "student_id", label: "学生", type: "select", options: studentOptions(), className: "tuition-student-row" },
     { name: "description", label: "说明", full: true },
     { name: "currency", label: "币种", type: "select", default: "CNY", options: currencyOptions() },
     { name: "amount", label: "金额", type: "number", default: 0, required: true },
@@ -676,6 +679,10 @@ async function saveForm(e) {
     if (field.type === "number") value = value === "" ? 0 : Number(value);
     if (value === "") value = null;
     payload[field.name] = value;
+  }
+
+  if (type === "income" && payload.income_category !== "tuition") {
+    payload.student_id = null;
   }
 
   if (type === "income" || type === "expense") {
@@ -998,6 +1005,18 @@ function accountOptions() {
       value: x.id,
       label: `${x.name} / ${x.currency}${x.business_entity?.name ? " / " + x.business_entity.name : ""}`,
     }));
+}
+
+function studentOptions() {
+  return [
+    { value: "", label: "未选择" },
+    ...state.students
+      .filter(x => x.status === "active" || !x.status)
+      .map(x => ({
+        value: x.id,
+        label: `${x.name}${x.business_entity?.name ? " / " + x.business_entity.name : ""}`,
+      }))
+  ];
 }
 
 function incomeCategoryOptions() {

@@ -1629,3 +1629,105 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   });
 }
+
+
+// === v3.0 hard override: finance summary by record currency + amount ===
+function schoolV30ParseAmount(value) {
+  const n = Number(value || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function schoolV30Totals(rows) {
+  const totals = { JPY: 0, CNY: 0, OTHER: {} };
+
+  (rows || []).forEach(item => {
+    const currency = item.currency || "JPY";
+    const amount = schoolV30ParseAmount(item.amount);
+
+    if (currency === "JPY") {
+      totals.JPY += amount;
+    } else if (currency === "CNY") {
+      totals.CNY += amount;
+    } else {
+      totals.OTHER[currency] = (totals.OTHER[currency] || 0) + amount;
+    }
+  });
+
+  return totals;
+}
+
+function schoolV30FormatTotals(totals) {
+  const parts = [];
+  if (schoolV30ParseAmount(totals.JPY) !== 0) parts.push(`JPY ${money(totals.JPY)}`);
+  if (schoolV30ParseAmount(totals.CNY) !== 0) parts.push(`CNY ${money(totals.CNY)}`);
+
+  Object.entries(totals.OTHER || {}).forEach(([currency, value]) => {
+    if (schoolV30ParseAmount(value) !== 0) parts.push(`${currency} ${money(value)}`);
+  });
+
+  return parts.length ? parts.join(" / ") : "0";
+}
+
+function schoolV30NetTotals(incomeTotals, expenseTotals) {
+  const net = {
+    JPY: schoolV30ParseAmount(incomeTotals.JPY) - schoolV30ParseAmount(expenseTotals.JPY),
+    CNY: schoolV30ParseAmount(incomeTotals.CNY) - schoolV30ParseAmount(expenseTotals.CNY),
+    OTHER: {},
+  };
+
+  const currencies = new Set([
+    ...Object.keys(incomeTotals.OTHER || {}),
+    ...Object.keys(expenseTotals.OTHER || {}),
+  ]);
+
+  currencies.forEach(currency => {
+    net.OTHER[currency] = schoolV30ParseAmount(incomeTotals.OTHER?.[currency]) - schoolV30ParseAmount(expenseTotals.OTHER?.[currency]);
+  });
+
+  return net;
+}
+
+renderStats = function() {
+  setText("statStudents", state.students.length);
+  setText("statTeachers", state.teachers.length);
+  setText("statSubjects", state.subjects.length);
+  setText("statAccounts", state.accounts.length);
+
+  const ym = currentYearMonth();
+  const incomeTotals = schoolV30Totals(state.incomeRecords.filter(x => x.year_month === ym));
+  const expenseTotals = schoolV30Totals(state.expenseRecords.filter(x => x.year_month === ym));
+  const netTotals = schoolV30NetTotals(incomeTotals, expenseTotals);
+
+  setOptionalText("statIncome", schoolV30FormatTotals(incomeTotals));
+  setOptionalText("statExpense", schoolV30FormatTotals(expenseTotals));
+  setOptionalText("statNet", schoolV30FormatTotals(netTotals));
+};
+
+renderFinanceSummary = function() {
+  const incomeRows = filterFinanceRows(state.incomeRecords, "finance");
+  const expenseRows = filterFinanceRows(state.expenseRecords, "finance");
+
+  const incomeTotals = schoolV30Totals(incomeRows);
+  const expenseTotals = schoolV30Totals(expenseRows);
+  const netTotals = schoolV30NetTotals(incomeTotals, expenseTotals);
+
+  setOptionalText("financeIncomeTotal", schoolV30FormatTotals(incomeTotals));
+  setOptionalText("financeExpenseTotal", schoolV30FormatTotals(expenseTotals));
+  setOptionalText("financeNetTotal", schoolV30FormatTotals(netTotals));
+  setOptionalText("financeRecordCount", incomeRows.length + expenseRows.length);
+
+  const tbody = document.getElementById("financeAccountsTable");
+  if (!tbody) return;
+  const entity = document.getElementById("financeEntityFilter")?.value || "";
+  const rows = state.accounts.filter(x => !entity || x.business_entity_id === entity);
+  tbody.innerHTML = rows.map(item => `
+    <tr>
+      <td>${esc(item.name)}</td>
+      <td>${esc(item.business_entity?.name || "")}</td>
+      <td>${esc(item.currency)}</td>
+      <td>${money(item.current_balance)}</td>
+      <td>${esc(item.account_type)}</td>
+      <td>${item.is_active ? badge("启用") : badge("停用", "red")}</td>
+    </tr>
+  `).join("");
+};

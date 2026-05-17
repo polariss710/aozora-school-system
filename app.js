@@ -1152,7 +1152,7 @@ function bindExpensePdfImport() {
       const text = await extractPdfText(file);
       const parsed = parseExpenseReceiptText(text, file.name);
       openCreateModal("expense", parsed);
-      showMessage("PDF读取完成。请确认内容后保存。", "ok");
+      showMessage(`PDF读取完成。识别金额：${parsed.amount || 0} ${parsed.currency || ""}。请确认内容后保存。`, "ok");
     } catch (error) {
       console.error(error);
       showMessage(`PDF读取失败：${error.message || error}`, "error");
@@ -1209,13 +1209,14 @@ function parseExpenseReceiptText(text, fileName = "") {
       expense_category: "classroom",
       description: extractIiofficeDescription(text) || "いいオフィス 会議室利用",
       currency: "JPY",
-      amount,
+      amount: amount || extractAnyYenAmount(text),
       payment_method: /Visa|カード|card/i.test(text) ? "card" : "",
       tax_category: "地代家賃",
       note: [
         `PDF读取来源：${fileName || "未命名PDF"}`,
         usageDate ? `利用日：${usageDate}` : "",
         extractJapaneseInvoiceNo(text) ? `登録番号：${extractJapaneseInvoiceNo(text)}` : "",
+        `读取文本片段：${text.replace(/\s+/g, " ").slice(0, 300)}`,
       ].filter(Boolean).join("\n"),
     };
   }
@@ -1233,7 +1234,7 @@ function parseExpenseReceiptText(text, fileName = "") {
       expense_category: "software",
       description: "Genspark Plus Monthly Subscription",
       currency: "JPY",
-      amount: jpyAmount || Math.round((usdAmount || 0) * (rate || 0)),
+      amount: jpyAmount || extractAnyYenAmount(text) || Math.round((usdAmount || 0) * (rate || 0)),
       exchange_rate: rate || null,
       payment_method: /Link|card|カード/i.test(text) ? "card" : "",
       tax_category: "通信費",
@@ -1242,6 +1243,7 @@ function parseExpenseReceiptText(text, fileName = "") {
         usdAmount ? `原始金额：US$${usdAmount}` : "",
         rate ? `PDF汇率：1 USD = ${rate} JPY` : "",
         extractReceiptNo(text) ? `收据编号：${extractReceiptNo(text)}` : "",
+        `读取文本片段：${text.replace(/\s+/g, " ").slice(0, 300)}`,
       ].filter(Boolean).join("\n"),
     };
   }
@@ -1280,14 +1282,30 @@ function extractFirstJapaneseDate(text) {
 
 function extractYenAmountAfter(text, label) {
   const safeLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const regex = new RegExp(`${safeLabel}[\\s\\S]{0,80}(?:JP)?¥\\s*([0-9,]+)`);
+  const regex = new RegExp(`${safeLabel}[\\s\\S]{0,160}(?:JP\\s*)?[¥￥]\\s*([0-9,]+)`);
   const match = text.match(regex);
   return match ? Number(match[1].replace(/,/g, "")) : 0;
 }
 
 function extractAnyYenAmount(text) {
-  const match = text.match(/(?:JP)?¥\s*([0-9,]+)/);
-  return match ? Number(match[1].replace(/,/g, "")) : 0;
+  const preferred = [
+    /已扣款[\s\S]{0,80}(?:JP\s*)?[¥￥]\s*([0-9,]+)/,
+    /ご請求額合計(?:（税込）)?[\s\S]{0,80}(?:JP\s*)?[¥￥]\s*([0-9,]+)/,
+    /合計(?:（税込）)?[\s\S]{0,80}(?:JP\s*)?[¥￥]\s*([0-9,]+)/,
+    /支払(?:額|い)?[\s\S]{0,80}(?:JP\s*)?[¥￥]\s*([0-9,]+)/,
+  ];
+
+  for (const regex of preferred) {
+    const match = text.match(regex);
+    if (match) return Number(match[1].replace(/,/g, ""));
+  }
+
+  const all = [...text.matchAll(/(?:JP\s*)?[¥￥]\s*([0-9,]+)/g)]
+    .map(m => Number(m[1].replace(/,/g, "")))
+    .filter(n => Number.isFinite(n) && n > 0);
+
+  if (!all.length) return 0;
+  return Math.max(...all);
 }
 
 function extractUsdAmount(text) {

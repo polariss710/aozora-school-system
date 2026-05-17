@@ -11,6 +11,8 @@ const state = {
   students: [],
   teachers: [],
   accounts: [],
+  incomeRecords: [],
+  expenseRecords: [],
   editing: null,
 };
 
@@ -21,6 +23,9 @@ const pageMeta = {
   teachers: ["老师管理", "维护老师资料、默认科目、时薪和支付信息"],
   subjects: ["科目管理", "维护 EJU/JLPT/校内考等科目"],
   accounts: ["账户管理", "维护银行、微信、支付宝、现金等账户"],
+  income: ["收入记录", "登记公司/个人名义收入，并联动账户余额"],
+  expenses: ["支出记录", "登记公司/个人名义支出，并联动账户余额"],
+  finance: ["公司收支", "按月份和业务归属查看收支与账户余额"],
   backup: ["备份/恢复", "导出基础数据 JSON 备份"],
 };
 
@@ -30,6 +35,9 @@ const tables = {
   students: "school_students",
   teachers: "school_teachers",
   accounts: "school_accounts",
+  income: "school_income_records",
+  expenses: "school_expense_records",
+  transactions: "school_account_transactions",
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -67,6 +75,8 @@ async function loadAll() {
     loadStudents(),
     loadTeachers(),
     loadAccounts(),
+    loadIncomeRecords(),
+    loadExpenseRecords(),
   ]);
 }
 
@@ -115,6 +125,26 @@ async function loadAccounts() {
   state.accounts = data || [];
 }
 
+async function loadIncomeRecords() {
+  const { data, error } = await db
+    .from(tables.income)
+    .select("*, business_entity:school_business_entities(name, code), account:school_accounts(name, currency)")
+    .order("income_date", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (error) return showMessage(error.message, "error");
+  state.incomeRecords = data || [];
+}
+
+async function loadExpenseRecords() {
+  const { data, error } = await db
+    .from(tables.expenses)
+    .select("*, business_entity:school_business_entities(name, code), account:school_accounts(name, currency)")
+    .order("expense_date", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (error) return showMessage(error.message, "error");
+  state.expenseRecords = data || [];
+}
+
 function renderAll() {
   renderStats();
   renderBusinessTable();
@@ -122,6 +152,10 @@ function renderAll() {
   renderStudentsTable();
   renderTeachersTable();
   renderAccountsTable();
+  updateFinanceFilters();
+  renderIncomeTable();
+  renderExpensesTable();
+  renderFinanceSummary();
 }
 
 function renderStats() {
@@ -129,6 +163,12 @@ function renderStats() {
   setText("statTeachers", state.teachers.length);
   setText("statSubjects", state.subjects.length);
   setText("statAccounts", state.accounts.length);
+  const ym = currentYearMonth();
+  const income = sumCny(state.incomeRecords.filter(x => x.year_month === ym));
+  const expense = sumCny(state.expenseRecords.filter(x => x.year_month === ym));
+  setText("statIncome", formatCny(income));
+  setText("statExpense", formatCny(expense));
+  setText("statNet", formatCny(income - expense));
 }
 
 function renderBusinessTable() {
@@ -227,6 +267,75 @@ function renderAccountsTable() {
   `).join("");
 }
 
+function renderIncomeTable() {
+  const tbody = document.getElementById("incomeTable");
+  if (!tbody) return;
+  const rows = filterFinanceRows(state.incomeRecords, "income");
+  tbody.innerHTML = rows.map(item => `
+    <tr>
+      <td>${esc(item.income_date || "")}</td>
+      <td>${esc(item.year_month || "")}</td>
+      <td>${esc(item.business_entity?.name || "")}</td>
+      <td>${esc(incomeCategoryLabel(item.income_category))}</td>
+      <td>${esc(short(item.description || item.note, 28))}</td>
+      <td>${esc(item.account?.name || "")}</td>
+      <td>${esc(item.currency || "")}</td>
+      <td>${money(item.amount)}</td>
+      <td>${financeStatusBadge(item.status)}</td>
+      <td>${item.is_taxable_income ? badge("计税") : badge("不计税", "gray")}</td>
+      <td>${actionButtons("income", item.id)}</td>
+    </tr>
+  `).join("");
+}
+
+function renderExpensesTable() {
+  const tbody = document.getElementById("expensesTable");
+  if (!tbody) return;
+  const rows = filterFinanceRows(state.expenseRecords, "expense");
+  tbody.innerHTML = rows.map(item => `
+    <tr>
+      <td>${esc(item.expense_date || "")}</td>
+      <td>${esc(item.year_month || "")}</td>
+      <td>${esc(item.business_entity?.name || "")}</td>
+      <td>${esc(expenseCategoryLabel(item.expense_category))}</td>
+      <td>${esc(short(item.description || item.note, 28))}</td>
+      <td>${esc(item.account?.name || "")}</td>
+      <td>${esc(item.currency || "")}</td>
+      <td>${money(item.amount)}</td>
+      <td>${financeStatusBadge(item.status)}</td>
+      <td>${item.is_business_expense ? badge("可经费") : badge("不可/待确认", "gray")}</td>
+      <td>${esc(item.receipt_status || "")}</td>
+      <td>${actionButtons("expense", item.id)}</td>
+    </tr>
+  `).join("");
+}
+
+function renderFinanceSummary() {
+  const incomeRows = filterFinanceRows(state.incomeRecords, "finance");
+  const expenseRows = filterFinanceRows(state.expenseRecords, "finance");
+  const income = sumCny(incomeRows);
+  const expense = sumCny(expenseRows);
+  setOptionalText("financeIncomeTotal", formatCny(income));
+  setOptionalText("financeExpenseTotal", formatCny(expense));
+  setOptionalText("financeNetTotal", formatCny(income - expense));
+  setOptionalText("financeRecordCount", incomeRows.length + expenseRows.length);
+
+  const tbody = document.getElementById("financeAccountsTable");
+  if (!tbody) return;
+  const entity = document.getElementById("financeEntityFilter")?.value || "";
+  const rows = state.accounts.filter(x => !entity || x.business_entity_id === entity);
+  tbody.innerHTML = rows.map(item => `
+    <tr>
+      <td>${esc(item.name)}</td>
+      <td>${esc(item.business_entity?.name || "")}</td>
+      <td>${esc(item.currency)}</td>
+      <td>${money(item.current_balance)}</td>
+      <td>${esc(item.account_type)}</td>
+      <td>${item.is_active ? badge("启用") : badge("停用", "red")}</td>
+    </tr>
+  `).join("");
+}
+
 function bindNavigation() {
   document.querySelectorAll(".nav-btn").forEach(btn => {
     btn.addEventListener("click", () => switchPage(btn.dataset.page));
@@ -256,6 +365,7 @@ function bindGlobalActions() {
   document.getElementById("modalBackdrop").addEventListener("click", closeModal);
 
   document.getElementById("exportBackupBtn").addEventListener("click", exportBackup);
+  bindFinanceFilters();
 
   document.body.addEventListener("click", async (e) => {
     const editBtn = e.target.closest("[data-edit]");
@@ -268,6 +378,46 @@ function bindGlobalActions() {
 function bindSearch() {
   document.getElementById("studentSearch").addEventListener("input", renderStudentsTable);
   document.getElementById("teacherSearch").addEventListener("input", renderTeachersTable);
+}
+
+function bindFinanceFilters() {
+  ["incomeMonthFilter", "incomeEntityFilter"].forEach(id => {
+    document.getElementById(id)?.addEventListener("change", renderIncomeTable);
+  });
+  ["expenseMonthFilter", "expenseEntityFilter"].forEach(id => {
+    document.getElementById(id)?.addEventListener("change", renderExpensesTable);
+  });
+  ["financeMonthFilter", "financeEntityFilter"].forEach(id => {
+    document.getElementById(id)?.addEventListener("change", renderFinanceSummary);
+  });
+  document.getElementById("incomeClearFilter")?.addEventListener("click", () => {
+    document.getElementById("incomeMonthFilter").value = "";
+    document.getElementById("incomeEntityFilter").value = "";
+    renderIncomeTable();
+  });
+  document.getElementById("expenseClearFilter")?.addEventListener("click", () => {
+    document.getElementById("expenseMonthFilter").value = "";
+    document.getElementById("expenseEntityFilter").value = "";
+    renderExpensesTable();
+  });
+  document.getElementById("financeClearFilter")?.addEventListener("click", () => {
+    document.getElementById("financeMonthFilter").value = "";
+    document.getElementById("financeEntityFilter").value = "";
+    renderFinanceSummary();
+  });
+}
+
+function updateFinanceFilters() {
+  const options = `<option value="">全部业务归属</option>` + state.businessEntities
+    .map(x => `<option value="${escAttr(x.id)}">${esc(x.name)}</option>`)
+    .join("");
+  ["incomeEntityFilter", "expenseEntityFilter", "financeEntityFilter"].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const old = el.value;
+    el.innerHTML = options;
+    el.value = old;
+  });
 }
 
 function openCreateModal(type) {
@@ -452,6 +602,42 @@ function getFields(type) {
     { name: "note", label: "备注", type: "textarea", full: true },
   ];
 
+  if (type === "income") return [
+    { name: "income_date", label: "收入日期", type: "date", default: todayStr(), required: true },
+    { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
+    { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
+    { name: "account_id", label: "入账账户", type: "select", options: accountOptions(), required: true },
+    { name: "income_category", label: "收入分类", type: "select", default: "tuition", options: incomeCategoryOptions() },
+    { name: "description", label: "说明", full: true },
+    { name: "currency", label: "币种", type: "select", default: "CNY", options: currencyOptions() },
+    { name: "amount", label: "金额", type: "number", default: 0, required: true },
+    { name: "exchange_rate", label: "汇率", type: "number" },
+    { name: "payment_method", label: "收款方式", type: "select", options: paymentMethodOptions() },
+    { name: "status", label: "状态", type: "select", default: "received", options: incomeStatusOptions() },
+    { name: "is_taxable_income", label: "计税收入", type: "checkbox", default: true },
+    { name: "tax_category", label: "税务分类", default: "売上" },
+    { name: "receipt_status", label: "收据/凭证", type: "select", default: "待确认", options: receiptStatusOptions() },
+    { name: "note", label: "备注", type: "textarea", full: true },
+  ];
+
+  if (type === "expense") return [
+    { name: "expense_date", label: "支出日期", type: "date", default: todayStr(), required: true },
+    { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
+    { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
+    { name: "account_id", label: "支付账户", type: "select", options: accountOptions(), required: true },
+    { name: "expense_category", label: "支出分类", type: "select", default: "other", options: expenseCategoryOptions() },
+    { name: "description", label: "说明", full: true },
+    { name: "currency", label: "币种", type: "select", default: "JPY", options: currencyOptions() },
+    { name: "amount", label: "金额", type: "number", default: 0, required: true },
+    { name: "exchange_rate", label: "汇率", type: "number" },
+    { name: "payment_method", label: "支付方式", type: "select", options: paymentMethodOptions() },
+    { name: "status", label: "状态", type: "select", default: "paid", options: expenseStatusOptions() },
+    { name: "is_business_expense", label: "可作为经费", type: "checkbox", default: true },
+    { name: "tax_category", label: "税务分类", type: "select", default: "待确认", options: taxCategoryOptions() },
+    { name: "receipt_status", label: "收据/发票", type: "select", default: "待确认", options: receiptStatusOptions() },
+    { name: "note", label: "备注", type: "textarea", full: true },
+  ];
+
   if (type === "account") return [
     { name: "name", label: "账户名称", required: true },
     { name: "account_code", label: "账户代码" },
@@ -492,17 +678,26 @@ async function saveForm(e) {
     payload[field.name] = value;
   }
 
+  if (type === "income" || type === "expense") {
+    normalizeFinancePayload(payload);
+  }
+
   const table = tableForType(type);
+  const oldRecord = state.editing.id ? findLocal(type, state.editing.id) : null;
   let result;
   if (state.editing.id) {
-    result = await db.from(table).update(payload).eq("id", state.editing.id);
+    result = await db.from(table).update(payload).eq("id", state.editing.id).select().single();
   } else {
-    result = await db.from(table).insert(payload);
+    result = await db.from(table).insert(payload).select().single();
   }
 
   if (result.error) {
     showMessage(result.error.message, "error");
     return;
+  }
+
+  if (type === "income" || type === "expense") {
+    await syncFinanceAccountEffect(type, oldRecord, result.data);
   }
 
   closeModal();
@@ -514,6 +709,10 @@ async function saveForm(e) {
 async function deleteRecord(type, id) {
   const item = findLocal(type, id);
   if (!confirm(`确定删除「${item?.name || item?.title || "这条记录"}」吗？`)) return;
+
+  if (type === "income" || type === "expense") {
+    await syncFinanceAccountEffect(type, item, null);
+  }
 
   const { error } = await db.from(tableForType(type)).delete().eq("id", id);
   if (error) {
@@ -533,6 +732,8 @@ function findLocal(type, id) {
     student: state.students,
     teacher: state.teachers,
     account: state.accounts,
+    income: state.incomeRecords,
+    expense: state.expenseRecords,
   };
   return (map[type] || []).find(x => x.id === id) || {};
 }
@@ -544,6 +745,8 @@ function tableForType(type) {
     student: tables.students,
     teacher: tables.teachers,
     account: tables.accounts,
+    income: tables.income,
+    expense: tables.expenses,
   }[type];
 }
 
@@ -554,6 +757,8 @@ function modalTitle(type, edit) {
     student: "学生",
     teacher: "老师",
     account: "账户",
+    income: "收入",
+    expense: "支出",
   };
   return `${edit ? "编辑" : "新增"}${map[type]}`;
 }
@@ -638,6 +843,128 @@ async function saveSubjectOrderFromDom() {
   showMessage("科目排序已更新。", "ok");
 }
 
+function normalizeFinancePayload(payload) {
+  const amount = Number(payload.amount || 0);
+  const currency = payload.currency || "JPY";
+  const rate = Number(payload.exchange_rate || 0);
+
+  payload.amount = amount;
+  payload.amount_jpy = currency === "JPY" ? amount : (rate ? amount * rate : 0);
+  payload.amount_cny = currency === "CNY" ? amount : (rate ? amount / rate : 0);
+}
+
+async function syncFinanceAccountEffect(type, oldRecord, newRecord) {
+  const oldEffect = accountEffect(type, oldRecord);
+  const newEffect = accountEffect(type, newRecord);
+  const accountIds = [...new Set([oldEffect?.accountId, newEffect?.accountId].filter(Boolean))];
+
+  for (const accountId of accountIds) {
+    const account = state.accounts.find(x => x.id === accountId);
+    if (!account) continue;
+
+    let delta = 0;
+    if (oldEffect && oldEffect.accountId === accountId) delta -= oldEffect.delta;
+    if (newEffect && newEffect.accountId === accountId) delta += newEffect.delta;
+
+    if (delta !== 0) {
+      const nextBalance = Number(account.current_balance || 0) + delta;
+      const { error } = await db.from(tables.accounts).update({ current_balance: nextBalance }).eq("id", accountId);
+      if (error) {
+        showMessage(error.message, "error");
+        return;
+      }
+
+      await db.from(tables.transactions).insert({
+        account_id: accountId,
+        business_entity_id: (newRecord || oldRecord)?.business_entity_id || null,
+        transaction_date: (newRecord?.income_date || newRecord?.expense_date || oldRecord?.income_date || oldRecord?.expense_date || todayStr()),
+        year_month: (newRecord || oldRecord)?.year_month || currentYearMonth(),
+        transaction_type: type === "income" ? "income_adjust" : "expense_adjust",
+        related_table: type === "income" ? "school_income_records" : "school_expense_records",
+        related_id: (newRecord || oldRecord)?.id || null,
+        currency: account.currency,
+        amount: delta,
+        balance_after: nextBalance,
+        description: "前端收支记录联动账户余额",
+      });
+    }
+  }
+}
+
+function accountEffect(type, record) {
+  if (!record || !record.account_id) return null;
+  const isActiveIncome = type === "income" && record.status === "received";
+  const isActiveExpense = type === "expense" && (record.status === "paid" || record.status === "reimbursed");
+  if (!isActiveIncome && !isActiveExpense) return null;
+
+  const account = state.accounts.find(x => x.id === record.account_id);
+  const currency = account?.currency || record.currency;
+  const amount = Number(record.amount || 0);
+  const amountForAccount = record.currency === currency ? amount : Number(currency === "JPY" ? record.amount_jpy : record.amount_cny) || 0;
+  const delta = type === "income" ? amountForAccount : -amountForAccount;
+  return { accountId: record.account_id, delta };
+}
+
+function filterFinanceRows(rows, scope) {
+  let month = "";
+  let entity = "";
+  if (scope === "income") {
+    month = document.getElementById("incomeMonthFilter")?.value || "";
+    entity = document.getElementById("incomeEntityFilter")?.value || "";
+  } else if (scope === "expense") {
+    month = document.getElementById("expenseMonthFilter")?.value || "";
+    entity = document.getElementById("expenseEntityFilter")?.value || "";
+  } else {
+    month = document.getElementById("financeMonthFilter")?.value || "";
+    entity = document.getElementById("financeEntityFilter")?.value || "";
+  }
+  return rows.filter(x => (!month || x.year_month === month) && (!entity || x.business_entity_id === entity));
+}
+
+function sumCny(rows) {
+  return rows.reduce((sum, item) => sum + Number(item.amount_cny || (item.currency === "CNY" ? item.amount : 0) || 0), 0);
+}
+
+function formatCny(value) {
+  return `¥${money(value)}`;
+}
+
+function incomeCategoryLabel(value) {
+  const item = incomeCategoryOptions().find(x => x.value === value);
+  return item?.label || value || "";
+}
+
+function expenseCategoryLabel(value) {
+  const item = expenseCategoryOptions().find(x => x.value === value);
+  return item?.label || value || "";
+}
+
+function financeStatusBadge(status) {
+  const map = {
+    received: ["已收", ""],
+    pending: ["未收", "gray"],
+    refunded: ["已退款", "red"],
+    paid: ["已支付", ""],
+    unpaid: ["未支付", "gray"],
+    reimbursed: ["已报销", ""],
+  };
+  const [text, cls] = map[status] || [status || "", "gray"];
+  return badge(text, cls);
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function currentYearMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function setOptionalText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
 function exportBackup() {
   const data = {
     exportedAt: new Date().toISOString(),
@@ -649,6 +976,8 @@ function exportBackup() {
       school_students: state.students,
       school_teachers: state.teachers,
       school_accounts: state.accounts,
+      school_income_records: state.incomeRecords,
+      school_expense_records: state.expenseRecords,
     },
   };
 
@@ -660,6 +989,83 @@ function exportBackup() {
   a.download = `school_backup_${date}.json`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function accountOptions() {
+  return state.accounts
+    .filter(x => x.is_active !== false)
+    .map(x => ({
+      value: x.id,
+      label: `${x.name} / ${x.currency}${x.business_entity?.name ? " / " + x.business_entity.name : ""}`,
+    }));
+}
+
+function incomeCategoryOptions() {
+  return [
+    { value: "tuition", label: "学费" },
+    { value: "material", label: "教材费" },
+    { value: "registration", label: "报名费" },
+    { value: "exam", label: "考试相关" },
+    { value: "consulting", label: "咨询费" },
+    { value: "other", label: "其他收入" },
+  ];
+}
+
+function expenseCategoryOptions() {
+  return [
+    { value: "teacher_salary", label: "老师工资" },
+    { value: "transportation", label: "交通费" },
+    { value: "classroom", label: "教室费" },
+    { value: "material", label: "教材/资料" },
+    { value: "advertising", label: "广告宣传" },
+    { value: "office", label: "办公用品" },
+    { value: "software", label: "软件订阅" },
+    { value: "bank_fee", label: "手续费" },
+    { value: "tax_accounting", label: "税理士/会计" },
+    { value: "other", label: "其他支出" },
+  ];
+}
+
+function incomeStatusOptions() {
+  return [
+    { value: "received", label: "已收" },
+    { value: "pending", label: "未收" },
+    { value: "refunded", label: "已退款" },
+  ];
+}
+
+function expenseStatusOptions() {
+  return [
+    { value: "paid", label: "已支付" },
+    { value: "unpaid", label: "未支付" },
+    { value: "reimbursed", label: "已报销" },
+  ];
+}
+
+function receiptStatusOptions() {
+  return [
+    { value: "有", label: "有" },
+    { value: "无", label: "无" },
+    { value: "待确认", label: "待确认" },
+    { value: "待补", label: "待补" },
+  ];
+}
+
+function taxCategoryOptions() {
+  return [
+    { value: "待确认", label: "待确认" },
+    { value: "外注費", label: "外注費" },
+    { value: "給与", label: "給与" },
+    { value: "旅費交通費", label: "旅費交通費" },
+    { value: "地代家賃", label: "地代家賃" },
+    { value: "広告宣伝費", label: "広告宣伝費" },
+    { value: "消耗品費", label: "消耗品費" },
+    { value: "通信費", label: "通信費" },
+    { value: "支払手数料", label: "支払手数料" },
+    { value: "会議費", label: "会議費" },
+    { value: "交際費", label: "交際費" },
+    { value: "雑費", label: "雑費" },
+  ];
 }
 
 function currencyOptions() {

@@ -30,6 +30,9 @@
         <button class="nav-btn" data-page="teachers">老师管理</button>
         <button class="nav-btn" data-page="subjects">科目管理</button>
         <button class="nav-btn" data-page="accounts">账户管理</button>
+        <button class="nav-btn" data-page="income">收入记录</button>
+        <button class="nav-btn" data-page="expenses">支出记录</button>
+        <button class="nav-btn" data-page="finance">公司收支</button>
         <button class="nav-btn" data-page="backup">备份/恢复</button>
       </nav>
 
@@ -72,6 +75,18 @@
           <div class="stat-card">
             <span>账户数</span>
             <strong id="statAccounts">-</strong>
+          </div>
+          <div class="stat-card">
+            <span>本月收入</span>
+            <strong id="statIncome">-</strong>
+          </div>
+          <div class="stat-card">
+            <span>本月支出</span>
+            <strong id="statExpense">-</strong>
+          </div>
+          <div class="stat-card">
+            <span>本月结余</span>
+            <strong id="statNet">-</strong>
           </div>
         </div>
 
@@ -183,6 +198,82 @@
                 </tr>
               </thead>
               <tbody id="accountsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+
+      <section class="page" id="page-income">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>收入记录</h3>
+            <button class="primary-btn" data-open-modal="income">新增收入</button>
+          </div>
+          <div class="toolbar finance-toolbar">
+            <input type="month" id="incomeMonthFilter" />
+            <select id="incomeEntityFilter"></select>
+            <button class="secondary-btn" id="incomeClearFilter">清除筛选</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>日期</th><th>归属月份</th><th>业务归属</th><th>分类</th><th>说明</th><th>账户</th><th>币种</th><th>金额</th><th>状态</th><th>税务</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="incomeTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-expenses">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>支出记录</h3>
+            <button class="primary-btn" data-open-modal="expense">新增支出</button>
+          </div>
+          <div class="toolbar finance-toolbar">
+            <input type="month" id="expenseMonthFilter" />
+            <select id="expenseEntityFilter"></select>
+            <button class="secondary-btn" id="expenseClearFilter">清除筛选</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>日期</th><th>归属月份</th><th>业务归属</th><th>分类</th><th>说明</th><th>账户</th><th>币种</th><th>金额</th><th>状态</th><th>经费</th><th>收据</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="expensesTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-finance">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>公司收支月度汇总</h3>
+          </div>
+          <div class="toolbar finance-toolbar">
+            <input type="month" id="financeMonthFilter" />
+            <select id="financeEntityFilter"></select>
+            <button class="secondary-btn" id="financeClearFilter">清除筛选</button>
+          </div>
+          <div class="cards-grid">
+            <div class="stat-card"><span>筛选收入</span><strong id="financeIncomeTotal">-</strong></div>
+            <div class="stat-card"><span>筛选支出</span><strong id="financeExpenseTotal">-</strong></div>
+            <div class="stat-card"><span>筛选结余</span><strong id="financeNetTotal">-</strong></div>
+            <div class="stat-card"><span>记录数</span><strong id="financeRecordCount">-</strong></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>账户</th><th>业务归属</th><th>币种</th><th>当前余额</th><th>账户类型</th><th>状态</th></tr>
+              </thead>
+              <tbody id="financeAccountsTable"></tbody>
             </table>
           </div>
         </div>

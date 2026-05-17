@@ -436,3 +436,14 @@ tr.dragging {
 .drag-handle:active {
   cursor: grabbing;
 }
+
+.finance-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.finance-toolbar input,
+.finance-toolbar select {
+  min-width: 180px;
+}

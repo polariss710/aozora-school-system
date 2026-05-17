@@ -454,6 +454,7 @@ function buildForm(type, data = {}) {
 
   document.getElementById("cancelFormBtn").addEventListener("click", closeModal);
   form.onsubmit = saveForm;
+  bindTuitionStudentField(form);
   form.querySelectorAll("[data-color]").forEach(btn => {
     btn.addEventListener("click", () => {
       const input = form.querySelector('input[name="color"]');
@@ -662,6 +663,23 @@ function getFields(type) {
   ];
 
   return [];
+}
+
+function bindTuitionStudentField(form) {
+  const incomeCategory = form.querySelector('select[name="income_category"]');
+  const studentRow = form.querySelector(".tuition-student-row");
+  const studentSelect = form.querySelector('select[name="student_id"]');
+
+  if (!incomeCategory || !studentRow || !studentSelect) return;
+
+  function update() {
+    const isTuition = incomeCategory.value === "tuition";
+    studentRow.classList.toggle("hidden", !isTuition);
+    if (!isTuition) studentSelect.value = "";
+  }
+
+  incomeCategory.addEventListener("change", update);
+  update();
 }
 
 async function saveForm(e) {

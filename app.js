@@ -482,7 +482,7 @@ function renderField(field, value, formData = {}) {
     let options = field.options || [];
     if (field.name === "tertiary_category") {
       const currentCategory = formData.category || "学部进学";
-      options = subjectTertiaryCategoryOptions(currentCategory);
+      options = subjectTertiaryCategoryOptions ? subjectTertiaryCategoryOptions(currentCategory) : options;
     }
     return `
       <div class="form-row${full}${extraClass}">
@@ -503,8 +503,20 @@ function renderField(field, value, formData = {}) {
     `;
   }
 
+  if (field.type === "checkbox") {
+    return `
+      <div class="form-row${full}${extraClass}">
+        <label>${field.label}</label>
+        <select name="${field.name}">
+          <option value="true" ${val === true || val === "true" ? "selected" : ""}>是</option>
+          <option value="false" ${val === false || val === "false" ? "selected" : ""}>否</option>
+        </select>
+      </div>
+    `;
+  }
+
   if (field.type === "color-palette") {
-    const colors = subjectColorOptions();
+    const colors = subjectColorOptions ? subjectColorOptions() : ["#6fb7df", "#f6d365", "#81c784"];
     return `
       <div class="form-row${full}${extraClass}">
         <label>${field.label}</label>
@@ -520,18 +532,6 @@ function renderField(field, value, formData = {}) {
     `;
   }
 
-  if (field.type === "checkbox") {
-    return `
-      <div class="form-row${full}${extraClass}">
-        <label>${field.label}</label>
-        <select name="${field.name}">
-          <option value="true" ${val === true || val === "true" ? "selected" : ""}>是</option>
-          <option value="false" ${val === false || val === "false" ? "selected" : ""}>否</option>
-        </select>
-      </div>
-    `;
-  }
-
   return `
     <div class="form-row${full}${extraClass}">
       <label>${field.label}</label>
@@ -540,130 +540,7 @@ function renderField(field, value, formData = {}) {
   `;
 }
 
-function getFields(type) {
-  const businessOptions = state.businessEntities.map(x => ({ value: x.id, label: x.name }));
-  const subjectOptions = [{ value: "", label: "未设置" }, ...state.subjects.map(x => ({ value: x.id, label: x.name }))];
 
-  if (type === "business") return [
-    { name: "name", label: "名称", required: true },
-    { name: "code", label: "代码", required: true },
-    { name: "entity_type", label: "类型", type: "select", default: "company", options: [
-      { value: "company", label: "公司" },
-      { value: "personal", label: "个人" },
-      { value: "other", label: "其他" },
-    ]},
-    { name: "default_currency", label: "默认币种", type: "select", default: "JPY", options: currencyOptions() },
-    { name: "is_company_report", label: "计入公司报表", type: "checkbox", default: false },
-    { name: "is_active", label: "状态启用", type: "checkbox", default: true },
-    { name: "note", label: "备注", type: "textarea", full: true },
-  ];
-
-  if (type === "subject") return [
-    { name: "name", label: "科目名称", required: true },
-    { name: "primary_category", label: "一级分类", type: "select", default: "班课", options: subjectPrimaryCategoryOptions() },
-    { name: "category", label: "二级分类", type: "select", default: "学部进学", options: subjectCategoryOptions() },
-    { name: "tertiary_category", label: "三级分类", type: "select", default: "EJU留考课程", options: subjectTertiaryCategoryOptions("学部进学") },
-    { name: "color", label: "颜色", type: "color-palette", default: "#dff2fb" },
-    { name: "sort_order", label: "排序", type: "number", default: 0 },
-    { name: "is_active", label: "状态启用", type: "checkbox", default: true },
-    { name: "note", label: "备注", type: "textarea", full: true },
-  ];
-
-  if (type === "student") return [
-    { name: "name", label: "学生姓名", required: true },
-    { name: "display_name", label: "显示名" },
-    { name: "business_entity_id", label: "默认业务归属", type: "select", options: businessOptions, required: true },
-    { name: "target_type", label: "学习目标", placeholder: "EJU / JLPT / 大学院" },
-    { name: "wechat", label: "微信" },
-    { name: "phone", label: "电话" },
-    { name: "parent_name", label: "家长姓名" },
-    { name: "parent_wechat", label: "家长微信" },
-    { name: "entrance_date", label: "入塾日期", type: "date" },
-    { name: "status", label: "状态", type: "select", default: "active", options: statusOptions() },
-    { name: "target_schools", label: "志望校/目标", type: "textarea", full: true },
-    { name: "note", label: "备注", type: "textarea", full: true },
-  ];
-
-  if (type === "teacher") return [
-    { name: "name", label: "老师姓名", required: true },
-    { name: "display_name", label: "显示名" },
-    { name: "department", label: "所属", type: "select", default: "常勤老师", options: teacherDepartmentOptions() },
-    { name: "default_subject_id", label: "默认科目", type: "select", options: subjectOptions },
-    { name: "default_hourly_rate", label: "默认时薪", type: "number", default: 0 },
-    { name: "default_currency", label: "工资币种", type: "select", default: "JPY", options: currencyOptions() },
-    { name: "default_payment_currency", label: "支付币种", type: "select", default: "JPY", options: currencyOptions() },
-    { name: "default_business_entity_id", label: "默认业务归属", type: "select", options: [{ value: "", label: "未设置" }, ...businessOptions] },
-    { name: "default_payment_method", label: "默认支付方式", type: "select", options: paymentMethodOptions() },
-    { name: "bank_name", label: "银行名" },
-    { name: "bank_branch_code", label: "支店番号" },
-    { name: "bank_branch_name", label: "支店名" },
-    { name: "bank_account_number", label: "口座番号" },
-    { name: "bank_account_name", label: "名义" },
-    { name: "alipay_account", label: "支付宝账号" },
-    { name: "wechat_account", label: "微信账号" },
-    { name: "status", label: "老师状态", type: "select", default: "employed", options: teacherStatusOptions() },
-    { name: "note", label: "备注", type: "textarea", full: true },
-  ];
-
-  if (type === "income") return [
-    { name: "income_date", label: "收入日期", type: "date", default: todayStr(), required: true },
-    { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
-    { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
-    { name: "account_id", label: "入账账户", type: "select", options: accountOptions(), required: true },
-    { name: "income_category", label: "收入分类", type: "select", default: "tuition", options: incomeCategoryOptions() },
-    { name: "student_id", label: "学生", type: "select", options: studentOptions(), className: "tuition-student-row" },
-    { name: "description", label: "说明", full: true },
-    { name: "currency", label: "币种", type: "select", default: "CNY", options: currencyOptions() },
-    { name: "amount", label: "金额", type: "number", default: 0, required: true },
-    { name: "exchange_rate", label: "汇率", type: "number" },
-    { name: "payment_method", label: "收款方式", type: "select", options: paymentMethodOptions() },
-    { name: "status", label: "状态", type: "select", default: "received", options: incomeStatusOptions() },
-    { name: "is_taxable_income", label: "计税收入", type: "checkbox", default: true },
-    { name: "tax_category", label: "税务分类", default: "売上" },
-    { name: "receipt_status", label: "收据/凭证", type: "select", default: "待确认", options: receiptStatusOptions() },
-    { name: "note", label: "备注", type: "textarea", full: true },
-  ];
-
-  if (type === "expense") return [
-    { name: "expense_date", label: "支出日期", type: "date", default: todayStr(), required: true },
-    { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
-    { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
-    { name: "account_id", label: "支付账户", type: "select", options: accountOptions(), required: true },
-    { name: "expense_category", label: "支出分类", type: "select", default: "other", options: expenseCategoryOptions() },
-    { name: "description", label: "说明", full: true },
-    { name: "currency", label: "币种", type: "select", default: "JPY", options: currencyOptions() },
-    { name: "amount", label: "金额", type: "number", default: 0, required: true },
-    { name: "exchange_rate", label: "汇率", type: "number" },
-    { name: "payment_method", label: "支付方式", type: "select", options: paymentMethodOptions() },
-    { name: "status", label: "状态", type: "select", default: "paid", options: expenseStatusOptions() },
-    { name: "is_business_expense", label: "可作为经费", type: "checkbox", default: true },
-    { name: "tax_category", label: "税务分类", type: "select", default: "待确认", options: taxCategoryOptions() },
-    { name: "receipt_status", label: "收据/发票", type: "select", default: "待确认", options: receiptStatusOptions() },
-    { name: "note", label: "备注", type: "textarea", full: true },
-  ];
-
-  if (type === "account") return [
-    { name: "name", label: "账户名称", required: true },
-    { name: "account_code", label: "账户代码" },
-    { name: "account_type", label: "账户类型", type: "select", default: "bank", options: [
-      { value: "bank", label: "银行" },
-      { value: "cash", label: "现金" },
-      { value: "wechat", label: "微信" },
-      { value: "alipay", label: "支付宝" },
-      { value: "paypay", label: "PayPay" },
-      { value: "other", label: "其他" },
-    ]},
-    { name: "currency", label: "币种", type: "select", default: "JPY", options: currencyOptions() },
-    { name: "business_entity_id", label: "业务归属", type: "select", options: [{ value: "", label: "未设置" }, ...businessOptions] },
-    { name: "opening_balance", label: "初始余额", type: "number", default: 0 },
-    { name: "current_balance", label: "当前余额", type: "number", default: 0 },
-    { name: "is_company_account", label: "公司账户", type: "checkbox", default: false },
-    { name: "is_active", label: "状态启用", type: "checkbox", default: true },
-    { name: "note", label: "备注", type: "textarea", full: true },
-  ];
-
-  return [];
-}
 
 function bindTuitionStudentField(form) {
   const incomeCategory = form.querySelector('select[name="income_category"]');

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>青空进学塾运营管理系统</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script>
+    if (location.protocol.startsWith("http")) {
+      const manifest = document.createElement("link");
+      manifest.rel = "manifest";
+      manifest.href = "./manifest.json";
+      document.head.appendChild(manifest);
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brand-logo" src="./logo-horizontal.png" alt="青空进学塾" />
+        <p>运营管理系统 v1.1</p>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-btn active" data-page="dashboard">首页</button>
+        <button class="nav-btn" data-page="business">业务归属</button>
+        <button class="nav-btn" data-page="students">学生管理</button>
+        <button class="nav-btn" data-page="teachers">老师管理</button>
+        <button class="nav-btn" data-page="subjects">科目管理</button>
+        <button class="nav-btn" data-page="accounts">账户管理</button>
+        <button class="nav-btn" data-page="backup">备份/恢复</button>
+      </nav>
+
+      <div class="connection-card">
+        <div class="dot" id="connectionDot"></div>
+        <div>
+          <strong id="connectionText">连接中...</strong>
+          <span>school project</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h2 id="pageTitle">首页</h2>
+          <p id="pageSubtitle">系统基础骨架与云端连接测试</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="secondary-btn" id="refreshBtn">刷新</button>
+        </div>
+      </header>
+
+      <section id="messageArea" class="message-area hidden"></section>
+
+      <section class="page active" id="page-dashboard">
+        <div class="cards-grid">
+          <div class="stat-card">
+            <span>学生数</span>
+            <strong id="statStudents">-</strong>
+          </div>
+          <div class="stat-card">
+            <span>老师数</span>
+            <strong id="statTeachers">-</strong>
+          </div>
+          <div class="stat-card">
+            <span>科目数</span>
+            <strong id="statSubjects">-</strong>
+          </div>
+          <div class="stat-card">
+            <span>账户数</span>
+            <strong id="statAccounts">-</strong>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>当前阶段</h3>
+          </div>
+          <div class="info-list">
+            <div><b>v1目标：</b>确认 Supabase 连接，并完成基础资料的增删改查。</div>
+            <div><b>已包含：</b>业务归属、学生、老师、科目、账户、备份导出。</div>
+            <div><b>下一版：</b>学生月度课时表、预定课时、实际课时、费用计算。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-business">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>业务归属</h3>
+            <button class="primary-btn" data-open-modal="business">新增业务归属</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>名称</th><th>代码</th><th>类型</th><th>默认币种</th><th>公司报表</th><th>状态</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="businessTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-students">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>学生管理</h3>
+            <button class="primary-btn" data-open-modal="student">新增学生</button>
+          </div>
+          <div class="toolbar">
+            <input type="search" id="studentSearch" placeholder="搜索学生姓名、微信、目标..." />
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>姓名</th><th>业务归属</th><th>目标</th><th>微信</th><th>家长</th><th>状态</th><th>备注</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="studentsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-teachers">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>老师管理</h3>
+            <button class="primary-btn" data-open-modal="teacher">新增老师</button>
+          </div>
+          <div class="toolbar">
+            <input type="search" id="teacherSearch" placeholder="搜索老师姓名、所属、科目..." />
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>姓名</th><th>所属</th><th>默认科目</th><th>时薪</th><th>币种</th><th>支付方式</th><th>状态</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="teachersTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-subjects">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>科目管理</h3>
+            <button class="primary-btn" data-open-modal="subject">新增科目</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>科目</th><th>一级分类</th><th>二级分类</th><th>三级分类</th><th>颜色</th><th>排序</th><th>状态</th><th>操作</th><th>拖动</th>
+                </tr>
+              </thead>
+              <tbody id="subjectsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-accounts">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>账户管理</h3>
+            <button class="primary-btn" data-open-modal="account">新增账户</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>账户名</th><th>类型</th><th>币种</th><th>业务归属</th><th>初始余额</th><th>当前余额</th><th>公司账户</th><th>状态</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="accountsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-backup">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>备份/恢复</h3>
+          </div>
+          <div class="backup-grid">
+            <div class="backup-card">
+              <h4>导出 JSON 备份</h4>
+              <p>导出当前 v1 基础资料：业务归属、学生、老师、科目、账户。</p>
+              <button class="primary-btn" id="exportBackupBtn">导出备份</button>
+            </div>
+            <div class="backup-card">
+              <h4>恢复备份</h4>
+              <p>开发初版暂不开放自动覆盖恢复，避免误删云端数据。后续加入预览和确认流程。</p>
+              <input type="file" id="importBackupFile" accept=".json" disabled />
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal hidden" id="modal">
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 id="modalTitle">新增</h3>
+        <button class="icon-btn" id="closeModalBtn">×</button>
+      </div>
+      <form id="modalForm" class="modal-form"></form>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -14,6 +14,7 @@
     }
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -232,7 +233,11 @@
         <div class="panel">
           <div class="panel-header">
             <h3>支出记录</h3>
-            <button class="primary-btn" data-open-modal="expense">新增支出</button>
+            <div class="panel-actions">
+              <button class="secondary-btn" id="importExpensePdfBtn">PDF读取</button>
+              <button class="primary-btn" data-open-modal="expense">新增支出</button>
+              <input type="file" id="expensePdfInput" accept="application/pdf,.pdf" class="hidden" />
+            </div>
           </div>
           <div class="toolbar finance-toolbar">
             <input type="month" id="expenseMonthFilter" />

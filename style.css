@@ -447,3 +447,10 @@ tr.dragging {
 .finance-toolbar select {
   min-width: 180px;
 }
+
+.panel-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}

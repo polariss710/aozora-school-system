@@ -2,6 +2,12 @@
 
 ## 更新记录（倒序）
 
+### v2.4
+- 给 app.js / style.css 加版本参数，强制浏览器和 GitHub Pages 使用最新脚本，避免 index 已更新但 app.js 仍是旧缓存。
+- buildForm 改用 v2.4 专用字段函数别名，避免 getFields 缓存/缺失继续报错。
+- 左侧版本号更新为 v2.4。
+- 本版无 SQL 修改。
+
 ### v2.3
 - 强制修复 `getFields is not defined`，确保新增/编辑弹窗可以打开。
 - 修正左侧菜单版本号显示为 v2.3。

@@ -647,9 +647,59 @@ function renderField(field, value, formData = {}) {
   `;
 }
 
+
+function schoolGetFieldsV24(type) {
+  if (typeof getFields === "function") {
+    return getFields(type);
+  }
+
+  const businessOptions = state.businessEntities.map(x => ({ value: x.id, label: x.name }));
+  const subjectOptions = [{ value: "", label: "未设置" }, ...state.subjects.map(x => ({ value: x.id, label: x.name }))];
+
+  if (type === "expense") return [
+    { name: "expense_date", label: "支出日期", type: "date", default: todayStr(), required: true },
+    { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
+    { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
+    { name: "account_id", label: "支付账户", type: "select", options: accountOptions(), required: true },
+    { name: "expense_category", label: "支出分类", type: "select", default: "other", options: expenseCategoryOptions() },
+    { name: "description", label: "说明", full: true },
+    { name: "currency", label: "币种", type: "select", default: "JPY", options: currencyOptions() },
+    { name: "amount", label: "金额", type: "number", default: 0, required: true },
+    { name: "exchange_rate", label: "汇率", type: "number" },
+    { name: "payment_method", label: "支付方式", type: "select", options: paymentMethodOptions() },
+    { name: "status", label: "状态", type: "select", default: "paid", options: expenseStatusOptions() },
+    { name: "is_business_expense", label: "可作为经费", type: "checkbox", default: true },
+    { name: "tax_category", label: "税务分类", type: "select", default: "待确认", options: taxCategoryOptions() },
+    { name: "receipt_status", label: "收据/发票", type: "select", default: "待确认", options: receiptStatusOptions() },
+    { name: "note", label: "备注", type: "textarea", full: true },
+  ];
+
+  if (type === "income") return [
+    { name: "income_date", label: "收入日期", type: "date", default: todayStr(), required: true },
+    { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
+    { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
+    { name: "account_id", label: "入账账户", type: "select", options: accountOptions(), required: true },
+    { name: "income_category", label: "收入分类", type: "select", default: "tuition", options: incomeCategoryOptions() },
+    { name: "student_id", label: "学生", type: "select", options: studentOptions(), className: "tuition-student-row" },
+    { name: "description", label: "说明", full: true },
+    { name: "currency", label: "币种", type: "select", default: "CNY", options: currencyOptions() },
+    { name: "amount", label: "金额", type: "number", default: 0, required: true },
+    { name: "exchange_rate", label: "汇率", type: "number" },
+    { name: "payment_method", label: "收款方式", type: "select", options: paymentMethodOptions() },
+    { name: "status", label: "状态", type: "select", default: "received", options: incomeStatusOptions() },
+    { name: "is_taxable_income", label: "计税收入", type: "checkbox", default: true },
+    { name: "tax_category", label: "税务分类", default: "売上" },
+    { name: "receipt_status", label: "收据/凭证", type: "select", default: "待确认", options: receiptStatusOptions() },
+    { name: "note", label: "备注", type: "textarea", full: true },
+  ];
+
+  // Fallback for old basic forms. Use getFields should normally exist in v2.4 package.
+  return [];
+}
+
 function buildForm(type, data = {}) {
   const form = document.getElementById("modalForm");
-  const fields = getFields(type);
+  const fields = schoolGetFieldsV24(type);
 
   form.innerHTML = fields.map(field => renderField(field, data[field.name], data)).join("") + `
     <div class="form-actions">
@@ -771,7 +821,7 @@ async function saveForm(e) {
 
   const type = state.editing.type;
   const fd = new FormData(e.target);
-  const fields = getFields(type);
+  const fields = schoolGetFieldsV24(type);
   const payload = {};
 
   for (const field of fields) {

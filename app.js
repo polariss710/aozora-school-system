@@ -41,6 +41,9 @@ const tables = {
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
   bindNavigation();
   bindGlobalActions();
   bindSearch();
@@ -366,6 +369,7 @@ function bindGlobalActions() {
   document.getElementById("modalBackdrop").addEventListener("click", closeModal);
 
   document.getElementById("exportBackupBtn").addEventListener("click", exportBackup);
+  bindExpensePdfImport();
   bindFinanceFilters();
 
   document.body.addEventListener("click", async (e) => {
@@ -551,6 +555,7 @@ function getFields(type) {
     { name: "account_type", label: "账户类型", type: "select", default: "bank", options: [
       { value: "bank", label: "银行" },
       { value: "cash", label: "现金" },
+    { value: "card", label: "信用卡" },
       { value: "wechat", label: "微信" },
       { value: "alipay", label: "支付宝" },
       { value: "paypay", label: "PayPay" },
@@ -1123,6 +1128,198 @@ function setOptionalText(id, value) {
   if (el) el.textContent = value;
 }
 
+
+function bindExpensePdfImport() {
+  const btn = document.getElementById("importExpensePdfBtn");
+  const input = document.getElementById("expensePdfInput");
+
+  if (!btn || !input) {
+    console.warn("PDF读取按钮或文件输入框未找到");
+    return;
+  }
+
+  btn.onclick = () => {
+    input.click();
+  };
+
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    input.value = "";
+    if (!file) return;
+
+    try {
+      showMessage("PDF读取中，请稍等...", "ok");
+      const text = await extractPdfText(file);
+      const parsed = parseExpenseReceiptText(text, file.name);
+      openCreateModal("expense", parsed);
+      showMessage("PDF读取完成。请确认内容后保存。", "ok");
+    } catch (error) {
+      console.error(error);
+      showMessage(`PDF读取失败：${error.message || error}`, "error");
+    }
+  };
+}
+
+async function extractPdfText(file) {
+  if (!window.pdfjsLib) {
+    throw new Error("PDF.js 未加载。请刷新页面后再试。");
+  }
+
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const pages = [];
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    pages.push(content.items.map(item => item.str).join("\n"));
+  }
+
+  return pages.join("\n\n");
+}
+
+function parseExpenseReceiptText(text, fileName = "") {
+  const base = {
+    expense_date: todayStr(),
+    year_month: currentYearMonth(),
+    business_entity_id: defaultCompanyEntityId(),
+    account_id: "",
+    expense_category: "other",
+    description: fileName ? `PDF读取：${fileName}` : "PDF读取支出",
+    currency: "JPY",
+    amount: 0,
+    exchange_rate: null,
+    payment_method: "",
+    status: "paid",
+    is_business_expense: true,
+    tax_category: "待确认",
+    receipt_status: "有",
+    note: `PDF读取来源：${fileName || "未命名PDF"}`,
+  };
+
+  if (/いいオフィス|e-office|設備予約/i.test(text)) {
+    const paymentDate = extractJapaneseDateAfter(text, "決済日時") || extractJapaneseDateAfter(text, "発行日") || todayStr();
+    const usageDate = extractJapaneseDateAfter(text, "利用日時");
+    const amount = extractYenAmountAfter(text, "合計（税込）") || extractYenAmountAfter(text, "ご請求額合計") || extractAnyYenAmount(text);
+
+    return {
+      ...base,
+      expense_date: paymentDate,
+      year_month: toYearMonth(usageDate || paymentDate),
+      expense_category: "classroom",
+      description: extractIiofficeDescription(text) || "いいオフィス 会議室利用",
+      currency: "JPY",
+      amount,
+      payment_method: /Visa|カード|card/i.test(text) ? "card" : "",
+      tax_category: "地代家賃",
+      note: [
+        `PDF读取来源：${fileName || "未命名PDF"}`,
+        usageDate ? `利用日：${usageDate}` : "",
+        extractJapaneseInvoiceNo(text) ? `登録番号：${extractJapaneseInvoiceNo(text)}` : "",
+      ].filter(Boolean).join("\n"),
+    };
+  }
+
+  if (/MainFunc|Genspark|Plus Monthly Subscription/i.test(text)) {
+    const paymentDate = extractJapaneseDateAfter(text, "付款日期") || extractFirstJapaneseDate(text) || todayStr();
+    const jpyAmount = extractYenAmountAfter(text, "已扣款") || extractAnyYenAmount(text);
+    const usdAmount = extractUsdAmount(text);
+    const rate = extractUsdJpyRate(text);
+
+    return {
+      ...base,
+      expense_date: paymentDate,
+      year_month: toYearMonth(paymentDate),
+      expense_category: "software",
+      description: "Genspark Plus Monthly Subscription",
+      currency: "JPY",
+      amount: jpyAmount || Math.round((usdAmount || 0) * (rate || 0)),
+      exchange_rate: rate || null,
+      payment_method: /Link|card|カード/i.test(text) ? "card" : "",
+      tax_category: "通信費",
+      note: [
+        `PDF读取来源：${fileName || "未命名PDF"}`,
+        usdAmount ? `原始金额：US$${usdAmount}` : "",
+        rate ? `PDF汇率：1 USD = ${rate} JPY` : "",
+        extractReceiptNo(text) ? `收据编号：${extractReceiptNo(text)}` : "",
+      ].filter(Boolean).join("\n"),
+    };
+  }
+
+  const date = extractFirstJapaneseDate(text) || todayStr();
+  const amount = extractAnyYenAmount(text);
+  return {
+    ...base,
+    expense_date: date,
+    year_month: toYearMonth(date),
+    amount,
+    note: [
+      `PDF读取来源：${fileName || "未命名PDF"}`,
+      "未识别模板，请手动确认分类、金额和日期。",
+      text.replace(/\s+/g, " ").slice(0, 500),
+    ].join("\n"),
+  };
+}
+
+function defaultCompanyEntityId() {
+  const company = state.businessEntities.find(x => x.code === "aosora") || state.businessEntities.find(x => x.is_company_report);
+  return company?.id || state.businessEntities[0]?.id || "";
+}
+
+function extractJapaneseDateAfter(text, label) {
+  const safeLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`${safeLabel}[\\s\\S]{0,80}(20\\d{2})年\\s*(\\d{1,2})月\\s*(\\d{1,2})日`);
+  const match = text.match(regex);
+  return match ? `${match[1]}-${String(match[2]).padStart(2, "0")}-${String(match[3]).padStart(2, "0")}` : "";
+}
+
+function extractFirstJapaneseDate(text) {
+  const match = text.match(/(20\d{2})年\s*(\d{1,2})月\s*(\d{1,2})日/);
+  return match ? `${match[1]}-${String(match[2]).padStart(2, "0")}-${String(match[3]).padStart(2, "0")}` : "";
+}
+
+function extractYenAmountAfter(text, label) {
+  const safeLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`${safeLabel}[\\s\\S]{0,80}(?:JP)?¥\\s*([0-9,]+)`);
+  const match = text.match(regex);
+  return match ? Number(match[1].replace(/,/g, "")) : 0;
+}
+
+function extractAnyYenAmount(text) {
+  const match = text.match(/(?:JP)?¥\s*([0-9,]+)/);
+  return match ? Number(match[1].replace(/,/g, "")) : 0;
+}
+
+function extractUsdAmount(text) {
+  const match = text.match(/US\$\s*([0-9,.]+)/);
+  return match ? Number(match[1].replace(/,/g, "")) : 0;
+}
+
+function extractUsdJpyRate(text) {
+  const match = text.match(/1\s*USD\s*=\s*([0-9.]+)\s*JPY/i);
+  return match ? Number(match[1]) : 0;
+}
+
+function extractReceiptNo(text) {
+  const match = text.match(/收据编号\s*([A-Za-z0-9\-]+)/);
+  return match ? match[1] : "";
+}
+
+function extractJapaneseInvoiceNo(text) {
+  const match = text.match(/登録番号\s*(T\d+)/);
+  return match ? match[1] : "";
+}
+
+function extractIiofficeDescription(text) {
+  const match = text.match(/設備予約（([^）]+)）/);
+  return match ? `いいオフィス ${match[1]}` : "";
+}
+
+function toYearMonth(dateStr) {
+  return dateStr ? dateStr.slice(0, 7) : currentYearMonth();
+}
+
+
 function exportBackup() {
   const data = {
     exportedAt: new Date().toISOString(),
@@ -1322,6 +1519,7 @@ function paymentMethodOptions() {
     { value: "wechat", label: "微信" },
     { value: "alipay", label: "支付宝" },
     { value: "cash", label: "现金" },
+    { value: "card", label: "信用卡" },
     { value: "paypay", label: "PayPay" },
   ];
 }

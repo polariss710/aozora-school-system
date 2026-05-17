@@ -2,6 +2,12 @@
 
 ## 更新记录（倒序）
 
+### v2.5
+- 修复支出记录「PDF读取」按钮点击无反应的问题。
+- 确保支出页面存在 PDF读取按钮、隐藏文件选择框和 PDF.js 读取逻辑。
+- app.js / style.css 版本参数更新为 v2.5，避免缓存旧脚本。
+- 本版无 SQL 修改。
+
 ### v2.4
 - 给 app.js / style.css 加版本参数，强制浏览器和 GitHub Pages 使用最新脚本，避免 index 已更新但 app.js 仍是旧缓存。
 - buildForm 改用 v2.4 专用字段函数别名，避免 getFields 缓存/缺失继续报错。

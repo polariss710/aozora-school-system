@@ -425,9 +425,9 @@ function updateFinanceFilters() {
   });
 }
 
-function openCreateModal(type) {
+function openCreateModal(type, prefill = {}) {
   state.editing = { type, id: null };
-  buildForm(type);
+  buildForm(type, prefill);
   document.getElementById("modalTitle").textContent = modalTitle(type, false);
   document.getElementById("modal").classList.remove("hidden");
 }
@@ -1129,6 +1129,17 @@ function setOptionalText(id, value) {
 }
 
 
+function applyExpensePrefillToModal(data) {
+  const form = document.getElementById("modalForm");
+  if (!form || !data) return;
+
+  Object.entries(data).forEach(([key, value]) => {
+    const el = form.querySelector(`[name="${key}"]`);
+    if (!el || value === undefined || value === null) return;
+    el.value = value;
+  });
+}
+
 function bindExpensePdfImport() {
   const btn = document.getElementById("importExpensePdfBtn");
   const input = document.getElementById("expensePdfInput");
@@ -1152,6 +1163,7 @@ function bindExpensePdfImport() {
       const text = await extractPdfText(file);
       const parsed = parseExpenseReceiptText(text, file.name);
       openCreateModal("expense", parsed);
+      applyExpensePrefillToModal(parsed);
       showMessage(`PDF读取完成。识别金额：${parsed.amount || 0} ${parsed.currency || ""}。请确认内容后保存。`, "ok");
     } catch (error) {
       console.error(error);

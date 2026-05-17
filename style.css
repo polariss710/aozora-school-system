@@ -454,3 +454,9 @@ tr.dragging {
   align-items: center;
   flex-wrap: wrap;
 }
+
+.stat-card strong {
+  word-break: keep-all;
+  white-space: normal;
+  line-height: 1.25;
+}

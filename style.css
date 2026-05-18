@@ -483,3 +483,9 @@ tr.dragging {
   font-size: 14px;
   border-top: 1px solid var(--line);
 }
+
+.empty-row {
+  text-align: center;
+  color: var(--muted);
+  padding: 24px;
+}

@@ -967,6 +967,26 @@ function bindTuitionStudentField(form) {
   update();
 }
 
+
+function syncFinanceFilterAfterSave(type, record) {
+  if (!record?.year_month) return;
+
+  if (type === "expense") {
+    const el = document.getElementById("expenseMonthFilter");
+    if (el) el.value = record.year_month;
+  }
+
+  if (type === "income") {
+    const el = document.getElementById("incomeMonthFilter");
+    if (el) el.value = record.year_month;
+  }
+
+  const financeEl = document.getElementById("financeMonthFilter");
+  if (financeEl && !financeEl.value) {
+    financeEl.value = record.year_month;
+  }
+}
+
 async function saveForm(e) {
   e.preventDefault();
   if (!state.editing) return;
@@ -1016,6 +1036,9 @@ async function saveForm(e) {
 
   closeModal();
   await loadAll();
+  if (type === "income" || type === "expense") {
+    syncFinanceFilterAfterSave(type, result.data);
+  }
   setDefaultExpenseMonthFilter();
   renderAll();
   showMessage("保存成功。", "ok");
@@ -1354,6 +1377,12 @@ function setOptionalText(id, value) {
 }
 
 
+
+function setExpenseFilterToParsedMonth(parsed) {
+  const el = document.getElementById("expenseMonthFilter");
+  if (el && parsed?.year_month) el.value = parsed.year_month;
+}
+
 function applyExpensePrefillToModal(data) {
   const form = document.getElementById("modalForm");
   if (!form || !data) return;
@@ -1400,6 +1429,7 @@ function bindExpensePdfImport() {
 
       openCreateModal("expense", parsed);
       applyExpensePrefillToModal(parsed);
+      setExpenseFilterToParsedMonth(parsed);
       showMessage(`凭证读取完成。识别金额：${parsed.amount || 0} ${parsed.currency || ""}。请确认内容后保存。`, "ok");
     } catch (error) {
       console.error(error);

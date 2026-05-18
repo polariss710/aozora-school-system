@@ -460,3 +460,18 @@ tr.dragging {
   white-space: normal;
   line-height: 1.25;
 }
+
+.file-link {
+  color: var(--primary-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+.file-link:hover {
+  text-decoration: underline;
+}
+.panel-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}

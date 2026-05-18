@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="stylesheet" href="./style.css?v=3.0" />
+  <link rel="stylesheet" href="./style.css?v=3.1" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -15,13 +15,14 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v3.0</p>
+        <p>运营管理系统 v3.1</p>
       </div>
 
       <nav class="nav">
@@ -234,9 +235,9 @@
           <div class="panel-header">
             <h3>支出记录</h3>
             <div class="panel-actions">
-              <button class="secondary-btn" id="importExpensePdfBtn">PDF读取</button>
+              <button class="secondary-btn" id="importExpensePdfBtn" type="button">凭证读取</button>
               <button class="primary-btn" data-open-modal="expense">新增支出</button>
-              <input type="file" id="expensePdfInput" accept="application/pdf,.pdf" class="hidden" />
+              <input type="file" id="expensePdfInput" accept="application/pdf,.pdf,image/*,.jpg,.jpeg,.png" class="hidden" />
             </div>
           </div>
           <div class="toolbar finance-toolbar">
@@ -248,7 +249,7 @@
             <table>
               <thead>
                 <tr>
-                  <th>日期</th><th>归属月份</th><th>业务归属</th><th>分类</th><th>学生</th><th>说明</th><th>账户</th><th>币种</th><th>金额</th><th>状态</th><th>经费</th><th>收据</th><th>操作</th>
+                  <th>日期</th><th>归属月份</th><th>业务归属</th><th>分类</th><th>学生</th><th>说明</th><th>账户</th><th>币种</th><th>金额</th><th>状态</th><th>经费</th><th>收据</th><th>凭证</th><th>操作</th>
                 </tr>
               </thead>
               <tbody id="expensesTable"></tbody>
@@ -317,6 +318,6 @@
     </div>
   </div>
 
-  <script src="./app.js?v=3.0"></script>
+  <script src="./app.js?v=3.1"></script>
 </body>
 </html>

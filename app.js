@@ -532,7 +532,7 @@ async function deleteFilteredIncome() {
   showMessage(`已删除 ${rows.length} 条收入记录。`, "ok");
 }
 
-function deleteFilteredExpenses() {
+async function deleteFilteredExpenses() {
   const rows = filterFinanceRows(state.expenseRecords, "expense");
   if (!rows.length) {
     showMessage("当前筛选条件下没有可删除的支出记录。", "error");

@@ -637,51 +637,50 @@ function renderFinanceSummary() {
 
 function bindNavigation() {
   document.querySelectorAll(".nav-btn[data-page]").forEach(btn => {
-    btn.addEventListener("click", () => { if (btn.dataset.page) switchPage(btn.dataset.page); });
+    btn.onclick = () => { if (btn.dataset.page) switchPage(btn.dataset.page); };
   });
 }
 
 function switchPage(page) {
-  state.page = page;
-  document.querySelectorAll(".nav-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.page === page));
-  document.querySelectorAll(".page").forEach(section => section.classList.toggle("active", section.id === `page-${page}`));
-  setText("pageTitle", pageMeta[page][0]);
-  setText("pageSubtitle", pageMeta[page][1]);
-}
+  if (!page) return;
 
+  document.querySelectorAll(".nav-btn[data-page]").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.page === page);
+  });
 
-async function recalcAccountBalances() {
-  const ok = confirm("将根据当前收入/支出记录重新计算所有账户余额。\n\n计算方式：opening_balance + 已收收入 - 已支付/已报销支出\n\n是否继续？");
-  if (!ok) return;
+  document.querySelectorAll(".page").forEach(section => {
+    section.classList.toggle("active", section.id === `page-${page}`);
+  });
 
-  try {
-    showMessage("正在重算账户余额...", "ok");
+  const metaSource =
+    (typeof pageMeta !== "undefined" && pageMeta) ||
+    (typeof pageInfo !== "undefined" && pageInfo) ||
+    (typeof pageTitles !== "undefined" && pageTitles) ||
+    {};
 
-    for (const account of state.accounts) {
-      const incomeTotal = state.incomeRecords
-        .filter(x => x.account_id === account.id && x.status === "received")
-        .reduce((sum, x) => sum + Number(x.amount || 0), 0);
+  const meta = metaSource[page] || {
+    home: ["首页", "系统基础骨架与云端连接测试"],
+    business: ["业务归属", "管理公司与个人业务归属"],
+    students: ["学生管理", "管理学生基础资料与升学信息"],
+    lessons: ["课时管理", "管理学生预定课时与实际课时"],
+    teachers: ["老师管理", "管理老师资料与工资信息"],
+    subjects: ["科目管理", "管理课程科目与分类"],
+    accounts: ["账户管理", "管理公司账户与垫付账户"],
+    income: ["收入记录", "登记学费等收入，并联动账户余额"],
+    expense: ["支出记录", "登记公司/个人名义支出，并联动账户余额"],
+    finance: ["公司收支", "按月份和业务归属查看收支与账户余额"],
+    reimbursements: ["报销管理", "管理垫付账户向公司账户报销"],
+    backup: ["备份/恢复", "导出当前数据备份"],
+  }[page] || [page, ""];
 
-      const expenseTotal = state.expenseRecords
-        .filter(x => x.account_id === account.id && (x.status === "paid" || x.status === "reimbursed"))
-        .reduce((sum, x) => sum + Number(x.amount || 0), 0);
+  const titleEl = document.getElementById("pageTitle");
+  const subtitleEl = document.getElementById("pageSubtitle");
+  if (titleEl) titleEl.textContent = Array.isArray(meta) ? meta[0] : (meta.title || page);
+  if (subtitleEl) subtitleEl.textContent = Array.isArray(meta) ? (meta[1] || "") : (meta.subtitle || "");
 
-      const nextBalance = Number(account.opening_balance || 0) + incomeTotal - expenseTotal;
-
-      const { error } = await db
-        .from(tables.accounts)
-        .update({ current_balance: nextBalance })
-        .eq("id", account.id);
-
-      if (error) throw error;
-    }
-
-    await loadAll();
-    renderAll();
-    showMessage("账户余额已重算完成。", "ok");
-  } catch (error) {
-    console.error(error);
-    showMessage(`重算失败：${error.message || error}`, "error");
+  if (page === "lessons") {
+    updateLessonFilters?.();
+    renderLessons?.();
   }
 }
 
@@ -891,6 +890,7 @@ function closeModal() {
   document.getElementById("modal").classList.add("hidden");
   document.getElementById("modalForm").innerHTML = "";
   state.editing = null;
+  state.pendingExpenseAttachment = null;
   state.isSavingForm = false;
 }
 
@@ -1697,6 +1697,7 @@ async function uploadPendingExpenseAttachment(expenseRecord) {
   }
 
   state.pendingExpenseAttachment = null;
+  showMessage("凭证已上传并关联到支出记录。", "ok");
 }
 
 async function syncFinanceAccountEffect(type, oldRecord, newRecord) {
@@ -1839,6 +1840,47 @@ function applyExpensePrefillToModal(data) {
   });
 }
 
+
+
+function attachManualExpenseAttachmentArea(type) {
+  if (type !== "expense") return;
+
+  const form = document.getElementById("modalForm");
+  if (!form || document.getElementById("manualExpenseAttachmentInput")) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "form-row full attachment-upload-row";
+  wrapper.innerHTML = `
+    <label>凭证附件</label>
+    <div class="attachment-upload-box">
+      <button type="button" class="secondary-btn" id="manualExpenseAttachmentBtn">上传凭证</button>
+      <span id="manualExpenseAttachmentName" class="attachment-upload-name">未选择文件</span>
+      <input type="file" id="manualExpenseAttachmentInput" accept="application/pdf,.pdf,image/*,.jpg,.jpeg,.png" class="hidden" />
+      <p class="form-help">用于给手动输入或已存在的支出追加凭证，不会自动识别金额。</p>
+    </div>
+  `;
+
+  form.appendChild(wrapper);
+
+  const btn = document.getElementById("manualExpenseAttachmentBtn");
+  const input = document.getElementById("manualExpenseAttachmentInput");
+  const name = document.getElementById("manualExpenseAttachmentName");
+
+  btn.onclick = () => input.click();
+  input.onchange = () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+
+    state.pendingExpenseAttachment = {
+      file,
+      extractedText: "",
+      sourceType: "manual_upload",
+    };
+
+    name.textContent = file.name;
+    showMessage("凭证已选择。保存支出后会自动上传。", "ok");
+  };
+}
 
 function bindExpensePdfImport() {
   const btn = document.getElementById("importExpensePdfBtn");

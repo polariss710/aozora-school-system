@@ -514,3 +514,20 @@ tr.dragging {
 .subsection-header .subsection-title {
   margin: 0;
 }
+
+.attachment-upload-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.attachment-upload-name {
+  color: var(--muted);
+  font-size: 13px;
+}
+.form-help {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}

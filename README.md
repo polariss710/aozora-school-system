@@ -18,6 +18,22 @@
 
 
 
+
+
+### v5.6
+- 修复课时管理页面仍出现 `Cannot read properties of undefined (reading '0')` 的 Console 报错。
+- 重写页面切换函数，页面标题信息缺失时使用兜底值，不再中断页面切换。
+- 导航按钮绑定改为只处理带 `data-page` 的菜单按钮，避免误触发 switchPage。
+- app.js / style.css 版本参数更新为 v5.6。
+- 本版无 SQL 修改。
+
+### v5.5
+- 支出新增/编辑弹窗增加“上传凭证”按钮。
+- 支持给手动输入的支出或已存在支出追加 PDF / JPG / PNG 凭证。
+- 手动上传凭证不会自动识别金额，只会在保存支出后上传并关联到该支出记录。
+- app.js / style.css 版本参数更新为 v5.5。
+- 本版无 SQL 修改。
+
 ### v5.4
 - 修复课时管理中点击菜单/新增课时报错的问题。
 - 修复 `teacherOptions is not defined`，新增课时弹窗可正常打开。

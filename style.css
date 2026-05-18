@@ -531,3 +531,22 @@ tr.dragging {
   color: var(--muted);
   font-size: 12px;
 }
+
+.lesson-pair-head {
+  text-align: center;
+  background: #eaf6fd;
+  color: var(--primary-dark);
+  font-weight: 800;
+}
+.lesson-pair-head.actual {
+  background: #eef8f1;
+}
+.lesson-empty-side {
+  color: var(--muted);
+  text-align: center;
+  background: #fafcff;
+}
+.muted-small {
+  color: var(--muted);
+  font-size: 12px;
+}

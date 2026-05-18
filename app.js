@@ -36,6 +36,7 @@ const state = {
   incomeRecords: [],
   expenseRecords: [],
   pendingExpenseAttachment: null,
+  isSavingForm: false,
   editing: null,
 };
 
@@ -624,6 +625,7 @@ function closeModal() {
   document.getElementById("modal").classList.add("hidden");
   document.getElementById("modalForm").innerHTML = "";
   state.editing = null;
+  state.isSavingForm = false;
 }
 
 
@@ -1056,6 +1058,8 @@ async function saveForm(e) {
   }
 
   if (result.error) {
+    state.isSavingForm = false;
+    if (submitButton) submitButton.disabled = false;
     showMessage(result.error.message, "error");
     return;
   }
@@ -1075,6 +1079,8 @@ async function saveForm(e) {
   }
   setDefaultExpenseMonthFilter();
   renderAll();
+  state.isSavingForm = false;
+  if (submitButton) submitButton.disabled = false;
   showMessage("保存成功。", "ok");
 }
 
@@ -1454,7 +1460,7 @@ function bindExpensePdfImport() {
         throw new Error("暂时只支持 PDF / JPG / PNG 文件。");
       }
 
-      const parsed = parseExpenseReceiptText(text, file.name);
+      const parsed = normalizeParsedExpenseAmount(parseExpenseReceiptText(text, file.name), text);
       state.pendingExpenseAttachment = {
         file,
         extractedText: text,
@@ -1505,6 +1511,20 @@ function applyExpensePrefillToModal(data) {
     if (!el || value === undefined || value === null) return;
     el.value = value;
   });
+}
+
+
+function normalizeParsedExpenseAmount(parsed, rawText) {
+  if (!parsed) return parsed;
+  const amount = Number(parsed.amount || 0);
+  if (amount > 0 && amount >= 100) return parsed;
+
+  const fallback = extractAnyYenAmount(rawText || "");
+  if (fallback > 0) {
+    parsed.amount = fallback;
+  }
+
+  return parsed;
 }
 
 function parseExpenseReceiptText(text, fileName = "") {
@@ -1660,25 +1680,43 @@ function extractWarekiDate(text) {
 
 function extractYenAmountAfter(text, label) {
   const safeLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const regex = new RegExp(`${safeLabel}[\\s\\S]{0,180}(?:JP\\s*)?[¥￥]?\\s*([0-9,]+)\\s*円?`);
-  const match = text.match(regex);
-  return match ? Number(match[1].replace(/,/g, "")) : 0;
+  const patterns = [
+    new RegExp(`${safeLabel}[\\s\\S]{0,180}(?:JP\\s*)?[¥￥]\\s*([0-9][0-9,]*)`),
+    new RegExp(`${safeLabel}[\\s\\S]{0,180}([0-9][0-9,]*)\\s*円`)
+  ];
+
+  for (const regex of patterns) {
+    const match = text.match(regex);
+    if (match) return Number(match[1].replace(/,/g, ""));
+  }
+
+  return 0;
 }
 
 function extractAnyYenAmount(text) {
   const preferred = [
-    /合計金額(?:（税込）)?[\s\S]{0,100}(?:JP\s*)?[¥￥]?\s*([0-9,]+)\s*円?/,
-    /総計[\s\S]{0,100}(?:JP\s*)?[¥￥]?\s*([0-9,]+)\s*円?/,
-    /ご請求額合計(?:（税込）)?[\s\S]{0,100}(?:JP\s*)?[¥￥]?\s*([0-9,]+)\s*円?/,
-    /已扣款[\s\S]{0,100}(?:JP\s*)?[¥￥]\s*([0-9,]+)/,
-    /([0-9,]+)\s*円/,
-    /(?:JP\s*)?[¥￥]\s*([0-9,]+)/,
+    /已扣款[\s\S]{0,100}(?:JP\s*)?[¥￥]\s*([0-9][0-9,]*)/,
+    /合計金額(?:（税込）)?[\s\S]{0,100}(?:JP\s*)?[¥￥]?\s*([0-9][0-9,]*)\s*円?/,
+    /総計[\s\S]{0,100}(?:JP\s*)?[¥￥]?\s*([0-9][0-9,]*)\s*円?/,
+    /ご請求額合計(?:（税込）)?[\s\S]{0,100}(?:JP\s*)?[¥￥]?\s*([0-9][0-9,]*)\s*円?/,
+    /(?:JP\s*)?[¥￥]\s*([0-9][0-9,]*)/,
+    /([0-9][0-9,]*)\s*円/,
   ];
+
   for (const regex of preferred) {
     const match = text.match(regex);
-    if (match) return Number(match[1].replace(/,/g, ""));
+    if (match) {
+      const amount = Number(match[1].replace(/,/g, ""));
+      if (amount >= 100) return amount;
+    }
   }
-  return 0;
+
+  const all = [
+    ...[...text.matchAll(/(?:JP\s*)?[¥￥]\s*([0-9][0-9,]*)/g)].map(m => Number(m[1].replace(/,/g, ""))),
+    ...[...text.matchAll(/([0-9][0-9,]*)\s*円/g)].map(m => Number(m[1].replace(/,/g, ""))),
+  ].filter(n => Number.isFinite(n) && n >= 100);
+
+  return all.length ? Math.max(...all) : 0;
 }
 
 function extractUsdAmount(text) {

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="stylesheet" href="./style.css?v=5.0" />
+  <link rel="stylesheet" href="./style.css?v=5.1" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -22,7 +22,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v5.0</p>
+        <p>运营管理系统 v5.1</p>
       </div>
 
       <nav class="nav">
@@ -336,12 +336,18 @@
             <div class="stat-card"><span>记录数</span><strong id="reimbursementRecordCount">0</strong></div>
             <div class="stat-card"><span>已勾选待报销</span><strong id="selectedReimbursementAmount">0</strong></div>
           </div>
-          <h4 class="subsection-title">待报销支出</h4>
+          <div class="subsection-header">
+            <h4 class="subsection-title">待报销支出</h4>
+            <div class="panel-actions">
+              <button class="secondary-btn" id="selectAllPendingReimbursementBtn" type="button">全选当前筛选</button>
+              <button class="secondary-btn" id="clearPendingReimbursementSelectionBtn" type="button">清除选择</button>
+            </div>
+          </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>选择</th><th>日期</th><th>月份</th><th>业务归属</th><th>账户</th><th>分类</th><th>说明</th><th>币种</th><th>金额</th><th>报销状态</th>
+                  <th><input type="checkbox" id="pendingReimbursementCheckAll" /></th><th>日期</th><th>月份</th><th>业务归属</th><th>账户</th><th>分类</th><th>说明</th><th>币种</th><th>金额</th><th>报销状态</th>
                 </tr>
               </thead>
               <tbody id="pendingReimbursementTable"></tbody>
@@ -394,6 +400,6 @@
     </div>
   </div>
 
-  <script src="./app.js?v=5.0"></script>
+  <script src="./app.js?v=5.1"></script>
 </body>
 </html>

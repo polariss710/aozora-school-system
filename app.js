@@ -608,6 +608,7 @@ function expenseMonthLabel(yearMonth) {
 
 function bindReimbursementActions() {
   document.getElementById("reimburseSelectedBtn")?.addEventListener("click", createReimbursementFromSelectedExpenses);
+  bindPendingReimbursementSelectionControls();
   ["reimbursementMonthFilter", "reimbursementEntityFilter", "reimbursementStatusFilter", "reimbursementAccountFilter"].forEach(id => {
     document.getElementById(id)?.addEventListener("change", renderReimbursements);
   });
@@ -2084,6 +2085,7 @@ function renderReimbursements() {
     el.addEventListener("change", updateSelectedReimbursementTotal);
   });
   updateSelectedReimbursementTotal();
+  bindPendingReimbursementSelectionControls();
 
   table.innerHTML = rows.length ? rows.map(item => `
     <tr>
@@ -2108,6 +2110,55 @@ function updateSelectedReimbursementTotal() {
   const totals = typeof schoolV30Totals === "function" ? schoolV30Totals(selected) : sumFinanceByCurrency(selected);
   const fmt = typeof schoolV30FormatTotals === "function" ? schoolV30FormatTotals : formatFinanceTotals;
   setOptionalText("selectedReimbursementAmount", fmt(totals));
+}
+
+
+function getPendingReimbursementCheckboxes() {
+  return [...document.querySelectorAll(".reimbursement-expense-check")];
+}
+
+function selectAllPendingReimbursement() {
+  getPendingReimbursementCheckboxes().forEach(el => {
+    el.checked = true;
+  });
+  const checkAll = document.getElementById("pendingReimbursementCheckAll");
+  if (checkAll) checkAll.checked = true;
+  updateSelectedReimbursementTotal();
+}
+
+function clearPendingReimbursementSelection() {
+  getPendingReimbursementCheckboxes().forEach(el => {
+    el.checked = false;
+  });
+  const checkAll = document.getElementById("pendingReimbursementCheckAll");
+  if (checkAll) checkAll.checked = false;
+  updateSelectedReimbursementTotal();
+}
+
+function bindPendingReimbursementSelectionControls() {
+  const selectAllBtn = document.getElementById("selectAllPendingReimbursementBtn");
+  const clearBtn = document.getElementById("clearPendingReimbursementSelectionBtn");
+  const checkAll = document.getElementById("pendingReimbursementCheckAll");
+
+  if (selectAllBtn && selectAllBtn.dataset.boundV51 !== "true") {
+    selectAllBtn.dataset.boundV51 = "true";
+    selectAllBtn.addEventListener("click", selectAllPendingReimbursement);
+  }
+
+  if (clearBtn && clearBtn.dataset.boundV51 !== "true") {
+    clearBtn.dataset.boundV51 = "true";
+    clearBtn.addEventListener("click", clearPendingReimbursementSelection);
+  }
+
+  if (checkAll && checkAll.dataset.boundV51 !== "true") {
+    checkAll.dataset.boundV51 = "true";
+    checkAll.addEventListener("change", () => {
+      getPendingReimbursementCheckboxes().forEach(el => {
+        el.checked = checkAll.checked;
+      });
+      updateSelectedReimbursementTotal();
+    });
+  }
 }
 
 async function createReimbursementFromSelectedExpenses() {

@@ -502,3 +502,15 @@ tr.dragging {
   color: var(--text);
   font-size: 16px;
 }
+
+.subsection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 10px;
+  flex-wrap: wrap;
+}
+.subsection-header .subsection-title {
+  margin: 0;
+}

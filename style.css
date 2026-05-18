@@ -475,3 +475,11 @@ tr.dragging {
   align-items: center;
   flex-wrap: wrap;
 }
+
+.month-group-row td {
+  background: #eef7fd;
+  color: var(--primary-dark);
+  font-weight: 800;
+  font-size: 14px;
+  border-top: 1px solid var(--line);
+}

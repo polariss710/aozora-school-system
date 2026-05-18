@@ -1,3 +1,25 @@
+
+// === v4.1 global attachment renderer ===
+function renderAttachmentLinks(attachments) {
+  const list = attachments || [];
+  if (!Array.isArray(list) || list.length === 0) return "";
+
+  return list.map(file => {
+    const url = file.public_url || "";
+    const name = file.file_name || "凭证";
+    const label = typeof short === "function" ? short(name, 12) : String(name).slice(0, 12);
+
+    if (url) {
+      const safeUrl = typeof escAttr === "function" ? escAttr(url) : url;
+      const safeLabel = typeof esc === "function" ? esc(label) : label;
+      return `<a class="file-link" href="${safeUrl}" target="_blank" download>${safeLabel}</a>`;
+    }
+
+    return typeof esc === "function" ? esc(label) : label;
+  }).join("<br>");
+}
+
+
 const SUPABASE_URL = "https://xlcdqvlfzspcxdoidsrr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6c7EFHXfq256rvv8KvY0Yw_FrAZtb6x";
 
@@ -142,12 +164,24 @@ async function loadIncomeRecords() {
 }
 
 async function loadExpenseRecords() {
-  const { data, error } = await db
+  let { data, error } = await db
     .from(tables.expenses)
     .select("*, business_entity:school_business_entities(name, code), account:school_accounts(name, currency), attachments:school_expense_attachments(*)")
     .order("expense_date", { ascending: false })
     .order("created_at", { ascending: false });
-  if (error) return showMessage(error.message, "error");
+
+  if (error) {
+    console.warn("Expense attachment relation load failed, retrying without attachments.", error);
+    const retry = await db
+      .from(tables.expenses)
+      .select("*, business_entity:school_business_entities(name, code), account:school_accounts(name, currency)")
+      .order("expense_date", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (retry.error) return showMessage(retry.error.message, "error");
+    data = retry.data || [];
+  }
+
   state.expenseRecords = data || [];
 }
 

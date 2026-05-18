@@ -4,6 +4,14 @@
 
 
 
+
+### v4.1
+- 修复 v4.0 中 `renderAttachmentLinks is not defined` 仍然出现的问题。
+- 将附件链接渲染函数提升到 app.js 顶部，确保支出列表渲染时一定可用。
+- 支出记录读取附件关联失败时，会自动降级为不带附件读取，避免整页支出列表空白。
+- app.js / style.css 版本参数更新为 v4.1。
+- 本版无 SQL 修改。
+
 ### v4.0
 - 修复 `renderAttachmentLinks is not defined` 导致支出记录无法渲染的问题。
 - 强制将 app.js / style.css 版本参数更新为 v4.0，避免浏览器继续使用 v3.8 缓存。

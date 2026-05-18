@@ -1025,6 +1025,7 @@ function syncFinanceFilterAfterSave(type, record) {
 
 async function saveForm(e) {
   e.preventDefault();
+  const form = e.target;
   if (!state.editing) return;
 
   const type = state.editing.type;
@@ -1059,7 +1060,7 @@ async function saveForm(e) {
 
   if (result.error) {
     state.isSavingForm = false;
-    form.dataset.saving = "false";
+    if (typeof form !== "undefined" && form) form.dataset.saving = "false";
     if (typeof submitButton !== "undefined" && submitButton) submitButton.disabled = false;
     showMessage(result.error.message, "error");
     return;
@@ -1081,7 +1082,7 @@ async function saveForm(e) {
   setDefaultExpenseMonthFilter();
   renderAll();
   state.isSavingForm = false;
-  form.dataset.saving = "false";
+  if (typeof form !== "undefined" && form) form.dataset.saving = "false";
   if (typeof submitButton !== "undefined" && submitButton) submitButton.disabled = false;
   showMessage("保存成功。", "ok");
 }

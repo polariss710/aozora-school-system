@@ -7,6 +7,13 @@
 
 
 
+
+### v4.4
+- 修复保存动作成功后 Console 出现 `form is not defined` 的报错。
+- 调整保存表单的防重复提交逻辑，确保 `form` 变量作用域稳定。
+- app.js / style.css 版本参数更新为 v4.4。
+- 本版无 SQL 修改。
+
 ### v4.3
 - 修复保存支出后 `submitButton is not defined` 的报错。
 - 增强防重复提交逻辑，避免同一凭证保存出多条重复记录。

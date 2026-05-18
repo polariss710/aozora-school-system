@@ -1059,7 +1059,8 @@ async function saveForm(e) {
 
   if (result.error) {
     state.isSavingForm = false;
-    if (submitButton) submitButton.disabled = false;
+    form.dataset.saving = "false";
+    if (typeof submitButton !== "undefined" && submitButton) submitButton.disabled = false;
     showMessage(result.error.message, "error");
     return;
   }
@@ -1080,7 +1081,8 @@ async function saveForm(e) {
   setDefaultExpenseMonthFilter();
   renderAll();
   state.isSavingForm = false;
-  if (submitButton) submitButton.disabled = false;
+  form.dataset.saving = "false";
+  if (typeof submitButton !== "undefined" && submitButton) submitButton.disabled = false;
   showMessage("保存成功。", "ok");
 }
 
@@ -1527,6 +1529,22 @@ function normalizeParsedExpenseAmount(parsed, rawText) {
   return parsed;
 }
 
+
+function extractBankDebitAmount(text) {
+  const normalized = (text || "").replace(/\s+/g, " ");
+  // Bank-app style: "150,000 円 -" or "150,000円 -"
+  const debit = normalized.match(/([0-9][0-9,]*)\s*円\s*[−\-ー―]/);
+  if (debit) return Number(debit[1].replace(/,/g, ""));
+
+  // If OCR misses yen, prefer large number before balance marker
+  const beforeBalance = normalized.split(/残高|balance/i)[0] || normalized;
+  const amounts = [...beforeBalance.matchAll(/([0-9][0-9,]{2,})/g)]
+    .map(m => Number(m[1].replace(/,/g, "")))
+    .filter(n => Number.isFinite(n) && n >= 100);
+
+  return amounts.length ? Math.max(...amounts) : 0;
+}
+
 function parseExpenseReceiptText(text, fileName = "") {
   const rawText = text || "";
   const base = {
@@ -1619,7 +1637,7 @@ function parseExpenseReceiptText(text, fileName = "") {
       year_month: toYearMonth(date),
       expense_category: "tax_accounting",
       description: /150,000/.test(rawText) ? "PE ホウムショウ" : "会社設立・行政手続き関連費用",
-      amount: extractAnyYenAmount(rawText) || (/150,000/.test(rawText) ? 150000 : 40300),
+      amount: extractBankDebitAmount(rawText) || extractAnyYenAmount(rawText) || (/150,000/.test(rawText) ? 150000 : 40300),
       payment_method: /クレジット|card/i.test(rawText) ? "card" : "bank",
       tax_category: "租税公課",
       note: buildReceiptNote(fileName, rawText, ["司法/行政手续类凭证"]),
@@ -1694,6 +1712,9 @@ function extractYenAmountAfter(text, label) {
 }
 
 function extractAnyYenAmount(text) {
+  const source = text || "";
+  const beforeBalance = source.split(/残高|balance/i)[0] || source;
+
   const preferred = [
     /已扣款[\s\S]{0,100}(?:JP\s*)?[¥￥]\s*([0-9][0-9,]*)/,
     /合計金額(?:（税込）)?[\s\S]{0,100}(?:JP\s*)?[¥￥]?\s*([0-9][0-9,]*)\s*円?/,
@@ -1704,7 +1725,7 @@ function extractAnyYenAmount(text) {
   ];
 
   for (const regex of preferred) {
-    const match = text.match(regex);
+    const match = beforeBalance.match(regex);
     if (match) {
       const amount = Number(match[1].replace(/,/g, ""));
       if (amount >= 100) return amount;
@@ -1712,8 +1733,8 @@ function extractAnyYenAmount(text) {
   }
 
   const all = [
-    ...[...text.matchAll(/(?:JP\s*)?[¥￥]\s*([0-9][0-9,]*)/g)].map(m => Number(m[1].replace(/,/g, ""))),
-    ...[...text.matchAll(/([0-9][0-9,]*)\s*円/g)].map(m => Number(m[1].replace(/,/g, ""))),
+    ...[...beforeBalance.matchAll(/(?:JP\s*)?[¥￥]\s*([0-9][0-9,]*)/g)].map(m => Number(m[1].replace(/,/g, ""))),
+    ...[...beforeBalance.matchAll(/([0-9][0-9,]*)\s*円/g)].map(m => Number(m[1].replace(/,/g, ""))),
   ].filter(n => Number.isFinite(n) && n >= 100);
 
   return all.length ? Math.max(...all) : 0;

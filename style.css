@@ -489,3 +489,10 @@ tr.dragging {
   color: var(--muted);
   padding: 24px;
 }
+
+.finance-mini-stats {
+  margin: 12px 0;
+}
+.finance-mini-stats .stat-card {
+  min-height: 76px;
+}

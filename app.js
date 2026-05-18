@@ -308,6 +308,29 @@ function renderAccountsTable() {
   `).join("");
 }
 
+
+function renderFinanceMiniStats(type, rows) {
+  const total = typeof schoolV30Totals === "function" ? schoolV30Totals(rows) : sumFinanceByCurrency(rows);
+
+  if (type === "income") {
+    const received = rows.filter(x => x.status === "received");
+    const pending = rows.filter(x => x.status === "pending");
+    setOptionalText("incomeTotalAmount", (typeof schoolV30FormatTotals === "function" ? schoolV30FormatTotals(total) : formatFinanceTotals(total)));
+    setOptionalText("incomeReceivedAmount", (typeof schoolV30FormatTotals === "function" ? schoolV30FormatTotals(schoolV30Totals(received)) : formatFinanceTotals(sumFinanceByCurrency(received))));
+    setOptionalText("incomePendingAmount", (typeof schoolV30FormatTotals === "function" ? schoolV30FormatTotals(schoolV30Totals(pending)) : formatFinanceTotals(sumFinanceByCurrency(pending))));
+    setOptionalText("incomeRecordCount", rows.length);
+  }
+
+  if (type === "expense") {
+    const paid = rows.filter(x => x.status === "paid" || x.status === "reimbursed");
+    const unpaid = rows.filter(x => x.status === "unpaid");
+    setOptionalText("expenseTotalAmount", (typeof schoolV30FormatTotals === "function" ? schoolV30FormatTotals(total) : formatFinanceTotals(total)));
+    setOptionalText("expensePaidAmount", (typeof schoolV30FormatTotals === "function" ? schoolV30FormatTotals(schoolV30Totals(paid)) : formatFinanceTotals(sumFinanceByCurrency(paid))));
+    setOptionalText("expenseUnpaidAmount", (typeof schoolV30FormatTotals === "function" ? schoolV30FormatTotals(schoolV30Totals(unpaid)) : formatFinanceTotals(sumFinanceByCurrency(unpaid))));
+    setOptionalText("expenseRecordCount", rows.length);
+  }
+}
+
 function renderIncomeTable() {
   const tbody = document.getElementById("incomeTable");
   if (!tbody) return;
@@ -319,6 +342,8 @@ function renderIncomeTable() {
       if (ma !== mb) return mb.localeCompare(ma);
       return String(b.income_date || b.created_at || "").localeCompare(String(a.income_date || a.created_at || ""));
     });
+
+  renderFinanceMiniStats("income", rows);
 
   let lastMonth = "";
   const html = [];
@@ -366,6 +391,8 @@ function renderExpensesTable() {
       if (ma !== mb) return mb.localeCompare(ma);
       return String(b.expense_date || b.created_at || "").localeCompare(String(a.expense_date || a.created_at || ""));
     });
+
+  renderFinanceMiniStats("expense", rows);
 
   let lastMonth = "";
   const html = [];
@@ -417,7 +444,8 @@ function renderFinanceSummary() {
   const tbody = document.getElementById("financeAccountsTable");
   if (!tbody) return;
   const entity = document.getElementById("financeEntityFilter")?.value || "";
-  const rows = state.accounts.filter(x => !entity || x.business_entity_id === entity);
+  const account = document.getElementById("financeAccountFilter")?.value || "";
+  const rows = state.accounts.filter(x => (!entity || x.business_entity_id === entity) && (!account || x.id === account));
   tbody.innerHTML = rows.map(item => `
     <tr>
       <td>${esc(item.name)}</td>
@@ -506,18 +534,19 @@ function expenseMonthLabel(yearMonth) {
 }
 
 function bindFinanceFilters() {
-  ["incomeMonthFilter", "incomeEntityFilter"].forEach(id => {
+  ["incomeMonthFilter", "incomeEntityFilter", "incomeAccountFilter"].forEach(id => {
     document.getElementById(id)?.addEventListener("change", renderIncomeTable);
   });
-  ["expenseMonthFilter", "expenseEntityFilter"].forEach(id => {
+  ["expenseMonthFilter", "expenseEntityFilter", "expenseAccountFilter"].forEach(id => {
     document.getElementById(id)?.addEventListener("change", renderExpensesTable);
   });
-  ["financeMonthFilter", "financeEntityFilter"].forEach(id => {
+  ["financeMonthFilter", "financeEntityFilter", "financeAccountFilter"].forEach(id => {
     document.getElementById(id)?.addEventListener("change", renderFinanceSummary);
   });
   document.getElementById("incomeClearFilter")?.addEventListener("click", () => {
     document.getElementById("incomeMonthFilter").value = "";
     document.getElementById("incomeEntityFilter").value = "";
+    document.getElementById("incomeAccountFilter").value = "";
     renderIncomeTable();
   });
 
@@ -525,6 +554,7 @@ function bindFinanceFilters() {
   document.getElementById("expenseClearFilter")?.addEventListener("click", () => {
     document.getElementById("expenseMonthFilter").value = "";
     document.getElementById("expenseEntityFilter").value = "";
+    document.getElementById("expenseAccountFilter").value = "";
     renderExpensesTable();
   });
 
@@ -532,6 +562,7 @@ function bindFinanceFilters() {
   document.getElementById("financeClearFilter")?.addEventListener("click", () => {
     document.getElementById("financeMonthFilter").value = "";
     document.getElementById("financeEntityFilter").value = "";
+    document.getElementById("financeAccountFilter").value = "";
     renderFinanceSummary();
   });
 }
@@ -1429,17 +1460,27 @@ function accountEffect(type, record) {
 function filterFinanceRows(rows, scope) {
   let month = "";
   let entity = "";
+  let account = "";
+
   if (scope === "income") {
     month = document.getElementById("incomeMonthFilter")?.value || "";
     entity = document.getElementById("incomeEntityFilter")?.value || "";
+    account = document.getElementById("incomeAccountFilter")?.value || "";
   } else if (scope === "expense") {
     month = document.getElementById("expenseMonthFilter")?.value || "";
     entity = document.getElementById("expenseEntityFilter")?.value || "";
+    account = document.getElementById("expenseAccountFilter")?.value || "";
   } else {
     month = document.getElementById("financeMonthFilter")?.value || "";
     entity = document.getElementById("financeEntityFilter")?.value || "";
+    account = document.getElementById("financeAccountFilter")?.value || "";
   }
-  return rows.filter(x => (!month || x.year_month === month) && (!entity || x.business_entity_id === entity));
+
+  return rows.filter(x =>
+    (!month || x.year_month === month) &&
+    (!entity || x.business_entity_id === entity) &&
+    (!account || x.account_id === account)
+  );
 }
 
 function sumCny(rows) {
@@ -2217,7 +2258,8 @@ renderFinanceSummary = function() {
   const tbody = document.getElementById("financeAccountsTable");
   if (!tbody) return;
   const entity = document.getElementById("financeEntityFilter")?.value || "";
-  const rows = state.accounts.filter(x => !entity || x.business_entity_id === entity);
+  const account = document.getElementById("financeAccountFilter")?.value || "";
+  const rows = state.accounts.filter(x => (!entity || x.business_entity_id === entity) && (!account || x.id === account));
   tbody.innerHTML = rows.map(item => `
     <tr>
       <td>${esc(item.name)}</td>

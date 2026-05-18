@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="stylesheet" href="./style.css?v=4.5" />
+  <link rel="stylesheet" href="./style.css?v=4.6" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -22,7 +22,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v4.5</p>
+        <p>运营管理系统 v4.6</p>
       </div>
 
       <nav class="nav">
@@ -196,7 +196,7 @@
             <table>
               <thead>
                 <tr>
-                  <th>账户名</th><th>类型</th><th>币种</th><th>业务归属</th><th>初始余额</th><th>当前余额</th><th>公司账户</th><th>状态</th><th>操作</th>
+                  <th>账户名</th><th>类型</th><th>币种</th><th>业务归属</th><th>初始余额</th><th>账户当前余额（累计）</th><th>公司账户</th><th>状态</th><th>操作</th>
                 </tr>
               </thead>
               <tbody id="accountsTable"></tbody>
@@ -215,8 +215,15 @@
           <div class="toolbar finance-toolbar">
             <input type="month" id="incomeMonthFilter" />
             <select id="incomeEntityFilter"></select>
+            <select id="incomeAccountFilter"></select>
             <button class="secondary-btn" id="incomeClearFilter">清除筛选</button>
             <button class="danger-btn" id="incomeDeleteFilteredBtn" type="button">删除筛选收入</button>
+          </div>
+          <div class="cards-grid finance-mini-stats">
+            <div class="stat-card"><span>筛选收入合计</span><strong id="incomeTotalAmount">0</strong></div>
+            <div class="stat-card"><span>已收金额</span><strong id="incomeReceivedAmount">0</strong></div>
+            <div class="stat-card"><span>未收金额</span><strong id="incomePendingAmount">0</strong></div>
+            <div class="stat-card"><span>记录数</span><strong id="incomeRecordCount">0</strong></div>
           </div>
           <div class="table-wrap">
             <table>
@@ -244,8 +251,15 @@
           <div class="toolbar finance-toolbar">
             <input type="month" id="expenseMonthFilter" />
             <select id="expenseEntityFilter"></select>
+            <select id="expenseAccountFilter"></select>
             <button class="secondary-btn" id="expenseClearFilter">清除筛选</button>
             <button class="danger-btn" id="expenseDeleteFilteredBtn" type="button">删除筛选支出</button>
+          </div>
+          <div class="cards-grid finance-mini-stats">
+            <div class="stat-card"><span>筛选支出合计</span><strong id="expenseTotalAmount">0</strong></div>
+            <div class="stat-card"><span>已支付金额</span><strong id="expensePaidAmount">0</strong></div>
+            <div class="stat-card"><span>未支付金额</span><strong id="expenseUnpaidAmount">0</strong></div>
+            <div class="stat-card"><span>记录数</span><strong id="expenseRecordCount">0</strong></div>
           </div>
           <div class="table-wrap">
             <table>
@@ -268,6 +282,7 @@
           <div class="toolbar finance-toolbar">
             <input type="month" id="financeMonthFilter" />
             <select id="financeEntityFilter"></select>
+            <select id="financeAccountFilter"></select>
             <button class="secondary-btn" id="financeClearFilter">清除筛选</button>
           </div>
           <div class="cards-grid">
@@ -279,7 +294,7 @@
           <div class="table-wrap">
             <table>
               <thead>
-                <tr><th>账户</th><th>业务归属</th><th>币种</th><th>当前余额</th><th>账户类型</th><th>状态</th></tr>
+                <tr><th>账户</th><th>业务归属</th><th>币种</th><th>账户当前余额（累计）</th><th>账户类型</th><th>状态</th></tr>
               </thead>
               <tbody id="financeAccountsTable"></tbody>
             </table>
@@ -320,6 +335,6 @@
     </div>
   </div>
 
-  <script src="./app.js?v=4.5"></script>
+  <script src="./app.js?v=4.6"></script>
 </body>
 </html>

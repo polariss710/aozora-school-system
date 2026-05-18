@@ -501,8 +501,6 @@ function bindFinanceFilters() {
   });
 }
 
-
-async 
 async function deleteFilteredIncome() {
   const rows = filterFinanceRows(state.incomeRecords, "income");
   if (!rows.length) {

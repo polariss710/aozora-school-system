@@ -2,6 +2,18 @@
 
 ## 更新记录（倒序）
 
+### v3.6
+- 修复 v3.5 中残留独立 `async` 语句导致的 `async is not defined` 报错。
+- 重新校正删除筛选收入 / 删除筛选支出函数声明。
+- app.js / style.css 版本参数更新为 v3.6。
+- 本版无 SQL 修改。
+
+---
+
+# 青空进学塾运营管理系统
+
+## 更新记录（倒序）
+
 ### v3.5
 - 修复 v3.4 中 `await is only valid in async functions` 的语法错误。
 - 删除筛选收入 / 删除筛选支出的函数恢复为 async。

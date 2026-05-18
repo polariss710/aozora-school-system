@@ -31,6 +31,7 @@ const state = {
   businessEntities: [],
   subjects: [],
   lessonRecords: [],
+  pendingActualPlanId: null,
   students: [],
   teachers: [],
   accounts: [],
@@ -1355,12 +1356,66 @@ function syncFinanceFilterAfterSave(type, record) {
 }
 
 
+function findMatchingPlannedLesson(payload) {
+  if (!payload || payload.lesson_type !== "actual") return null;
+  const same = (a, b) => String(a || "") === String(b || "");
+  return (state.lessonRecords || []).find(x =>
+    x.lesson_type === "planned" &&
+    same(x.student_id, payload.student_id) &&
+    same(x.teacher_id, payload.teacher_id) &&
+    same(x.subject_id, payload.subject_id) &&
+    same(x.lesson_date, payload.lesson_date) &&
+    same(x.start_time, payload.start_time) &&
+    same(x.end_time, payload.end_time)
+  ) || null;
+}
+
 function normalizeLessonPayload(payload, type) {
   if (type !== "lesson") return payload;
+
   if (payload.lesson_date && !payload.year_month) {
     payload.year_month = String(payload.lesson_date).slice(0, 7);
   }
+
+  if (payload.lesson_type === "planned") {
+    payload.planned_lesson_id = null;
+    return payload;
+  }
+
+  if (payload.planned_lesson_id === "") {
+    payload.planned_lesson_id = null;
+  }
+
+  if (payload.lesson_type === "actual" && !payload.planned_lesson_id && state.pendingActualPlanId) {
+    payload.planned_lesson_id = state.pendingActualPlanId;
+  }
+
+  if (payload.lesson_type === "actual" && !payload.planned_lesson_id) {
+    const matched = findMatchingPlannedLesson(payload);
+    if (matched) payload.planned_lesson_id = matched.id;
+  }
+
   return payload;
+}
+
+
+async function repairLessonPlannedLinkAfterSave(type, payload, saved) {
+  if (type !== "lesson") return;
+  if (payload.lesson_type !== "actual") return;
+  if (!payload.planned_lesson_id) return;
+  if (!saved?.id) return;
+
+  // Ensure the relation is definitely written even if insert payload was affected by older form handling.
+  if (saved.planned_lesson_id !== payload.planned_lesson_id) {
+    const { error } = await db
+      .from(tables.lessons)
+      .update({ planned_lesson_id: payload.planned_lesson_id })
+      .eq("id", saved.id);
+
+    if (error) {
+      console.warn("Failed to repair planned_lesson_id", error);
+    }
+  }
 }
 
 async function saveForm(e) {
@@ -1399,6 +1454,8 @@ async function saveForm(e) {
     }
   }
 
+  normalizeLessonPayload(payload, type);
+
   const table = tableForType(type);
   const oldRecord = state.editing.id ? findLocal(type, state.editing.id) : null;
   let result;
@@ -1415,6 +1472,8 @@ async function saveForm(e) {
     showMessage(result.error.message, "error");
     return;
   }
+
+  await repairLessonPlannedLinkAfterSave(type, payload, result.data);
 
   if (type === "expense") {
     await uploadPendingExpenseAttachment(result.data);
@@ -1439,6 +1498,7 @@ async function saveForm(e) {
   state.isSavingForm = false;
   if (typeof form !== "undefined" && form) form.dataset.saving = "false";
   if (typeof submitButton !== "undefined" && submitButton) submitButton.disabled = false;
+  state.pendingActualPlanId = null;
   showMessage("保存成功。", "ok");
 }
 
@@ -3140,7 +3200,20 @@ function makeActualFromPlanned(id) {
     note: plan.note || "",
   };
 
+  state.pendingActualPlanId = plan.id;
   openCreateModal("lesson", prefill);
+
+  // Some older form builders may drop hidden/unknown fields, so force the relation value into the form.
+  const form = document.getElementById("modalForm");
+  let hidden = form?.querySelector('input[name="planned_lesson_id"]');
+  if (!hidden && form) {
+    hidden = document.createElement("input");
+    hidden.type = "hidden";
+    hidden.name = "planned_lesson_id";
+    form.appendChild(hidden);
+  }
+  if (hidden) hidden.value = plan.id;
+
   document.getElementById("modalTitle").textContent = "从预定生成实际课时";
 }
 
@@ -3200,9 +3273,16 @@ renderLessons = function() {
   const unlinkedActual = [];
 
   actualRows.forEach(actual => {
-    if (actual.planned_lesson_id) {
-      if (!actualByPlan.has(actual.planned_lesson_id)) actualByPlan.set(actual.planned_lesson_id, []);
-      actualByPlan.get(actual.planned_lesson_id).push(actual);
+    let planId = actual.planned_lesson_id;
+
+    if (!planId) {
+      const matched = findMatchingPlannedLesson(actual);
+      if (matched) planId = matched.id;
+    }
+
+    if (planId) {
+      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
+      actualByPlan.get(planId).push(actual);
     } else {
       unlinkedActual.push(actual);
     }

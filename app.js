@@ -75,6 +75,7 @@ const state = {
   pendingExpenseAttachment: null,
   isSavingForm: false,
   isSavingReimbursement: false,
+  activeReimbursementSubmitKey: "",
   editing: null,
 };
 
@@ -825,18 +826,31 @@ function expenseMonthLabel(yearMonth) {
 
 
 function bindReimbursementActions() {
-  document.getElementById("reimburseSelectedBtn")?.addEventListener("click", createReimbursementFromSelectedExpenses);
+  const reimburseBtn = document.getElementById("reimburseSelectedBtn");
+  if (reimburseBtn) {
+    reimburseBtn.onclick = createReimbursementFromSelectedExpenses;
+  }
+
   bindPendingReimbursementSelectionControls();
+
   ["reimbursementMonthFilter", "reimbursementEntityFilter", "reimbursementStatusFilter", "reimbursementAccountFilter"].forEach(id => {
-    document.getElementById(id)?.addEventListener("change", renderReimbursements);
+    const el = document.getElementById(id);
+    if (!el || el.dataset.boundReimbursementFilterV71 === "true") return;
+    el.dataset.boundReimbursementFilterV71 = "true";
+    el.addEventListener("change", renderReimbursements);
   });
-  document.getElementById("reimbursementClearFilter")?.addEventListener("click", () => {
-    document.getElementById("reimbursementMonthFilter").value = "";
-    document.getElementById("reimbursementEntityFilter").value = "";
-    document.getElementById("reimbursementStatusFilter").value = "";
-    document.getElementById("reimbursementAccountFilter").value = "";
-    renderReimbursements();
-  });
+
+  const clearBtn = document.getElementById("reimbursementClearFilter");
+  if (clearBtn) {
+    clearBtn.onclick = () => {
+      document.getElementById("reimbursementMonthFilter").value = "";
+      document.getElementById("reimbursementEntityFilter").value = "";
+      document.getElementById("reimbursementStatusFilter").value = "";
+      const accountFilter = document.getElementById("reimbursementAccountFilter");
+      if (accountFilter) accountFilter.value = "";
+      renderReimbursements();
+    };
+  }
 }
 
 function bindFinanceFilters() {
@@ -1528,12 +1542,27 @@ async function schoolStableRepairLessonPairV70(type, payload, saved) {
   }
 }
 
+
+function resetFormSavingStateV71(form, submitButton) {
+  state.isSavingForm = false;
+  state.isSavingReimbursement = false;
+  state.activeReimbursementSubmitKey = "";
+  state.activeReimbursementSubmitKey = "";
+  if (form) form.dataset.saving = "false";
+  if (submitButton) submitButton.disabled = false;
+}
+
 async function saveForm(e) {
   e.preventDefault();
   const form = e.target;
+  const submitButton = form?.querySelector('button[type="submit"], .primary-btn');
   if (!state.editing) return;
 
   const type = state.editing.type;
+  if (state.isSavingForm || form?.dataset?.saving === "true") return;
+  state.isSavingForm = true;
+  if (form) form.dataset.saving = "true";
+  if (submitButton) submitButton.disabled = true;
   const fd = new FormData(e.target);
   const fields = schoolGetFieldsV24(type);
   const payload = {};
@@ -1557,14 +1586,33 @@ async function saveForm(e) {
   if (type === "expense" && !state.editing.id) {
     const okToSave = await confirmDuplicateExpenseIfNeeded(payload);
     if (!okToSave) {
-      state.isSavingForm = false;
-      if (typeof form !== "undefined" && form) form.dataset.saving = "false";
-      if (typeof submitButton !== "undefined" && submitButton) submitButton.disabled = false;
+      resetFormSavingStateV71(form, submitButton);
       return;
     }
   }
 
   normalizeLessonPayload(payload, type);
+
+
+  if (type === "reimbursement" && !state.editing.id) {
+    payload.status = payload.status || "paid";
+
+    const ids = (state.pendingReimbursementExpenseIds || []).slice().sort();
+    const submitKey = [
+      payload.year_month || "",
+      payload.from_account_id || "",
+      payload.to_account_id || "",
+      payload.currency || "",
+      String(payload.amount || 0),
+      ids.join(",")
+    ].join("|");
+
+    if (state.activeReimbursementSubmitKey === submitKey) {
+      return;
+    }
+
+    state.activeReimbursementSubmitKey = submitKey;
+  }
 
   const table = tableForType(type);
   const oldRecord = state.editing.id ? findLocal(type, state.editing.id) : null;
@@ -1576,9 +1624,7 @@ async function saveForm(e) {
   }
 
   if (result.error) {
-    state.isSavingForm = false;
-    if (typeof form !== "undefined" && form) form.dataset.saving = "false";
-    if (typeof submitButton !== "undefined" && submitButton) submitButton.disabled = false;
+    resetFormSavingStateV71(form, submitButton);
     showMessage(result.error.message, "error");
     return;
   }
@@ -1607,9 +1653,7 @@ async function saveForm(e) {
   }
   setDefaultExpenseMonthFilter();
   renderAll();
-  state.isSavingForm = false;
-  if (typeof form !== "undefined" && form) form.dataset.saving = "false";
-  if (typeof submitButton !== "undefined" && submitButton) submitButton.disabled = false;
+  resetFormSavingStateV71(form, submitButton);
   state.pendingActualPlanId = null;
   showMessage("保存成功。", "ok");
 }
@@ -2522,7 +2566,7 @@ function renderReimbursements() {
       <td>${esc(item.to_account?.name || accountName(item.to_account_id))}</td>
       <td>${esc(item.currency || "")}</td>
       <td>${money(item.amount)}</td>
-      <td>${reimbursementStatusBadge(item.status)}</td>
+      <td>${reimbursementStatusBadge(item.status || "paid")}</td>
       <td>${esc(short(item.note, 24))}</td>
       <td>${actionButtons("reimbursement", item.id)}</td>
     </tr>
@@ -2603,6 +2647,8 @@ async function createReimbursementFromSelectedExpenses() {
   if (!companyAccount) return showMessage("请先在账户管理中设置公司账户。", "error");
 
   const amount = selected.reduce((sum, x) => sum + Number(x.amount || 0), 0);
+  state.activeReimbursementSubmitKey = "";
+
   const prefill = {
     reimbursement_date: todayStr(),
     year_month: first.year_month || currentYearMonth(),

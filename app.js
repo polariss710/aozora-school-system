@@ -35,6 +35,7 @@ const state = {
   accounts: [],
   incomeRecords: [],
   expenseRecords: [],
+  reimbursements: [],
   pendingExpenseAttachment: null,
   isSavingForm: false,
   editing: null,
@@ -50,6 +51,7 @@ const pageMeta = {
   income: ["收入记录", "登记公司/个人名义收入，并联动账户余额"],
   expenses: ["支出记录", "登记公司/个人名义支出，并联动账户余额"],
   finance: ["公司收支", "按月份和业务归属查看收支与账户余额"],
+  reimbursements: ["报销管理", "管理垫付账户向公司账户报销"],
   backup: ["备份/恢复", "导出基础数据 JSON 备份"],
 };
 
@@ -62,7 +64,11 @@ const tables = {
   income: "school_income_records",
   expenses: "school_expense_records",
   transactions: "school_account_transactions",
+  reimbursements: "school_reimbursements",
+  reimbursementItems: "school_reimbursement_items",
   expenseAttachments: "school_expense_attachments",
+  reimbursements: "school_reimbursements",
+  reimbursementItems: "school_reimbursement_items",
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -106,6 +112,7 @@ async function loadAll() {
     loadAccounts(),
     loadIncomeRecords(),
     loadExpenseRecords(),
+    loadReimbursements(),
   ]);
 }
 
@@ -197,6 +204,30 @@ function renderAll() {
   renderIncomeTable();
   renderExpensesTable();
   renderFinanceSummary();
+  renderReimbursements();
+}
+
+
+async function loadReimbursements() {
+  const { data, error } = await db
+    .from(tables.reimbursements)
+    .select("*, business_entity:school_business_entities(name, code), from_account:school_accounts!school_reimbursements_from_account_id_fkey(name, currency), to_account:school_accounts!school_reimbursements_to_account_id_fkey(name, currency), items:school_reimbursement_items(*)")
+    .order("reimbursement_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.warn("Reimbursement relation load failed, retrying without relation", error);
+    const retry = await db
+      .from(tables.reimbursements)
+      .select("*")
+      .order("reimbursement_date", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (retry.error) return showMessage(retry.error.message, "error");
+    state.reimbursements = retry.data || [];
+    return;
+  }
+
+  state.reimbursements = data || [];
 }
 
 function renderStats() {
@@ -527,6 +558,7 @@ function bindGlobalActions() {
   document.getElementById("recalcAccountBalancesBtnFinance")?.addEventListener("click", recalcAccountBalances);
   bindExpensePdfImport();
   bindFinanceFilters();
+  bindReimbursementActions();
 
   document.body.addEventListener("click", async (e) => {
     const editBtn = e.target.closest("[data-edit]");
@@ -546,9 +578,11 @@ function setDefaultExpenseMonthFilter() {
   const incomeMonth = document.getElementById("incomeMonthFilter");
   const expenseMonth = document.getElementById("expenseMonthFilter");
   const financeMonth = document.getElementById("financeMonthFilter");
+  const reimbursementMonth = document.getElementById("reimbursementMonthFilter");
   if (incomeMonth && !incomeMonth.value) incomeMonth.value = currentYearMonth();
   if (expenseMonth && !expenseMonth.value) expenseMonth.value = currentYearMonth();
   if (financeMonth && !financeMonth.value) financeMonth.value = currentYearMonth();
+  if (reimbursementMonth && !reimbursementMonth.value) reimbursementMonth.value = currentYearMonth();
 }
 
 function displayRecordDate(value) {
@@ -569,6 +603,20 @@ function expenseMonthLabel(yearMonth) {
   const [year, month] = String(yearMonth).split("-");
   if (!year || !month) return yearMonth;
   return `${year}年${Number(month)}月`;
+}
+
+
+function bindReimbursementActions() {
+  document.getElementById("reimburseSelectedBtn")?.addEventListener("click", createReimbursementFromSelectedExpenses);
+  ["reimbursementMonthFilter", "reimbursementEntityFilter", "reimbursementStatusFilter"].forEach(id => {
+    document.getElementById(id)?.addEventListener("change", renderReimbursements);
+  });
+  document.getElementById("reimbursementClearFilter")?.addEventListener("click", () => {
+    document.getElementById("reimbursementMonthFilter").value = "";
+    document.getElementById("reimbursementEntityFilter").value = "";
+    document.getElementById("reimbursementStatusFilter").value = "";
+    renderReimbursements();
+  });
 }
 
 function bindFinanceFilters() {
@@ -667,7 +715,7 @@ function updateFinanceFilters() {
   const options = `<option value="">全部业务归属</option>` + state.businessEntities
     .map(x => `<option value="${escAttr(x.id)}">${esc(x.name)}</option>`)
     .join("");
-  ["incomeEntityFilter", "expenseEntityFilter", "financeEntityFilter"].forEach(id => {
+  ["incomeEntityFilter", "expenseEntityFilter", "financeEntityFilter", "reimbursementEntityFilter"].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     const old = el.value;
@@ -798,6 +846,18 @@ function getFields(type) {
     { name: "is_business_expense", label: "可作为经费", type: "checkbox", default: true },
     { name: "tax_category", label: "税务分类", type: "select", default: "待确认", options: taxCategoryOptions() },
     { name: "receipt_status", label: "收据/发票", type: "select", default: "待确认", options: receiptStatusOptions() },
+    { name: "note", label: "备注", type: "textarea", full: true },
+  ];
+
+  if (type === "reimbursement") return [
+    { name: "reimbursement_date", label: "报销日期", type: "date", default: todayStr(), required: true },
+    { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
+    { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
+    { name: "from_account_id", label: "公司出款账户", type: "select", options: companyAccountOptions(), required: true },
+    { name: "to_account_id", label: "报销对象账户", type: "select", options: advanceAccountOptions(), required: true },
+    { name: "currency", label: "币种", type: "select", default: "JPY", options: currencyOptions() },
+    { name: "amount", label: "报销金额", type: "number", default: 0, required: true },
+    { name: "status", label: "状态", type: "select", default: "paid", options: reimbursementStatusOptions() },
     { name: "note", label: "备注", type: "textarea", full: true },
   ];
 
@@ -1149,6 +1209,11 @@ async function saveForm(e) {
     await uploadPendingExpenseAttachment(result.data);
   }
 
+  if (type === "reimbursement") {
+    await syncReimbursementAccountEffect(oldRecord, result.data);
+    await saveReimbursementItems(result.data);
+  }
+
   if (type === "income" || type === "expense") {
     await syncFinanceAccountEffect(type, oldRecord, result.data);
   }
@@ -1174,6 +1239,16 @@ async function deleteRecord(type, id) {
     await syncFinanceAccountEffect(type, item, null);
   }
 
+  if (type === "reimbursement") {
+    await syncReimbursementAccountEffect(item, null);
+    const itemRows = item.items || [];
+    for (const row of itemRows) {
+      if (row.expense_id) {
+        await db.from(tables.expenses).update({ reimbursement_status: "pending" }).eq("id", row.expense_id);
+      }
+    }
+  }
+
   const { error } = await db.from(tableForType(type)).delete().eq("id", id);
   if (error) {
     showMessage(error.message, "error");
@@ -1195,6 +1270,7 @@ function findLocal(type, id) {
     account: state.accounts,
     income: state.incomeRecords,
     expense: state.expenseRecords,
+    reimbursement: state.reimbursements,
   };
   return (map[type] || []).find(x => x.id === id) || {};
 }
@@ -1208,6 +1284,7 @@ function tableForType(type) {
     account: tables.accounts,
     income: tables.income,
     expense: tables.expenses,
+    reimbursement: tables.reimbursements,
   }[type];
 }
 
@@ -1220,6 +1297,7 @@ function modalTitle(type, edit) {
     account: "账户",
     income: "收入",
     expense: "支出",
+    reimbursement: "报销",
   };
   return `${edit ? "编辑" : "新增"}${map[type]}`;
 }
@@ -1927,6 +2005,177 @@ function toYearMonth(dateStr) {
 }
 
 
+
+function reimbursementStatusBadge(status) {
+  const map = {
+    pending: ["待报销", "gray"],
+    paid: ["已报销", ""],
+    cancelled: ["取消", "red"],
+    not_required: ["不需要", "gray"],
+  };
+  const [text, cls] = map[status] || [status || "", "gray"];
+  return badge(text, cls);
+}
+
+function accountName(id) {
+  return state.accounts.find(x => x.id === id)?.name || "";
+}
+
+function filterReimbursements(rows) {
+  const month = document.getElementById("reimbursementMonthFilter")?.value || "";
+  const entity = document.getElementById("reimbursementEntityFilter")?.value || "";
+  const status = document.getElementById("reimbursementStatusFilter")?.value || "";
+  return (rows || []).filter(x =>
+    (!month || x.year_month === month) &&
+    (!entity || x.business_entity_id === entity) &&
+    (!status || x.status === status)
+  );
+}
+
+function pendingReimbursementExpenses() {
+  const month = document.getElementById("reimbursementMonthFilter")?.value || "";
+  const entity = document.getElementById("reimbursementEntityFilter")?.value || "";
+  return (state.expenseRecords || []).filter(x =>
+    x.reimbursement_status === "pending" &&
+    (!month || x.year_month === month) &&
+    (!entity || x.business_entity_id === entity)
+  );
+}
+
+function renderReimbursements() {
+  const table = document.getElementById("reimbursementsTable");
+  const pendingTable = document.getElementById("pendingReimbursementTable");
+  if (!table || !pendingTable) return;
+
+  const rows = filterReimbursements(state.reimbursements);
+  const pendingRows = pendingReimbursementExpenses();
+
+  const totalPaid = typeof schoolV30Totals === "function" ? schoolV30Totals(rows.filter(x => x.status === "paid")) : sumFinanceByCurrency(rows.filter(x => x.status === "paid"));
+  const pendingTotal = typeof schoolV30Totals === "function" ? schoolV30Totals(pendingRows) : sumFinanceByCurrency(pendingRows);
+  const totalAll = typeof schoolV30Totals === "function" ? schoolV30Totals(rows) : sumFinanceByCurrency(rows);
+  const fmt = typeof schoolV30FormatTotals === "function" ? schoolV30FormatTotals : formatFinanceTotals;
+
+  setOptionalText("reimbursementTotalAmount", fmt(totalAll));
+  setOptionalText("reimbursementPaidAmount", fmt(totalPaid));
+  setOptionalText("pendingReimbursementAmount", fmt(pendingTotal));
+  setOptionalText("reimbursementRecordCount", rows.length);
+
+  pendingTable.innerHTML = pendingRows.length ? pendingRows.map(item => `
+    <tr>
+      <td><input type="checkbox" class="reimbursement-expense-check" value="${escAttr(item.id)}" /></td>
+      <td>${esc(displayRecordDate(item.expense_date || item.created_at))}</td>
+      <td>${esc(item.year_month || "")}</td>
+      <td>${esc(item.business_entity?.name || "")}</td>
+      <td>${esc(item.account?.name || "")}</td>
+      <td>${esc(expenseCategoryLabel(item.expense_category))}</td>
+      <td>${esc(short(item.description || item.note, 24))}</td>
+      <td>${esc(item.currency || "")}</td>
+      <td>${money(item.amount)}</td>
+      <td>${reimbursementStatusBadge(item.reimbursement_status)}</td>
+    </tr>
+  `).join("") : `<tr><td colspan="10" class="empty-row">当前筛选条件下没有待报销支出</td></tr>`;
+
+  table.innerHTML = rows.length ? rows.map(item => `
+    <tr>
+      <td>${esc(displayRecordDate(item.reimbursement_date || item.created_at))}</td>
+      <td>${esc(item.year_month || "")}</td>
+      <td>${esc(item.business_entity?.name || "")}</td>
+      <td>${esc(item.from_account?.name || accountName(item.from_account_id))}</td>
+      <td>${esc(item.to_account?.name || accountName(item.to_account_id))}</td>
+      <td>${esc(item.currency || "")}</td>
+      <td>${money(item.amount)}</td>
+      <td>${reimbursementStatusBadge(item.status)}</td>
+      <td>${esc(short(item.note, 24))}</td>
+      <td>${actionButtons("reimbursement", item.id)}</td>
+    </tr>
+  `).join("") : `<tr><td colspan="10" class="empty-row">当前筛选条件下没有报销记录</td></tr>`;
+}
+
+async function createReimbursementFromSelectedExpenses() {
+  const ids = [...document.querySelectorAll(".reimbursement-expense-check:checked")].map(x => x.value);
+  if (!ids.length) return showMessage("请先选择待报销支出。", "error");
+
+  const selected = state.expenseRecords.filter(x => ids.includes(x.id));
+  const first = selected[0];
+  const accountIds = [...new Set(selected.map(x => x.account_id))];
+  const currencies = [...new Set(selected.map(x => x.currency || "JPY"))];
+
+  if (accountIds.length > 1) return showMessage("一次报销暂时只支持同一个垫付账户。", "error");
+  if (currencies.length > 1) return showMessage("一次报销暂时只支持同一种币种。", "error");
+
+  const companyAccount = state.accounts.find(x => x.is_company_account === true && x.currency === currencies[0]) || state.accounts.find(x => x.is_company_account === true);
+  if (!companyAccount) return showMessage("请先在账户管理中设置公司账户。", "error");
+
+  const amount = selected.reduce((sum, x) => sum + Number(x.amount || 0), 0);
+  const prefill = {
+    reimbursement_date: todayStr(),
+    year_month: first.year_month || currentYearMonth(),
+    business_entity_id: first.business_entity_id || "",
+    from_account_id: companyAccount.id,
+    to_account_id: first.account_id,
+    currency: currencies[0],
+    amount,
+    status: "paid",
+    note: `关联支出：${selected.map(x => x.description || x.id).join(" / ")}`,
+  };
+
+  state.pendingReimbursementExpenseIds = ids;
+  openCreateModal("reimbursement", prefill);
+  applyExpensePrefillToModal(prefill);
+}
+
+async function syncReimbursementAccountEffect(oldRecord, newRecord) {
+  const effects = [];
+  if (oldRecord && oldRecord.status === "paid") {
+    effects.push({ accountId: oldRecord.from_account_id, delta: Number(oldRecord.amount || 0) });
+    effects.push({ accountId: oldRecord.to_account_id, delta: -Number(oldRecord.amount || 0) });
+  }
+  if (newRecord && newRecord.status === "paid") {
+    effects.push({ accountId: newRecord.from_account_id, delta: -Number(newRecord.amount || 0) });
+    effects.push({ accountId: newRecord.to_account_id, delta: Number(newRecord.amount || 0) });
+  }
+
+  for (const effect of effects) {
+    if (!effect.accountId || !effect.delta) continue;
+    const account = state.accounts.find(x => x.id === effect.accountId);
+    if (!account) continue;
+    const nextBalance = Number(account.current_balance || 0) + effect.delta;
+    const { error } = await db.from(tables.accounts).update({ current_balance: nextBalance }).eq("id", effect.accountId);
+    if (error) throw error;
+
+    await db.from(tables.transactions).insert({
+      account_id: effect.accountId,
+      business_entity_id: (newRecord || oldRecord)?.business_entity_id || null,
+      transaction_date: (newRecord || oldRecord)?.reimbursement_date || todayStr(),
+      year_month: (newRecord || oldRecord)?.year_month || currentYearMonth(),
+      transaction_type: effect.delta < 0 ? "reimbursement_out" : "reimbursement_in",
+      related_table: "school_reimbursements",
+      related_id: (newRecord || oldRecord)?.id || null,
+      currency: account.currency,
+      amount: effect.delta,
+      balance_after: nextBalance,
+      description: "报销账户联动",
+    });
+  }
+}
+
+async function saveReimbursementItems(reimbursement) {
+  const ids = state.pendingReimbursementExpenseIds || [];
+  if (!ids.length || !reimbursement?.id) return;
+
+  for (const expenseId of ids) {
+    const expense = state.expenseRecords.find(x => x.id === expenseId);
+    await db.from(tables.reimbursementItems).insert({
+      reimbursement_id: reimbursement.id,
+      expense_id: expenseId,
+      amount: Number(expense?.amount || 0),
+      note: expense?.description || "",
+    });
+    await db.from(tables.expenses).update({ reimbursement_status: "paid" }).eq("id", expenseId);
+  }
+  state.pendingReimbursementExpenseIds = [];
+}
+
 function exportBackup() {
   const data = {
     exportedAt: new Date().toISOString(),
@@ -1951,6 +2200,27 @@ function exportBackup() {
   a.download = `school_backup_${date}.json`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+
+function companyAccountOptions() {
+  return state.accounts
+    .filter(x => x.is_active !== false && x.is_company_account === true)
+    .map(x => ({ value: x.id, label: `${x.name} / ${x.currency || ""}` }));
+}
+
+function advanceAccountOptions() {
+  return state.accounts
+    .filter(x => x.is_active !== false && x.is_company_account !== true)
+    .map(x => ({ value: x.id, label: `${x.name} / ${x.currency || ""}` }));
+}
+
+function reimbursementStatusOptions() {
+  return [
+    { value: "pending", label: "待报销" },
+    { value: "paid", label: "已报销" },
+    { value: "cancelled", label: "取消" },
+  ];
 }
 
 function accountOptions() {
@@ -2330,7 +2600,7 @@ updateFinanceFilters = function() {
   const entityOptions = buildEntityFilterOptionsV47();
   const accountOptions = buildAccountFilterOptionsV47();
 
-  ["incomeEntityFilter", "expenseEntityFilter", "financeEntityFilter"].forEach(id => {
+  ["incomeEntityFilter", "expenseEntityFilter", "financeEntityFilter", "reimbursementEntityFilter"].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     const old = el.value;

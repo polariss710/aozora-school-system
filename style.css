@@ -496,3 +496,9 @@ tr.dragging {
 .finance-mini-stats .stat-card {
   min-height: 76px;
 }
+
+.subsection-title {
+  margin: 18px 0 10px;
+  color: var(--text);
+  font-size: 16px;
+}

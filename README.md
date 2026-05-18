@@ -12,6 +12,16 @@
 
 
 
+
+### v4.9
+- 新增报销管理模块。
+- 新增 `school_reimbursements` 与 `school_reimbursement_items`。
+- 支出记录增加 `reimbursement_status` 字段。
+- 可从待报销支出中选择记录并生成报销。
+- 报销状态为已报销时：公司账户扣款，垫付账户入款。
+- 删除报销时自动还原账户余额，并把关联支出改回待报销。
+- 新增 `school_v4_9_migration.sql`，需要先执行。
+
 ### v4.8
 - 账户管理和收支汇总增加“重算账户余额”按钮。
 - 重算逻辑：`opening_balance + 已收收入 - 已支付/已报销支出`。

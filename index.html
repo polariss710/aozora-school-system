@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="stylesheet" href="./style.css?v=4.8" />
+  <link rel="stylesheet" href="./style.css?v=4.9" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -22,7 +22,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v4.8</p>
+        <p>运营管理系统 v4.9</p>
       </div>
 
       <nav class="nav">
@@ -35,6 +35,7 @@
         <button class="nav-btn" data-page="income">收入记录</button>
         <button class="nav-btn" data-page="expenses">支出记录</button>
         <button class="nav-btn" data-page="finance">收支汇总</button>
+        <button class="nav-btn" data-page="reimbursements">报销管理</button>
         <button class="nav-btn" data-page="backup">备份/恢复</button>
       </nav>
 
@@ -306,6 +307,58 @@
         </div>
       </section>
 
+
+      <section class="page" id="page-reimbursements">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>报销管理</h3>
+            <div class="panel-actions">
+              <button class="secondary-btn" id="reimburseSelectedBtn" type="button">报销选中支出</button>
+              <button class="primary-btn" data-open-modal="reimbursement" type="button">新增报销</button>
+            </div>
+          </div>
+          <div class="toolbar finance-toolbar">
+            <input type="month" id="reimbursementMonthFilter" />
+            <select id="reimbursementEntityFilter"></select>
+            <select id="reimbursementStatusFilter">
+              <option value="">全部状态</option>
+              <option value="pending">待报销</option>
+              <option value="paid">已报销</option>
+              <option value="cancelled">取消</option>
+            </select>
+            <button class="secondary-btn" id="reimbursementClearFilter" type="button">清除筛选</button>
+          </div>
+          <div class="cards-grid finance-mini-stats">
+            <div class="stat-card"><span>报销合计</span><strong id="reimbursementTotalAmount">0</strong></div>
+            <div class="stat-card"><span>已报销</span><strong id="reimbursementPaidAmount">0</strong></div>
+            <div class="stat-card"><span>待报销支出</span><strong id="pendingReimbursementAmount">0</strong></div>
+            <div class="stat-card"><span>记录数</span><strong id="reimbursementRecordCount">0</strong></div>
+          </div>
+          <h4 class="subsection-title">待报销支出</h4>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>选择</th><th>日期</th><th>月份</th><th>业务归属</th><th>账户</th><th>分类</th><th>说明</th><th>币种</th><th>金额</th><th>报销状态</th>
+                </tr>
+              </thead>
+              <tbody id="pendingReimbursementTable"></tbody>
+            </table>
+          </div>
+          <h4 class="subsection-title">报销记录</h4>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>日期</th><th>月份</th><th>业务归属</th><th>公司账户</th><th>垫付账户</th><th>币种</th><th>金额</th><th>状态</th><th>备注</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="reimbursementsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <section class="page" id="page-backup">
         <div class="panel">
           <div class="panel-header">
@@ -339,6 +392,6 @@
     </div>
   </div>
 
-  <script src="./app.js?v=4.8"></script>
+  <script src="./app.js?v=4.9"></script>
 </body>
 </html>

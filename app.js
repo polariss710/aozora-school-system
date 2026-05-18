@@ -1170,12 +1170,37 @@ function normalizeFinancePayload(payload) {
 }
 
 
+
+function makeSafeStorageFileName(file) {
+  const originalName = file?.name || "receipt";
+  const extMatch = originalName.match(/\.([A-Za-z0-9]{1,10})$/);
+  let ext = extMatch ? extMatch[1].toLowerCase() : "";
+
+  if (!ext) {
+    const type = file?.type || "";
+    if (type.includes("jpeg")) ext = "jpg";
+    else if (type.includes("png")) ext = "png";
+    else if (type.includes("pdf")) ext = "pdf";
+    else ext = "dat";
+  }
+
+  const base = originalName
+    .replace(/\.[^.]+$/, "")
+    .normalize("NFKD")
+    .replace(/[^\x00-\x7F]/g, "")
+    .replace(/[^A-Za-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40) || "receipt";
+
+  return `${base}.${ext}`;
+}
+
 async function uploadPendingExpenseAttachment(expenseRecord) {
   if (!expenseRecord || !state.pendingExpenseAttachment?.file) return;
 
   const pending = state.pendingExpenseAttachment;
   const file = pending.file;
-  const safeName = file.name.replace(/[^\w.\-一-龥ぁ-んァ-ヶー（）()]/g, "_");
+  const safeName = makeSafeStorageFileName(file);
   const ym = expenseRecord.year_month || currentYearMonth();
   const path = `expenses/${ym}/${expenseRecord.id}/${Date.now()}_${safeName}`;
 
@@ -1188,7 +1213,8 @@ async function uploadPendingExpenseAttachment(expenseRecord) {
     });
 
   if (uploadError) {
-    showMessage(`支出已保存，但凭证上传失败：${uploadError.message}`, "error");
+    console.error("Storage upload error", uploadError, { path, safeName, originalName: file.name });
+    showMessage(`支出已保存，但凭证上传失败：${uploadError.message || "Storage 400 Bad Request"}。可能是文件名或 Storage 设置问题。`, "error");
     return;
   }
 

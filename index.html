@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="stylesheet" href="./style.css?v=4.7" />
+  <link rel="stylesheet" href="./style.css?v=4.8" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -22,7 +22,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v4.7</p>
+        <p>运营管理系统 v4.8</p>
       </div>
 
       <nav class="nav">
@@ -190,7 +190,10 @@
         <div class="panel">
           <div class="panel-header">
             <h3>账户管理</h3>
-            <button class="primary-btn" data-open-modal="account">新增账户</button>
+            <div class="panel-actions">
+              <button class="secondary-btn" id="recalcAccountBalancesBtn" type="button">重算账户余额</button>
+              <button class="primary-btn" data-open-modal="account">新增账户</button>
+            </div>
           </div>
           <div class="table-wrap">
             <table>
@@ -278,6 +281,7 @@
         <div class="panel">
           <div class="panel-header">
             <h3>收支月度汇总</h3>
+            <button class="secondary-btn" id="recalcAccountBalancesBtnFinance" type="button">重算账户余额</button>
           </div>
           <div class="toolbar finance-toolbar">
             <input type="month" id="financeMonthFilter" />
@@ -335,6 +339,6 @@
     </div>
   </div>
 
-  <script src="./app.js?v=4.7"></script>
+  <script src="./app.js?v=4.8"></script>
 </body>
 </html>

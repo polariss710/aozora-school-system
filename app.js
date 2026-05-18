@@ -1217,6 +1217,48 @@ function schoolGetFieldsV24(type) {
   return [];
 }
 
+
+// === v6.2 expense modal manual attachment upload ===
+function attachManualExpenseAttachmentAreaV62(type) {
+  if (type !== "expense") return;
+
+  const form = document.getElementById("modalForm");
+  if (!form || document.getElementById("manualExpenseAttachmentInput")) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "form-row full attachment-upload-row";
+  wrapper.innerHTML = `
+    <label>凭证附件</label>
+    <div class="attachment-upload-box">
+      <button type="button" class="secondary-btn" id="manualExpenseAttachmentBtn">上传凭证</button>
+      <span id="manualExpenseAttachmentName" class="attachment-upload-name">未选择文件</span>
+      <input type="file" id="manualExpenseAttachmentInput" accept="application/pdf,.pdf,image/*,.jpg,.jpeg,.png" class="hidden" />
+      <p class="form-help">用于给手动输入或已存在的支出追加凭证。这里不会自动识别金额；保存支出后自动上传并关联。</p>
+    </div>
+  `;
+
+  form.appendChild(wrapper);
+
+  const btn = document.getElementById("manualExpenseAttachmentBtn");
+  const input = document.getElementById("manualExpenseAttachmentInput");
+  const name = document.getElementById("manualExpenseAttachmentName");
+
+  btn.onclick = () => input.click();
+  input.onchange = () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+
+    state.pendingExpenseAttachment = {
+      file,
+      extractedText: "",
+      sourceType: "manual_upload",
+    };
+
+    if (name) name.textContent = file.name;
+    showMessage("凭证已选择。保存支出后会自动上传。", "ok");
+  };
+}
+
 function buildForm(type, data = {}) {
   const form = document.getElementById("modalForm");
   const fields = schoolGetFieldsV24(type);
@@ -1229,6 +1271,7 @@ function buildForm(type, data = {}) {
   `;
 
   document.getElementById("cancelFormBtn").addEventListener("click", closeModal);
+  attachManualExpenseAttachmentAreaV62(type);
   form.onsubmit = saveForm;
   bindTuitionStudentField(form);
   form.querySelectorAll("[data-color]").forEach(btn => {

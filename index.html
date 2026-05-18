@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="stylesheet" href="./style.css?v=4.9" />
+  <link rel="stylesheet" href="./style.css?v=5.0" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -22,7 +22,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v4.9</p>
+        <p>运营管理系统 v5.0</p>
       </div>
 
       <nav class="nav">
@@ -320,6 +320,7 @@
           <div class="toolbar finance-toolbar">
             <input type="month" id="reimbursementMonthFilter" />
             <select id="reimbursementEntityFilter"></select>
+            <select id="reimbursementAccountFilter"></select>
             <select id="reimbursementStatusFilter">
               <option value="">全部状态</option>
               <option value="pending">待报销</option>
@@ -329,10 +330,11 @@
             <button class="secondary-btn" id="reimbursementClearFilter" type="button">清除筛选</button>
           </div>
           <div class="cards-grid finance-mini-stats">
-            <div class="stat-card"><span>报销合计</span><strong id="reimbursementTotalAmount">0</strong></div>
+            <div class="stat-card"><span>筛选报销记录合计</span><strong id="reimbursementTotalAmount">0</strong></div>
             <div class="stat-card"><span>已报销</span><strong id="reimbursementPaidAmount">0</strong></div>
-            <div class="stat-card"><span>待报销支出</span><strong id="pendingReimbursementAmount">0</strong></div>
+            <div class="stat-card"><span>筛选待报销支出</span><strong id="pendingReimbursementAmount">0</strong></div>
             <div class="stat-card"><span>记录数</span><strong id="reimbursementRecordCount">0</strong></div>
+            <div class="stat-card"><span>已勾选待报销</span><strong id="selectedReimbursementAmount">0</strong></div>
           </div>
           <h4 class="subsection-title">待报销支出</h4>
           <div class="table-wrap">
@@ -392,6 +394,6 @@
     </div>
   </div>
 
-  <script src="./app.js?v=4.9"></script>
+  <script src="./app.js?v=5.0"></script>
 </body>
 </html>

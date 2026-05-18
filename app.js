@@ -608,13 +608,14 @@ function expenseMonthLabel(yearMonth) {
 
 function bindReimbursementActions() {
   document.getElementById("reimburseSelectedBtn")?.addEventListener("click", createReimbursementFromSelectedExpenses);
-  ["reimbursementMonthFilter", "reimbursementEntityFilter", "reimbursementStatusFilter"].forEach(id => {
+  ["reimbursementMonthFilter", "reimbursementEntityFilter", "reimbursementStatusFilter", "reimbursementAccountFilter"].forEach(id => {
     document.getElementById(id)?.addEventListener("change", renderReimbursements);
   });
   document.getElementById("reimbursementClearFilter")?.addEventListener("click", () => {
     document.getElementById("reimbursementMonthFilter").value = "";
     document.getElementById("reimbursementEntityFilter").value = "";
     document.getElementById("reimbursementStatusFilter").value = "";
+    document.getElementById("reimbursementAccountFilter").value = "";
     renderReimbursements();
   });
 }
@@ -2025,20 +2026,24 @@ function filterReimbursements(rows) {
   const month = document.getElementById("reimbursementMonthFilter")?.value || "";
   const entity = document.getElementById("reimbursementEntityFilter")?.value || "";
   const status = document.getElementById("reimbursementStatusFilter")?.value || "";
+  const account = document.getElementById("reimbursementAccountFilter")?.value || "";
   return (rows || []).filter(x =>
     (!month || x.year_month === month) &&
     (!entity || x.business_entity_id === entity) &&
-    (!status || x.status === status)
+    (!status || x.status === status) &&
+    (!account || x.from_account_id === account || x.to_account_id === account)
   );
 }
 
 function pendingReimbursementExpenses() {
   const month = document.getElementById("reimbursementMonthFilter")?.value || "";
   const entity = document.getElementById("reimbursementEntityFilter")?.value || "";
+  const account = document.getElementById("reimbursementAccountFilter")?.value || "";
   return (state.expenseRecords || []).filter(x =>
     x.reimbursement_status === "pending" &&
     (!month || x.year_month === month) &&
-    (!entity || x.business_entity_id === entity)
+    (!entity || x.business_entity_id === entity) &&
+    (!account || x.account_id === account)
   );
 }
 
@@ -2075,6 +2080,11 @@ function renderReimbursements() {
     </tr>
   `).join("") : `<tr><td colspan="10" class="empty-row">当前筛选条件下没有待报销支出</td></tr>`;
 
+  pendingTable.querySelectorAll(".reimbursement-expense-check").forEach(el => {
+    el.addEventListener("change", updateSelectedReimbursementTotal);
+  });
+  updateSelectedReimbursementTotal();
+
   table.innerHTML = rows.length ? rows.map(item => `
     <tr>
       <td>${esc(displayRecordDate(item.reimbursement_date || item.created_at))}</td>
@@ -2089,6 +2099,15 @@ function renderReimbursements() {
       <td>${actionButtons("reimbursement", item.id)}</td>
     </tr>
   `).join("") : `<tr><td colspan="10" class="empty-row">当前筛选条件下没有报销记录</td></tr>`;
+}
+
+
+function updateSelectedReimbursementTotal() {
+  const ids = [...document.querySelectorAll(".reimbursement-expense-check:checked")].map(x => x.value);
+  const selected = state.expenseRecords.filter(x => ids.includes(x.id));
+  const totals = typeof schoolV30Totals === "function" ? schoolV30Totals(selected) : sumFinanceByCurrency(selected);
+  const fmt = typeof schoolV30FormatTotals === "function" ? schoolV30FormatTotals : formatFinanceTotals;
+  setOptionalText("selectedReimbursementAmount", fmt(totals));
 }
 
 async function createReimbursementFromSelectedExpenses() {
@@ -2608,7 +2627,7 @@ updateFinanceFilters = function() {
     if ([...el.options].some(opt => opt.value === old)) el.value = old;
   });
 
-  ["incomeAccountFilter", "expenseAccountFilter", "financeAccountFilter"].forEach(id => {
+  ["incomeAccountFilter", "expenseAccountFilter", "financeAccountFilter", "reimbursementAccountFilter"].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     const old = el.value;
@@ -2644,7 +2663,7 @@ filterFinanceRows = function(rows, scope) {
 };
 
 function bindAccountFilterListenersV47() {
-  ["incomeAccountFilter", "expenseAccountFilter", "financeAccountFilter"].forEach(id => {
+  ["incomeAccountFilter", "expenseAccountFilter", "financeAccountFilter", "reimbursementAccountFilter"].forEach(id => {
     const el = document.getElementById(id);
     if (!el || el.dataset.boundV47 === "true") return;
     el.dataset.boundV47 = "true";

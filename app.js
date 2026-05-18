@@ -1049,6 +1049,16 @@ async function saveForm(e) {
     normalizeFinancePayload(payload);
   }
 
+  if (type === "expense" && !state.editing.id) {
+    const okToSave = await confirmDuplicateExpenseIfNeeded(payload);
+    if (!okToSave) {
+      state.isSavingForm = false;
+      if (typeof form !== "undefined" && form) form.dataset.saving = "false";
+      if (typeof submitButton !== "undefined" && submitButton) submitButton.disabled = false;
+      return;
+    }
+  }
+
   const table = tableForType(type);
   const oldRecord = state.editing.id ? findLocal(type, state.editing.id) : null;
   let result;
@@ -1259,6 +1269,63 @@ function makeSafeStorageFileName(file) {
     .slice(0, 40) || "receipt";
 
   return `${base}.${ext}`;
+}
+
+
+function normalizeTextForDuplicate(value) {
+  return String(value || "")
+    .replace(/\s+/g, "")
+    .replace(/[（）()・/\\_\-—–.,，。]/g, "")
+    .toLowerCase();
+}
+
+function findPossibleDuplicateExpense(record) {
+  if (!record) return null;
+
+  const amount = Number(record.amount || 0);
+  const date = record.expense_date || "";
+  const ym = record.year_month || "";
+  const desc = normalizeTextForDuplicate(record.description || record.note || "");
+
+  return state.expenseRecords.find(item => {
+    const sameAmount = Math.abs(Number(item.amount || 0) - amount) < 0.0001;
+    const sameDate = (item.expense_date || "") === date;
+    const sameMonth = (item.year_month || "") === ym;
+    const itemDesc = normalizeTextForDuplicate(item.description || item.note || "");
+    const similarDesc = desc && itemDesc && (desc.includes(itemDesc.slice(0, 8)) || itemDesc.includes(desc.slice(0, 8)));
+
+    return sameAmount && (sameDate || sameMonth) && similarDesc;
+  }) || null;
+}
+
+
+function findPossibleDuplicateAttachment() {
+  const file = state.pendingExpenseAttachment?.file;
+  if (!file) return null;
+
+  return state.expenseRecords.find(item => {
+    const attachments = item.attachments || [];
+    return attachments.some(att => {
+      return att.file_name === file.name && Number(att.file_size || 0) === Number(file.size || 0);
+    });
+  }) || null;
+}
+
+async function confirmDuplicateExpenseIfNeeded(record) {
+  const fileDuplicate = findPossibleDuplicateAttachment();
+  const duplicate = fileDuplicate || findPossibleDuplicateExpense(record);
+  if (!duplicate) return true;
+
+  const message = [
+    fileDuplicate ? "可能已经上传过相同凭证文件。" : "可能存在重复支出记录。",
+    "",
+    `现有记录：${duplicate.expense_date || duplicate.year_month || ""} / ${duplicate.description || ""} / ${duplicate.amount || 0} ${duplicate.currency || ""}`,
+    `本次记录：${record.expense_date || record.year_month || ""} / ${record.description || ""} / ${record.amount || 0} ${record.currency || ""}`,
+    "",
+    "是否仍然保存？"
+  ].join("\n");
+
+  return confirm(message);
 }
 
 async function uploadPendingExpenseAttachment(expenseRecord) {

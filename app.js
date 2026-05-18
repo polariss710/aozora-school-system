@@ -3051,3 +3051,196 @@ document.addEventListener("DOMContentLoaded", () => {
     bindAccountFilterListenersV47();
   }, 800);
 });
+
+
+// === v5.9 hard override: lesson planned/actual paired view ===
+function lessonPairDateText(item) {
+  return esc(displayRecordDate(item?.lesson_date || item?.created_at || ""));
+}
+
+function lessonPairTimeText(item) {
+  return esc([item?.start_time, item?.end_time].filter(Boolean).join(" - "));
+}
+
+function lessonPairStudentText(item) {
+  return esc(item?.student?.display_name || item?.student?.name || "");
+}
+
+function lessonPairTeacherText(item) {
+  return esc(item?.teacher?.display_name || item?.teacher?.name || "");
+}
+
+function lessonPairSubjectText(item) {
+  return esc(item?.subject?.name || "");
+}
+
+function lessonPairStatus(item) {
+  const danger = item?.status === "cancelled" || item?.status === "holiday";
+  return `${badge(lessonStatusLabel(item?.status), danger ? "red" : "")}<br>${item?.is_billable ? badge("计费") : badge("不计费", "gray")}`;
+}
+
+function lessonPairActions(item) {
+  if (!item) return "";
+  const actualButton = item.lesson_type === "planned"
+    ? `<button class="secondary-btn" data-create-actual="${escAttr(item.id)}">生成实际</button>`
+    : "";
+  return `
+    <div class="table-actions lesson-actions">
+      ${actualButton}
+      <button class="secondary-btn" data-copy-lesson="${escAttr(item.id)}">复制</button>
+      <button class="secondary-btn" data-edit="${escAttr(item.id)}" data-type="lesson">编辑</button>
+      <button class="danger-btn" data-delete="${escAttr(item.id)}" data-type="lesson">删除</button>
+    </div>
+  `;
+}
+
+function lessonPairCells(item, side) {
+  if (!item) {
+    return `<td colspan="6" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
+  }
+
+  return `
+    <td>
+      ${lessonPairDateText(item)}<br>
+      <span class="muted-small">${esc(item.year_month || "")}</span>
+    </td>
+    <td>${lessonPairStudentText(item)}</td>
+    <td>${lessonPairTeacherText(item)}</td>
+    <td>
+      ${lessonPairSubjectText(item)}<br>
+      <span class="muted-small">${lessonPairTimeText(item)} / ${money(item.duration_hours)}H</span>
+    </td>
+    <td>${lessonPairStatus(item)}</td>
+    <td>
+      ${esc(short(item.lesson_content || item.note, 18))}
+      ${lessonPairActions(item)}
+    </td>
+  `;
+}
+
+function makeActualFromPlanned(id) {
+  const plan = state.lessonRecords.find(x => x.id === id);
+  if (!plan) return;
+
+  const prefill = {
+    lesson_type: "actual",
+    planned_lesson_id: plan.id,
+    lesson_date: plan.lesson_date || todayStr(),
+    year_month: plan.year_month || currentYearMonth(),
+    student_id: plan.student_id || "",
+    teacher_id: plan.teacher_id || "",
+    subject_id: plan.subject_id || "",
+    business_entity_id: plan.business_entity_id || "",
+    start_time: plan.start_time || "",
+    end_time: plan.end_time || "",
+    duration_hours: plan.duration_hours || 0,
+    status: "completed",
+    is_billable: plan.is_billable !== false,
+    lesson_content: plan.lesson_content || "",
+    note: plan.note || "",
+  };
+
+  openCreateModal("lesson", prefill);
+  document.getElementById("modalTitle").textContent = "从预定生成实际课时";
+}
+
+function copyLessonRecordV59(id) {
+  const item = state.lessonRecords.find(x => x.id === id);
+  if (!item) return;
+
+  const prefill = {
+    lesson_type: item.lesson_type || "actual",
+    planned_lesson_id: item.lesson_type === "actual" ? (item.planned_lesson_id || "") : "",
+    lesson_date: item.lesson_date || todayStr(),
+    year_month: item.year_month || currentYearMonth(),
+    student_id: item.student_id || "",
+    teacher_id: item.teacher_id || "",
+    subject_id: item.subject_id || "",
+    business_entity_id: item.business_entity_id || "",
+    start_time: item.start_time || "",
+    end_time: item.end_time || "",
+    duration_hours: item.duration_hours || 0,
+    status: item.status || (item.lesson_type === "planned" ? "planned" : "completed"),
+    is_billable: item.is_billable !== false,
+    lesson_content: item.lesson_content || "",
+    note: item.note || "",
+  };
+
+  openCreateModal("lesson", prefill);
+  document.getElementById("modalTitle").textContent = "复制课时";
+}
+
+function bindLessonPairButtonsV59() {
+  document.querySelectorAll("[data-create-actual]").forEach(btn => {
+    btn.onclick = () => makeActualFromPlanned(btn.dataset.createActual);
+  });
+  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
+    btn.onclick = () => copyLessonRecordV59(btn.dataset.copyLesson);
+  });
+}
+
+renderLessons = function() {
+  const tbody = document.getElementById("lessonsTable");
+  if (!tbody) return;
+
+  updateLessonFilters();
+  const rows = filterLessons().slice().sort((a, b) => {
+    const ma = String(b.year_month || "").localeCompare(String(a.year_month || ""));
+    if (ma !== 0) return ma;
+    const da = String(b.lesson_date || "").localeCompare(String(a.lesson_date || ""));
+    if (da !== 0) return da;
+    return String(a.start_time || "").localeCompare(String(b.start_time || ""));
+  });
+
+  renderLessonStats(rows);
+
+  const plannedRows = rows.filter(x => x.lesson_type === "planned");
+  const actualRows = rows.filter(x => x.lesson_type === "actual");
+  const actualByPlan = new Map();
+  const unlinkedActual = [];
+
+  actualRows.forEach(actual => {
+    if (actual.planned_lesson_id) {
+      if (!actualByPlan.has(actual.planned_lesson_id)) actualByPlan.set(actual.planned_lesson_id, []);
+      actualByPlan.get(actual.planned_lesson_id).push(actual);
+    } else {
+      unlinkedActual.push(actual);
+    }
+  });
+
+  const html = [];
+  let lastMonth = "";
+
+  function addMonthRow(ym) {
+    if (ym !== lastMonth) {
+      lastMonth = ym;
+      html.push(`<tr class="month-group-row"><td colspan="12">${esc(expenseMonthLabel(ym))}</td></tr>`);
+    }
+  }
+
+  plannedRows.forEach(plan => {
+    const ym = plan.year_month || "未归属月份";
+    addMonthRow(ym);
+    const actuals = actualByPlan.get(plan.id) || [];
+
+    if (!actuals.length) {
+      html.push(`<tr class="lesson-pair-row">${lessonPairCells(plan, "planned")}${lessonPairCells(null, "actual")}</tr>`);
+    } else {
+      actuals.forEach((actual, index) => {
+        const left = index === 0
+          ? lessonPairCells(plan, "planned")
+          : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
+        html.push(`<tr class="lesson-pair-row">${left}${lessonPairCells(actual, "actual")}</tr>`);
+      });
+    }
+  });
+
+  unlinkedActual.forEach(actual => {
+    const ym = actual.year_month || "未归属月份";
+    addMonthRow(ym);
+    html.push(`<tr class="lesson-pair-row">${lessonPairCells(null, "planned")}${lessonPairCells(actual, "actual")}</tr>`);
+  });
+
+  tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
+  bindLessonPairButtonsV59();
+};

@@ -2271,3 +2271,95 @@ renderFinanceSummary = function() {
     </tr>
   `).join("");
 };
+
+
+// === v4.7 hard override: finance filter options and account filters ===
+function buildAccountFilterOptionsV47() {
+  const accounts = state.accounts || [];
+  return `<option value="">全部账户</option>` + accounts
+    .map(x => `<option value="${escAttr(x.id)}">${esc(x.name || "")} / ${esc(x.currency || "")}</option>`)
+    .join("");
+}
+
+function buildEntityFilterOptionsV47() {
+  const entities = state.businessEntities || [];
+  return `<option value="">全部业务归属</option>` + entities
+    .map(x => `<option value="${escAttr(x.id)}">${esc(x.name || "")}</option>`)
+    .join("");
+}
+
+updateFinanceFilters = function() {
+  const entityOptions = buildEntityFilterOptionsV47();
+  const accountOptions = buildAccountFilterOptionsV47();
+
+  ["incomeEntityFilter", "expenseEntityFilter", "financeEntityFilter"].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const old = el.value;
+    el.innerHTML = entityOptions;
+    if ([...el.options].some(opt => opt.value === old)) el.value = old;
+  });
+
+  ["incomeAccountFilter", "expenseAccountFilter", "financeAccountFilter"].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const old = el.value;
+    el.innerHTML = accountOptions;
+    if ([...el.options].some(opt => opt.value === old)) el.value = old;
+  });
+};
+
+filterFinanceRows = function(rows, scope) {
+  let month = "";
+  let entity = "";
+  let account = "";
+
+  if (scope === "income") {
+    month = document.getElementById("incomeMonthFilter")?.value || "";
+    entity = document.getElementById("incomeEntityFilter")?.value || "";
+    account = document.getElementById("incomeAccountFilter")?.value || "";
+  } else if (scope === "expense") {
+    month = document.getElementById("expenseMonthFilter")?.value || "";
+    entity = document.getElementById("expenseEntityFilter")?.value || "";
+    account = document.getElementById("expenseAccountFilter")?.value || "";
+  } else {
+    month = document.getElementById("financeMonthFilter")?.value || "";
+    entity = document.getElementById("financeEntityFilter")?.value || "";
+    account = document.getElementById("financeAccountFilter")?.value || "";
+  }
+
+  return (rows || []).filter(x =>
+    (!month || x.year_month === month) &&
+    (!entity || x.business_entity_id === entity) &&
+    (!account || x.account_id === account)
+  );
+};
+
+function bindAccountFilterListenersV47() {
+  ["incomeAccountFilter", "expenseAccountFilter", "financeAccountFilter"].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || el.dataset.boundV47 === "true") return;
+    el.dataset.boundV47 = "true";
+    el.addEventListener("change", () => {
+      if (id === "incomeAccountFilter") renderIncomeTable();
+      if (id === "expenseAccountFilter") renderExpensesTable();
+      if (id === "financeAccountFilter") renderFinanceSummary();
+    });
+  });
+}
+
+const renderAllOriginalV47 = renderAll;
+renderAll = function() {
+  updateFinanceFilters();
+  bindAccountFilterListenersV47();
+  renderAllOriginalV47();
+  updateFinanceFilters();
+  bindAccountFilterListenersV47();
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    updateFinanceFilters();
+    bindAccountFilterListenersV47();
+  }, 800);
+});

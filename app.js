@@ -684,6 +684,42 @@ function switchPage(page) {
   }
 }
 
+
+async function recalcAccountBalances() {
+  const ok = confirm("将根据当前收入/支出记录重新计算所有账户余额。\n\n计算方式：opening_balance + 已收收入 - 已支付/已报销支出\n\n是否继续？");
+  if (!ok) return;
+
+  try {
+    showMessage("正在重算账户余额...", "ok");
+
+    for (const account of state.accounts) {
+      const incomeTotal = (state.incomeRecords || [])
+        .filter(x => x.account_id === account.id && x.status === "received")
+        .reduce((sum, x) => sum + Number(x.amount || 0), 0);
+
+      const expenseTotal = (state.expenseRecords || [])
+        .filter(x => x.account_id === account.id && (x.status === "paid" || x.status === "reimbursed"))
+        .reduce((sum, x) => sum + Number(x.amount || 0), 0);
+
+      const nextBalance = Number(account.opening_balance || 0) + incomeTotal - expenseTotal;
+
+      const { error } = await db
+        .from(tables.accounts)
+        .update({ current_balance: nextBalance })
+        .eq("id", account.id);
+
+      if (error) throw error;
+    }
+
+    await loadAll();
+    renderAll();
+    showMessage("账户余额已重算完成。", "ok");
+  } catch (error) {
+    console.error(error);
+    showMessage(`重算失败：${error.message || error}`, "error");
+  }
+}
+
 function bindGlobalActions() {
   document.getElementById("refreshBtn").addEventListener("click", async () => {
     await loadAll();
@@ -698,9 +734,9 @@ function bindGlobalActions() {
   document.getElementById("closeModalBtn").addEventListener("click", closeModal);
   document.getElementById("modalBackdrop").addEventListener("click", closeModal);
 
-  document.getElementById("exportBackupBtn").addEventListener("click", exportBackup);
-  document.getElementById("recalcAccountBalancesBtn")?.addEventListener("click", recalcAccountBalances);
-  document.getElementById("recalcAccountBalancesBtnFinance")?.addEventListener("click", recalcAccountBalances);
+  document.getElementById("exportBackupBtn")?.addEventListener("click", exportBackup);
+  document.getElementById("recalcAccountBalancesBtn")?.addEventListener("click", () => { if (typeof recalcAccountBalances === "function") recalcAccountBalances(); });
+  document.getElementById("recalcAccountBalancesBtnFinance")?.addEventListener("click", () => { if (typeof recalcAccountBalances === "function") recalcAccountBalances(); });
   bindExpensePdfImport();
   bindFinanceFilters();
   bindLessonFilters();

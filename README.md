@@ -20,6 +20,14 @@
 
 
 
+
+### v5.7
+- 修复 v5.6 中 `recalcAccountBalances is not defined` 导致初始化中断的问题。
+- 恢复首页统计、支出记录等页面数据正常渲染。
+- 补回账户余额重算函数，并对可选按钮绑定增加安全判断。
+- app.js / style.css 版本参数更新为 v5.7。
+- 本版无 SQL 修改。
+
 ### v5.6
 - 修复课时管理页面仍出现 `Cannot read properties of undefined (reading '0')` 的 Console 报错。
 - 重写页面切换函数，页面标题信息缺失时使用兜底值，不再中断页面切换。

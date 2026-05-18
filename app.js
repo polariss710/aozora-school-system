@@ -30,6 +30,7 @@ const state = {
   page: "dashboard",
   businessEntities: [],
   subjects: [],
+  lessonRecords: [],
   students: [],
   teachers: [],
   accounts: [],
@@ -58,6 +59,7 @@ const pageMeta = {
 const tables = {
   business: "school_business_entities",
   subjects: "school_subjects",
+  lessons: "school_lesson_records",
   students: "school_students",
   teachers: "school_teachers",
   accounts: "school_accounts",
@@ -107,6 +109,7 @@ async function loadAll() {
   await Promise.all([
     loadBusinessEntities(),
     loadSubjects(),
+    loadLessonRecords(),
     loadStudents(),
     loadTeachers(),
     loadAccounts(),
@@ -197,6 +200,7 @@ function renderAll() {
   renderStats();
   renderBusinessTable();
   renderSubjectsTable();
+  renderLessons();
   renderStudentsTable();
   renderTeachersTable();
   renderAccountsTable();
@@ -228,6 +232,19 @@ async function loadReimbursements() {
   }
 
   state.reimbursements = data || [];
+}
+
+
+async function loadLessonRecords() {
+  const { data, error } = await db
+    .from(tables.lessons)
+    .select("*, student:school_students(name, display_name), teacher:school_teachers(name, display_name), subject:school_subjects(name, color), business_entity:school_business_entities(name, code)")
+    .order("lesson_date", { ascending: false })
+    .order("start_time", { ascending: true })
+    .order("created_at", { ascending: false });
+
+  if (error) return showMessage(error.message, "error");
+  state.lessonRecords = data || [];
 }
 
 function renderStats() {
@@ -462,6 +479,135 @@ function renderExpensesTable() {
   tbody.innerHTML = html.join("");
 }
 
+
+function updateLessonFilters() {
+  const studentEl = document.getElementById("lessonStudentFilter");
+  const teacherEl = document.getElementById("lessonTeacherFilter");
+  const subjectEl = document.getElementById("lessonSubjectFilter");
+
+  if (studentEl) {
+    const old = studentEl.value;
+    studentEl.innerHTML = `<option value="">全部学生</option>` + state.students.map(x => `<option value="${escAttr(x.id)}">${esc(x.display_name || x.name)}</option>`).join("");
+    studentEl.value = old;
+  }
+
+  if (teacherEl) {
+    const old = teacherEl.value;
+    teacherEl.innerHTML = `<option value="">全部老师</option>` + state.teachers.map(x => `<option value="${escAttr(x.id)}">${esc(x.display_name || x.name)}</option>`).join("");
+    teacherEl.value = old;
+  }
+
+  if (subjectEl) {
+    const old = subjectEl.value;
+    subjectEl.innerHTML = `<option value="">全部科目</option>` + state.subjects.map(x => `<option value="${escAttr(x.id)}">${esc(x.name)}</option>`).join("");
+    subjectEl.value = old;
+  }
+}
+
+function filterLessons() {
+  const month = document.getElementById("lessonMonthFilter")?.value || "";
+  const student = document.getElementById("lessonStudentFilter")?.value || "";
+  const teacher = document.getElementById("lessonTeacherFilter")?.value || "";
+  const subject = document.getElementById("lessonSubjectFilter")?.value || "";
+  const type = document.getElementById("lessonTypeFilter")?.value || "";
+  const status = document.getElementById("lessonStatusFilter")?.value || "";
+
+  return (state.lessonRecords || []).filter(x =>
+    (!month || x.year_month === month) &&
+    (!student || x.student_id === student) &&
+    (!teacher || x.teacher_id === teacher) &&
+    (!subject || x.subject_id === subject) &&
+    (!type || x.lesson_type === type) &&
+    (!status || x.status === status)
+  );
+}
+
+function renderLessonStats(rows) {
+  const plannedHours = rows
+    .filter(x => x.lesson_type === "planned")
+    .reduce((sum, x) => sum + Number(x.duration_hours || 0), 0);
+  const actualHours = rows
+    .filter(x => x.lesson_type === "actual" && x.status !== "cancelled" && x.status !== "holiday")
+    .reduce((sum, x) => sum + Number(x.duration_hours || 0), 0);
+  const completedCount = rows.filter(x => x.status === "completed").length;
+  const cancelledCount = rows.filter(x => x.status === "cancelled" || x.status === "holiday").length;
+
+  setOptionalText("lessonPlannedHours", money(plannedHours));
+  setOptionalText("lessonActualHours", money(actualHours));
+  setOptionalText("lessonCompletedCount", completedCount);
+  setOptionalText("lessonCancelledCount", cancelledCount);
+  setOptionalText("lessonRecordCount", rows.length);
+}
+
+function renderLessons() {
+  const tbody = document.getElementById("lessonsTable");
+  if (!tbody) return;
+
+  updateLessonFilters();
+  const rows = filterLessons().slice().sort((a, b) => {
+    const da = String(a.lesson_date || "");
+    const db = String(b.lesson_date || "");
+    if (da !== db) return db.localeCompare(da);
+    return String(a.start_time || "").localeCompare(String(b.start_time || ""));
+  });
+
+  renderLessonStats(rows);
+
+  let lastMonth = "";
+  const html = [];
+
+  rows.forEach(item => {
+    const ym = item.year_month || "未归属月份";
+    if (ym !== lastMonth) {
+      lastMonth = ym;
+      html.push(`<tr class="month-group-row"><td colspan="12">${esc(expenseMonthLabel(ym))}</td></tr>`);
+    }
+
+    const timeText = [item.start_time, item.end_time].filter(Boolean).join(" - ");
+    html.push(`
+      <tr>
+        <td>${esc(displayRecordDate(item.lesson_date || item.created_at))}</td>
+        <td>${esc(item.year_month || "")}</td>
+        <td>${esc(lessonTypeLabel(item.lesson_type))}</td>
+        <td>${esc(item.student?.display_name || item.student?.name || "")}</td>
+        <td>${esc(item.teacher?.display_name || item.teacher?.name || "")}</td>
+        <td>${esc(item.subject?.name || "")}</td>
+        <td>${esc(timeText)}</td>
+        <td>${money(item.duration_hours)}</td>
+        <td>${badge(lessonStatusLabel(item.status), item.status === "cancelled" || item.status === "holiday" ? "red" : "")}</td>
+        <td>${item.is_billable ? badge("计费") : badge("不计费", "gray")}</td>
+        <td>${esc(short(item.lesson_content || item.note, 24))}</td>
+        <td>${actionButtons("lesson", item.id)}</td>
+      </tr>
+    `);
+  });
+
+  tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
+}
+
+function bindLessonFilters() {
+  ["lessonMonthFilter", "lessonStudentFilter", "lessonTeacherFilter", "lessonSubjectFilter", "lessonTypeFilter", "lessonStatusFilter"].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || el.dataset.boundLesson === "true") return;
+    el.dataset.boundLesson = "true";
+    el.addEventListener("change", renderLessons);
+  });
+
+  const clearBtn = document.getElementById("lessonClearFilter");
+  if (clearBtn && clearBtn.dataset.boundLesson !== "true") {
+    clearBtn.dataset.boundLesson = "true";
+    clearBtn.addEventListener("click", () => {
+      document.getElementById("lessonMonthFilter").value = "";
+      document.getElementById("lessonStudentFilter").value = "";
+      document.getElementById("lessonTeacherFilter").value = "";
+      document.getElementById("lessonSubjectFilter").value = "";
+      document.getElementById("lessonTypeFilter").value = "";
+      document.getElementById("lessonStatusFilter").value = "";
+      renderLessons();
+    });
+  }
+}
+
 function renderFinanceSummary() {
   const incomeRows = filterFinanceRows(state.incomeRecords, "finance");
   const expenseRows = filterFinanceRows(state.expenseRecords, "finance");
@@ -558,6 +704,7 @@ function bindGlobalActions() {
   document.getElementById("recalcAccountBalancesBtnFinance")?.addEventListener("click", recalcAccountBalances);
   bindExpensePdfImport();
   bindFinanceFilters();
+  bindLessonFilters();
   bindReimbursementActions();
 
   document.body.addEventListener("click", async (e) => {
@@ -790,6 +937,23 @@ function getFields(type) {
     { name: "entrance_date", label: "入塾日期", type: "date" },
     { name: "status", label: "状态", type: "select", default: "active", options: statusOptions() },
     { name: "target_schools", label: "志望校/目标", type: "textarea", full: true },
+    { name: "note", label: "备注", type: "textarea", full: true },
+  ];
+
+  if (type === "lesson") return [
+    { name: "lesson_type", label: "课时类型", type: "select", default: "actual", options: lessonTypeOptions(), required: true },
+    { name: "lesson_date", label: "上课日期", type: "date", default: todayStr(), required: true },
+    { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
+    { name: "student_id", label: "学生", type: "select", options: studentOptions(), required: true },
+    { name: "teacher_id", label: "老师", type: "select", options: teacherOptions(), required: true },
+    { name: "subject_id", label: "科目", type: "select", options: subjectOptions(), required: true },
+    { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
+    { name: "start_time", label: "开始时间", type: "time" },
+    { name: "end_time", label: "结束时间", type: "time" },
+    { name: "duration_hours", label: "时长（H）", type: "number", default: 2, required: true },
+    { name: "status", label: "状态", type: "select", default: "completed", options: lessonStatusOptions() },
+    { name: "is_billable", label: "计费", type: "checkbox", default: true },
+    { name: "lesson_content", label: "上课内容", type: "textarea", full: true },
     { name: "note", label: "备注", type: "textarea", full: true },
   ];
 
@@ -1154,6 +1318,15 @@ function syncFinanceFilterAfterSave(type, record) {
   }
 }
 
+
+function normalizeLessonPayload(payload, type) {
+  if (type !== "lesson") return payload;
+  if (payload.lesson_date && !payload.year_month) {
+    payload.year_month = String(payload.lesson_date).slice(0, 7);
+  }
+  return payload;
+}
+
 async function saveForm(e) {
   e.preventDefault();
   const form = e.target;
@@ -1267,6 +1440,7 @@ function findLocal(type, id) {
   const map = {
     business: state.businessEntities,
     subject: state.subjects,
+    lesson: state.lessonRecords,
     student: state.students,
     teacher: state.teachers,
     account: state.accounts,
@@ -1281,6 +1455,7 @@ function tableForType(type) {
   return {
     business: tables.business,
     subject: tables.subjects,
+    lesson: tables.lessons,
     student: tables.students,
     teacher: tables.teachers,
     account: tables.accounts,
@@ -1294,6 +1469,7 @@ function modalTitle(type, edit) {
   const map = {
     business: "业务归属",
     subject: "科目",
+    lesson: "课时",
     student: "学生",
     teacher: "老师",
     account: "账户",
@@ -2387,6 +2563,35 @@ function currencyOptions() {
     { value: "JPY", label: "日元 JPY" },
     { value: "CNY", label: "人民币 CNY" },
   ];
+}
+
+
+function lessonTypeOptions() {
+  return [
+    { value: "planned", label: "预定课时" },
+    { value: "actual", label: "实际课时" },
+  ];
+}
+
+function lessonStatusOptions() {
+  return [
+    { value: "planned", label: "预定" },
+    { value: "completed", label: "已上课" },
+    { value: "cancelled", label: "取消" },
+    { value: "holiday", label: "放假" },
+    { value: "makeup", label: "补课" },
+    { value: "absent", label: "缺席" },
+  ];
+}
+
+function lessonTypeLabel(value) {
+  const item = lessonTypeOptions().find(x => x.value === value);
+  return item?.label || value || "";
+}
+
+function lessonStatusLabel(value) {
+  const item = lessonStatusOptions().find(x => x.value === value);
+  return item?.label || value || "";
 }
 
 function statusOptions() {

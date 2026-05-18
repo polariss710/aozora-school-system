@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="stylesheet" href="./style.css?v=5.2" />
+  <link rel="stylesheet" href="./style.css?v=5.3" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -22,13 +22,14 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v5.2</p>
+        <p>运营管理系统 v5.3</p>
       </div>
 
       <nav class="nav">
         <button class="nav-btn active" data-page="dashboard">首页</button>
         <button class="nav-btn" data-page="business">业务归属</button>
         <button class="nav-btn" data-page="students">学生管理</button>
+        <button class="nav-btn" data-page="lessons">课时管理</button>
         <button class="nav-btn" data-page="teachers">老师管理</button>
         <button class="nav-btn" data-page="subjects">科目管理</button>
         <button class="nav-btn" data-page="accounts">账户管理</button>
@@ -278,6 +279,54 @@
         </div>
       </section>
 
+
+      <section class="page" id="page-lessons">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>课时管理</h3>
+            <button class="primary-btn" data-open-modal="lesson" type="button">新增课时</button>
+          </div>
+          <div class="toolbar finance-toolbar">
+            <input type="month" id="lessonMonthFilter" />
+            <select id="lessonStudentFilter"></select>
+            <select id="lessonTeacherFilter"></select>
+            <select id="lessonSubjectFilter"></select>
+            <select id="lessonTypeFilter">
+              <option value="">全部类型</option>
+              <option value="planned">预定课时</option>
+              <option value="actual">实际课时</option>
+            </select>
+            <select id="lessonStatusFilter">
+              <option value="">全部状态</option>
+              <option value="planned">预定</option>
+              <option value="completed">已上课</option>
+              <option value="cancelled">取消</option>
+              <option value="holiday">放假</option>
+              <option value="makeup">补课</option>
+              <option value="absent">缺席</option>
+            </select>
+            <button class="secondary-btn" id="lessonClearFilter" type="button">清除筛选</button>
+          </div>
+          <div class="cards-grid finance-mini-stats">
+            <div class="stat-card"><span>预定课时合计</span><strong id="lessonPlannedHours">0</strong></div>
+            <div class="stat-card"><span>实际课时合计</span><strong id="lessonActualHours">0</strong></div>
+            <div class="stat-card"><span>已上课数量</span><strong id="lessonCompletedCount">0</strong></div>
+            <div class="stat-card"><span>取消/放假数量</span><strong id="lessonCancelledCount">0</strong></div>
+            <div class="stat-card"><span>记录数</span><strong id="lessonRecordCount">0</strong></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>日期</th><th>月份</th><th>类型</th><th>学生</th><th>老师</th><th>科目</th><th>时间</th><th>时长</th><th>状态</th><th>计费</th><th>内容</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="lessonsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <section class="page" id="page-finance">
         <div class="panel">
           <div class="panel-header">
@@ -400,6 +449,6 @@
     </div>
   </div>
 
-  <script src="./app.js?v=5.2"></script>
+  <script src="./app.js?v=5.3"></script>
 </body>
 </html>

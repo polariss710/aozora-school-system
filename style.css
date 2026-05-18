@@ -576,3 +576,59 @@ tr.dragging {
   margin-top: 6px;
   flex-wrap: wrap;
 }
+
+
+/* === v7.0 stability styles === */
+.table-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.empty-row {
+  text-align: center;
+  color: var(--muted);
+  padding: 24px;
+}
+
+.attachment-upload-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.attachment-upload-name {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.form-help {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.lesson-pair-head {
+  text-align: center;
+  background: #eaf6fd;
+  color: var(--primary-dark);
+  font-weight: 800;
+}
+
+.lesson-pair-head.actual {
+  background: #eef8f1;
+}
+
+.lesson-empty-side {
+  color: var(--muted);
+  text-align: center;
+  background: #fafcff;
+}
+
+.muted-small {
+  color: var(--muted);
+  font-size: 12px;
+}

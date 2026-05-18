@@ -1,0 +1,4 @@
+node --check: 0
+STDOUT:
+
+STDERR:

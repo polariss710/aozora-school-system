@@ -1,4 +1,38 @@
 
+// === v7.0 stability helpers ===
+window.addEventListener("error", (event) => {
+  console.error("Global error:", event.error || event.message);
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("Unhandled promise rejection:", event.reason);
+});
+
+function safeCall(label, fn) {
+  try {
+    return fn();
+  } catch (error) {
+    console.error(`[${label}]`, error);
+    if (typeof showMessage === "function") {
+      showMessage(`${label} 执行出错：${error.message || error}`, "error");
+    }
+    return undefined;
+  }
+}
+
+function safeAsync(label, fn) {
+  return Promise.resolve()
+    .then(fn)
+    .catch(error => {
+      console.error(`[${label}]`, error);
+      if (typeof showMessage === "function") {
+        showMessage(`${label} 执行出错：${error.message || error}`, "error");
+      }
+    });
+}
+
+
+
 // === v4.1 global attachment renderer ===
 function renderAttachmentLinks(attachments) {
   const list = attachments || [];
@@ -40,6 +74,7 @@ const state = {
   reimbursements: [],
   pendingExpenseAttachment: null,
   isSavingForm: false,
+  isSavingReimbursement: false,
   editing: null,
 };
 
@@ -1272,6 +1307,7 @@ function buildForm(type, data = {}) {
 
   document.getElementById("cancelFormBtn").addEventListener("click", closeModal);
   attachManualExpenseAttachmentAreaV62(type);
+  attachManualExpenseAttachmentAreaStableV70(type);
   form.onsubmit = saveForm;
   bindTuitionStudentField(form);
   form.querySelectorAll("[data-color]").forEach(btn => {
@@ -1461,6 +1497,37 @@ async function repairLessonPlannedLinkAfterSave(type, payload, saved) {
   }
 }
 
+
+// === v7.0 stable lesson pairing fallback ===
+function schoolStableFindMatchingPlannedLessonV70(payload) {
+  if (!payload || payload.lesson_type !== "actual") return null;
+  const same = (a, b) => String(a || "") === String(b || "");
+  return (state.lessonRecords || []).find(x =>
+    x.lesson_type === "planned" &&
+    same(x.student_id, payload.student_id) &&
+    same(x.teacher_id, payload.teacher_id) &&
+    same(x.subject_id, payload.subject_id) &&
+    same(x.lesson_date, payload.lesson_date) &&
+    same(x.start_time, payload.start_time) &&
+    same(x.end_time, payload.end_time)
+  ) || null;
+}
+
+async function schoolStableRepairLessonPairV70(type, payload, saved) {
+  if (type !== "lesson" || payload.lesson_type !== "actual" || !saved?.id) return;
+
+  let planId = payload.planned_lesson_id || state.pendingActualPlanId || null;
+  if (!planId) {
+    const matched = schoolStableFindMatchingPlannedLessonV70(payload);
+    if (matched) planId = matched.id;
+  }
+
+  if (planId && saved.planned_lesson_id !== planId) {
+    const { error } = await db.from(tables.lessons).update({ planned_lesson_id: planId }).eq("id", saved.id);
+    if (error) console.warn("v7.0 lesson pair repair failed", error);
+  }
+}
+
 async function saveForm(e) {
   e.preventDefault();
   const form = e.target;
@@ -1517,6 +1584,8 @@ async function saveForm(e) {
   }
 
   await repairLessonPlannedLinkAfterSave(type, payload, result.data);
+
+  await schoolStableRepairLessonPairV70(type, payload, result.data);
 
   if (type === "expense") {
     await uploadPendingExpenseAttachment(result.data);
@@ -3367,3 +3436,153 @@ renderLessons = function() {
   tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
   bindLessonPairButtonsV59();
 };
+
+
+// === v7.0 stable page switch override ===
+switchPage = function(page) {
+  if (!page) return;
+
+  document.querySelectorAll(".nav-btn[data-page]").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.page === page);
+  });
+
+  document.querySelectorAll(".page").forEach(section => {
+    section.classList.toggle("active", section.id === `page-${page}`);
+  });
+
+  const fallbackMeta = {
+    home: ["首页", "系统基础骨架与云端连接测试"],
+    business: ["业务归属", "管理公司与个人业务归属"],
+    students: ["学生管理", "管理学生基础资料与升学信息"],
+    lessons: ["课时管理", "管理学生预定课时与实际课时"],
+    teachers: ["老师管理", "管理老师资料与工资信息"],
+    subjects: ["科目管理", "管理课程科目与分类"],
+    accounts: ["账户管理", "管理公司账户与垫付账户"],
+    income: ["收入记录", "登记学费等收入，并联动账户余额"],
+    expense: ["支出记录", "登记公司/个人名义支出，并联动账户余额"],
+    finance: ["公司收支", "按月份和业务归属查看收支与账户余额"],
+    reimbursements: ["报销管理", "管理垫付账户向公司账户报销"],
+    backup: ["备份/恢复", "导出当前数据备份"],
+  };
+
+  const metaSource =
+    (typeof pageMeta !== "undefined" && pageMeta) ||
+    (typeof pageInfo !== "undefined" && pageInfo) ||
+    (typeof pageTitles !== "undefined" && pageTitles) ||
+    {};
+
+  const meta = metaSource[page] || fallbackMeta[page] || [page, ""];
+  const title = Array.isArray(meta) ? meta[0] : (meta.title || page);
+  const subtitle = Array.isArray(meta) ? (meta[1] || "") : (meta.subtitle || "");
+
+  const titleEl = document.getElementById("pageTitle");
+  const subtitleEl = document.getElementById("pageSubtitle");
+  if (titleEl) titleEl.textContent = title;
+  if (subtitleEl) subtitleEl.textContent = subtitle;
+
+  if (page === "lessons") {
+    if (typeof updateLessonFilters === "function") updateLessonFilters();
+    if (typeof renderLessons === "function") renderLessons();
+  }
+};
+
+
+
+// === v7.0 stable table action delegation ===
+document.addEventListener("click", (event) => {
+  const editBtn = event.target.closest("[data-edit][data-type]");
+  if (editBtn) {
+    event.preventDefault();
+    if (typeof openEditModal === "function") {
+      openEditModal(editBtn.dataset.type, editBtn.dataset.edit);
+    }
+    return;
+  }
+
+  const deleteBtn = event.target.closest("[data-delete][data-type]");
+  if (deleteBtn) {
+    event.preventDefault();
+    if (typeof deleteRecord === "function") {
+      safeAsync("删除记录", () => deleteRecord(deleteBtn.dataset.type, deleteBtn.dataset.delete));
+    }
+  }
+});
+
+
+
+// === v7.0 stable navigation binding ===
+function bindNavigationStableV70() {
+  document.querySelectorAll(".nav-btn[data-page]").forEach(btn => {
+    btn.onclick = () => {
+      if (btn.dataset.page && typeof switchPage === "function") {
+        switchPage(btn.dataset.page);
+      }
+    };
+  });
+}
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(bindNavigationStableV70, 0);
+});
+
+
+
+// === v7.0 stable expense manual attachment upload ===
+function attachManualExpenseAttachmentAreaStableV70(type) {
+  if (type !== "expense") return;
+
+  const form = document.getElementById("modalForm");
+  if (!form || document.getElementById("manualExpenseAttachmentInput")) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "form-row full attachment-upload-row";
+  wrapper.innerHTML = `
+    <label>凭证附件</label>
+    <div class="attachment-upload-box">
+      <button type="button" class="secondary-btn" id="manualExpenseAttachmentBtn">上传凭证</button>
+      <span id="manualExpenseAttachmentName" class="attachment-upload-name">未选择文件</span>
+      <input type="file" id="manualExpenseAttachmentInput" accept="application/pdf,.pdf,image/*,.jpg,.jpeg,.png" class="hidden" />
+      <p class="form-help">用于给手动输入或已存在的支出追加凭证。保存支出后自动上传并关联。</p>
+    </div>
+  `;
+
+  form.appendChild(wrapper);
+
+  const btn = document.getElementById("manualExpenseAttachmentBtn");
+  const input = document.getElementById("manualExpenseAttachmentInput");
+  const name = document.getElementById("manualExpenseAttachmentName");
+
+  if (btn && input) {
+    btn.onclick = () => input.click();
+    input.onchange = () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+
+      state.pendingExpenseAttachment = {
+        file,
+        extractedText: "",
+        sourceType: "manual_upload",
+      };
+
+      if (name) name.textContent = file.name;
+      if (typeof showMessage === "function") showMessage("凭证已选择。保存支出后会自动上传。", "ok");
+    };
+  }
+}
+
+
+
+// === v7.0 missing function fallbacks ===
+if (typeof setOptionalText !== "function") {
+  function setOptionalText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value ?? "";
+  }
+}
+
+if (typeof money !== "function") {
+  function money(value) {
+    const n = Number(value || 0);
+    return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
+  }
+}
+

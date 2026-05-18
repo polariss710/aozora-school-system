@@ -17,6 +17,15 @@
 
 
 
+
+### v5.4
+- 修复课时管理中点击菜单/新增课时报错的问题。
+- 修复 `teacherOptions is not defined`，新增课时弹窗可正常打开。
+- 课时科目下拉改用专用 `lessonSubjectOptions()`，避免与表单内部变量冲突。
+- 页面切换增加兜底，避免 page meta 缺失导致页面报错。
+- app.js / style.css 版本参数更新为 v5.4。
+- 本版无 SQL 修改。
+
 ### v5.3
 - 新增课时管理模块。
 - 新增 `school_lesson_records` 表，支持预定课时与实际课时。

@@ -636,8 +636,8 @@ function renderFinanceSummary() {
 }
 
 function bindNavigation() {
-  document.querySelectorAll(".nav-btn").forEach(btn => {
-    btn.addEventListener("click", () => switchPage(btn.dataset.page));
+  document.querySelectorAll(".nav-btn[data-page]").forEach(btn => {
+    btn.addEventListener("click", () => { if (btn.dataset.page) switchPage(btn.dataset.page); });
   });
 }
 
@@ -946,7 +946,7 @@ function getFields(type) {
     { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
     { name: "student_id", label: "学生", type: "select", options: studentOptions(), required: true },
     { name: "teacher_id", label: "老师", type: "select", options: teacherOptions(), required: true },
-    { name: "subject_id", label: "科目", type: "select", options: subjectOptions(), required: true },
+    { name: "subject_id", label: "科目", type: "select", options: lessonSubjectOptions(), required: true },
     { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
     { name: "start_time", label: "开始时间", type: "time" },
     { name: "end_time", label: "结束时间", type: "time" },
@@ -2565,6 +2565,33 @@ function currencyOptions() {
   ];
 }
 
+
+
+function teacherOptions() {
+  return [
+    { value: "", label: "未选择" },
+    ...state.teachers
+      .filter(x => x.status !== "retired" && x.status !== "stopped")
+      .map(x => ({
+        value: x.id,
+        label: x.display_name || x.name || "",
+      }))
+  ];
+}
+
+
+function lessonSubjectOptions() {
+  return [
+    { value: "", label: "未选择" },
+    ...state.subjects
+      .filter(x => x.is_active !== false)
+      .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+      .map(x => ({
+        value: x.id,
+        label: x.name || "",
+      }))
+  ];
+}
 
 function lessonTypeOptions() {
   return [

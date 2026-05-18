@@ -76,6 +76,7 @@ const state = {
   isSavingForm: false,
   isSavingReimbursement: false,
   activeReimbursementSubmitKey: "",
+  activeDeleteKey: "",
   editing: null,
 };
 
@@ -779,12 +780,26 @@ function bindGlobalActions() {
   bindLessonFilters();
   bindReimbursementActions();
 
-  document.body.addEventListener("click", async (e) => {
-    const editBtn = e.target.closest("[data-edit]");
-    const deleteBtn = e.target.closest("[data-delete]");
-    if (editBtn) openEditModal(editBtn.dataset.type, editBtn.dataset.edit);
-    if (deleteBtn) await deleteRecord(deleteBtn.dataset.type, deleteBtn.dataset.delete);
-  });
+  if (document.body.dataset.boundTableActionsV72 !== "true") {
+    document.body.dataset.boundTableActionsV72 = "true";
+    document.body.addEventListener("click", async (e) => {
+      const editBtn = e.target.closest("[data-edit][data-type]");
+      const deleteBtn = e.target.closest("[data-delete][data-type]");
+
+      if (editBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        openEditModal(editBtn.dataset.type, editBtn.dataset.edit);
+        return;
+      }
+
+      if (deleteBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        await deleteRecord(deleteBtn.dataset.type, deleteBtn.dataset.delete);
+      }
+    });
+  }
 }
 
 function bindSearch() {
@@ -1659,8 +1674,15 @@ async function saveForm(e) {
 }
 
 async function deleteRecord(type, id) {
+  const deleteKey = `${type}:${id}`;
+  if (state.activeDeleteKey === deleteKey) return;
+  state.activeDeleteKey = deleteKey;
+
   const item = findLocal(type, id);
-  if (!confirm(`确定删除「${item?.name || item?.title || "这条记录"}」吗？`)) return;
+  if (!confirm(`确定删除「${item?.name || item?.title || "这条记录"}」吗？`)) {
+    state.activeDeleteKey = "";
+    return;
+  }
 
   if (type === "income" || type === "expense") {
     await syncFinanceAccountEffect(type, item, null);
@@ -1678,6 +1700,7 @@ async function deleteRecord(type, id) {
 
   const { error } = await db.from(tableForType(type)).delete().eq("id", id);
   if (error) {
+    state.activeDeleteKey = "";
     showMessage(error.message, "error");
     return;
   }
@@ -1685,6 +1708,7 @@ async function deleteRecord(type, id) {
   await loadAll();
   setDefaultExpenseMonthFilter();
   renderAll();
+  state.activeDeleteKey = "";
   showMessage("删除成功。", "ok");
 }
 
@@ -3534,28 +3558,7 @@ switchPage = function(page) {
 
 
 
-// === v7.0 stable table action delegation ===
-document.addEventListener("click", (event) => {
-  const editBtn = event.target.closest("[data-edit][data-type]");
-  if (editBtn) {
-    event.preventDefault();
-    if (typeof openEditModal === "function") {
-      openEditModal(editBtn.dataset.type, editBtn.dataset.edit);
-    }
-    return;
-  }
-
-  const deleteBtn = event.target.closest("[data-delete][data-type]");
-  if (deleteBtn) {
-    event.preventDefault();
-    if (typeof deleteRecord === "function") {
-      safeAsync("删除记录", () => deleteRecord(deleteBtn.dataset.type, deleteBtn.dataset.delete));
-    }
-  }
-});
-
-
-
+// v7.2: table action delegation removed here to avoid duplicate edit/delete handling.
 // === v7.0 stable navigation binding ===
 function bindNavigationStableV70() {
   document.querySelectorAll(".nav-btn[data-page]").forEach(btn => {

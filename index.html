@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="stylesheet" href="./style.css?v=3.2" />
+  <link rel="stylesheet" href="./style.css?v=3.4" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -22,7 +22,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v3.2</p>
+        <p>运营管理系统 v3.4</p>
       </div>
 
       <nav class="nav">
@@ -216,6 +216,7 @@
             <input type="month" id="incomeMonthFilter" />
             <select id="incomeEntityFilter"></select>
             <button class="secondary-btn" id="incomeClearFilter">清除筛选</button>
+            <button class="danger-btn" id="incomeDeleteFilteredBtn" type="button">删除筛选收入</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -319,6 +320,6 @@
     </div>
   </div>
 
-  <script src="./app.js?v=3.2"></script>
+  <script src="./app.js?v=3.4"></script>
 </body>
 </html>

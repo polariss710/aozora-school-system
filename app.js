@@ -276,23 +276,48 @@ function renderAccountsTable() {
 function renderIncomeTable() {
   const tbody = document.getElementById("incomeTable");
   if (!tbody) return;
-  const rows = filterFinanceRows(state.incomeRecords, "income");
-  tbody.innerHTML = rows.map(item => `
-    <tr>
-      <td>${esc(item.income_date || "")}</td>
-      <td>${esc(item.year_month || "")}</td>
-      <td>${esc(item.business_entity?.name || "")}</td>
-      <td>${esc(incomeCategoryLabel(item.income_category))}</td>
-      <td>${esc(item.student?.name || "")}</td>
-      <td>${esc(short(item.description || item.note, 28))}</td>
-      <td>${esc(item.account?.name || "")}</td>
-      <td>${esc(item.currency || "")}</td>
-      <td>${money(item.amount)}</td>
-      <td>${financeStatusBadge(item.status)}</td>
-      <td>${item.is_taxable_income ? badge("计税") : badge("不计税", "gray")}</td>
-      <td>${actionButtons("income", item.id)}</td>
-    </tr>
-  `).join("");
+  const rows = filterFinanceRows(state.incomeRecords, "income")
+    .slice()
+    .sort((a, b) => {
+      const ma = a.year_month || "";
+      const mb = b.year_month || "";
+      if (ma !== mb) return mb.localeCompare(ma);
+      return String(b.income_date || b.created_at || "").localeCompare(String(a.income_date || a.created_at || ""));
+    });
+
+  let lastMonth = "";
+  const html = [];
+
+  rows.forEach(item => {
+    const ym = item.year_month || "未归属月份";
+    if (ym !== lastMonth) {
+      lastMonth = ym;
+      html.push(`
+        <tr class="month-group-row">
+          <td colspan="12">${esc(incomeMonthLabel(ym))}</td>
+        </tr>
+      `);
+    }
+
+    html.push(`
+      <tr>
+        <td>${esc(displayRecordDate(item.income_date || item.created_at))}</td>
+        <td>${esc(item.year_month || "")}</td>
+        <td>${esc(item.business_entity?.name || "")}</td>
+        <td>${esc(incomeCategoryLabel(item.income_category))}</td>
+        <td>${esc(item.student?.name || "")}</td>
+        <td>${esc(short(item.description || item.note, 28))}</td>
+        <td>${esc(item.account?.name || "")}</td>
+        <td>${esc(item.currency || "")}</td>
+        <td>${money(item.amount)}</td>
+        <td>${financeStatusBadge(item.status)}</td>
+        <td>${item.is_taxable_income ? badge("计税") : badge("不计税", "gray")}</td>
+        <td>${actionButtons("income", item.id)}</td>
+      </tr>
+    `);
+  });
+
+  tbody.innerHTML = html.join("");
 }
 
 function renderExpensesTable() {
@@ -417,8 +442,10 @@ function bindSearch() {
 
 
 function setDefaultExpenseMonthFilter() {
+  const incomeMonth = document.getElementById("incomeMonthFilter");
   const expenseMonth = document.getElementById("expenseMonthFilter");
   const financeMonth = document.getElementById("financeMonthFilter");
+  if (incomeMonth && !incomeMonth.value) incomeMonth.value = currentYearMonth();
   if (expenseMonth && !expenseMonth.value) expenseMonth.value = currentYearMonth();
   if (financeMonth && !financeMonth.value) financeMonth.value = currentYearMonth();
 }
@@ -426,6 +453,14 @@ function setDefaultExpenseMonthFilter() {
 function displayRecordDate(value) {
   if (!value) return "";
   return String(value).slice(0, 10);
+}
+
+
+function incomeMonthLabel(yearMonth) {
+  if (!yearMonth) return "未归属月份";
+  const [year, month] = String(yearMonth).split("-");
+  if (!year || !month) return yearMonth;
+  return `${year}年${Number(month)}月`;
 }
 
 function expenseMonthLabel(yearMonth) {
@@ -450,6 +485,8 @@ function bindFinanceFilters() {
     document.getElementById("incomeEntityFilter").value = "";
     renderIncomeTable();
   });
+
+  document.getElementById("incomeDeleteFilteredBtn")?.addEventListener("click", deleteFilteredIncome);
   document.getElementById("expenseClearFilter")?.addEventListener("click", () => {
     document.getElementById("expenseMonthFilter").value = "";
     document.getElementById("expenseEntityFilter").value = "";
@@ -465,7 +502,37 @@ function bindFinanceFilters() {
 }
 
 
-async function deleteFilteredExpenses() {
+async 
+async function deleteFilteredIncome() {
+  const rows = filterFinanceRows(state.incomeRecords, "income");
+  if (!rows.length) {
+    showMessage("当前筛选条件下没有可删除的收入记录。", "error");
+    return;
+  }
+
+  const month = document.getElementById("incomeMonthFilter")?.value || "全部月份";
+  const entityText = document.getElementById("incomeEntityFilter")?.selectedOptions?.[0]?.textContent || "全部业务归属";
+
+  const ok = confirm(`确定删除当前筛选下的 ${rows.length} 条收入记录吗？\n月份：${month}\n业务归属：${entityText}\n\n删除后会同步还原账户余额。`);
+  if (!ok) return;
+
+  for (const item of rows) {
+    await syncFinanceAccountEffect("income", item, null);
+    const { error } = await db.from(tables.income).delete().eq("id", item.id);
+    if (error) {
+      showMessage(`删除失败：${error.message}`, "error");
+      await loadAll();
+      renderAll();
+      return;
+    }
+  }
+
+  await loadAll();
+  renderAll();
+  showMessage(`已删除 ${rows.length} 条收入记录。`, "ok");
+}
+
+function deleteFilteredExpenses() {
   const rows = filterFinanceRows(state.expenseRecords, "expense");
   if (!rows.length) {
     showMessage("当前筛选条件下没有可删除的支出记录。", "error");

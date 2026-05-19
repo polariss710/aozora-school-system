@@ -1044,7 +1044,7 @@ function getFields(type) {
     { name: "name", label: "学生姓名", required: true },
     { name: "display_name", label: "显示名" },
     { name: "business_entity_id", label: "默认业务归属", type: "select", options: businessOptions, required: true },
-    { name: "preset_exchange_rate", label: "预设汇率", type: "number", default: "" },
+    { name: "preset_exchange_rate", label: "预设汇率", type: "number", default: "", step: "0.0001" },
     { name: "wechat", label: "微信" },
     { name: "phone", label: "电话" },
     { name: "parent_name", label: "家长姓名" },
@@ -5735,6 +5735,233 @@ if (switchPageBeforeV834) {
     if (page === "student-settlement") {
       bindStudentSettlementV834();
     }
+  };
+}
+
+
+
+// === v8.3.5 lesson list final compact layout ===
+function normalizeExchangeRateInputV835() {
+  document.querySelectorAll('input[name="preset_exchange_rate"]').forEach(input => {
+    input.step = "0.0001";
+    input.placeholder = "例：0.0485";
+  });
+}
+
+const buildFormBeforeV835 = typeof buildForm === "function" ? buildForm : null;
+if (buildFormBeforeV835) {
+  buildForm = function(type, data = {}) {
+    buildFormBeforeV835(type, data);
+    if (type === "student") normalizeExchangeRateInputV835();
+  };
+}
+
+function lessonPairActionsFinalV835(item) {
+  if (!item) return "";
+  const actualButton = item.lesson_type === "planned"
+    ? `<button class="secondary-btn lesson-mini-btn" data-create-actual="${escAttr(item.id)}">生成实际</button>`
+    : "";
+  const selectBox = typeof lessonSelectCheckboxV76 === "function"
+    ? lessonSelectCheckboxV76(item)
+    : `<label class="lesson-select-box"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /> 勾选</label>`;
+
+  return `
+    <div class="lesson-actions-grid final">
+      ${selectBox}
+      ${actualButton}
+      <button class="secondary-btn lesson-mini-btn" data-copy-lesson="${escAttr(item.id)}">复制</button>
+      <button class="secondary-btn lesson-mini-btn" data-edit="${escAttr(item.id)}" data-type="lesson">编辑</button>
+      <button class="danger-btn lesson-mini-btn" data-delete="${escAttr(item.id)}" data-type="lesson">删除</button>
+    </div>
+  `;
+}
+
+function lessonPairCellsFinalV835(item, side) {
+  if (!item) {
+    return `<td colspan="6" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
+  }
+
+  const fee = Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0);
+  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
+  const timeText = lessonPairTimeText(item) || "时间未定";
+
+  return `
+    <td class="lesson-date-cell">
+      <div>${lessonPairDateText(item)}</div>
+      <span class="muted-small">${esc(item.year_month || "")}</span>
+    </td>
+    <td class="lesson-name-cell">${lessonPairStudentText(item)}</td>
+    <td class="lesson-teacher-cell">${lessonPairTeacherText(item)}</td>
+    <td class="lesson-subject-cell">
+      <div class="lesson-main-text">${lessonPairSubjectText(item)}</div>
+      <span class="muted-small">${timeText} / ${money(item.duration_hours)}H / ${formatCurrencyTotal(fee, "JPY")}</span>
+    </td>
+    <td class="lesson-status-cell">
+      ${badge(lessonStatusLabel(item.status), statusClass)}
+      ${item.is_billable ? badge("计费") : badge("不计费", "gray")}
+    </td>
+    <td class="lesson-content-actions-cell">
+      <div class="lesson-content-cell">${esc(short(item.lesson_content || item.note, 42))}</div>
+      ${lessonPairActionsFinalV835(item)}
+    </td>
+  `;
+}
+
+lessonPairCells = lessonPairCellsFinalV835;
+
+function makeActualFromPlannedFinalV835(id) {
+  const plan = state.lessonRecords.find(x => x.id === id);
+  if (!plan) return;
+
+  const prefill = {
+    lesson_type: "actual",
+    planned_lesson_id: plan.id,
+    lesson_date: plan.lesson_date || todayStr(),
+    year_month: plan.year_month || currentYearMonth(),
+    student_id: plan.student_id || "",
+    teacher_id: plan.teacher_id || "",
+    subject_id: plan.subject_id || "",
+    business_entity_id: plan.business_entity_id || "",
+    start_time: plan.start_time || "",
+    end_time: plan.end_time || "",
+    duration_hours: plan.duration_hours || 0,
+    unit_price: plan.unit_price || 0,
+    lesson_fee: plan.lesson_fee || (Number(plan.unit_price || 0) * Number(plan.duration_hours || 0)) || 0,
+    status: "completed",
+    is_billable: plan.is_billable !== false,
+    lesson_content: "",
+    note: "",
+  };
+
+  state.pendingActualPlanId = plan.id;
+  openCreateModal("lesson", prefill);
+
+  const form = document.getElementById("modalForm");
+  let hidden = form?.querySelector('input[name="planned_lesson_id"]');
+  if (!hidden && form) {
+    hidden = document.createElement("input");
+    hidden.type = "hidden";
+    hidden.name = "planned_lesson_id";
+    form.appendChild(hidden);
+  }
+  if (hidden) hidden.value = plan.id;
+
+  const title = document.getElementById("modalTitle");
+  if (title) title.textContent = "从预定生成实际课时";
+}
+
+makeActualFromPlanned = makeActualFromPlannedFinalV835;
+
+function bindLessonPairButtonsFinalV835() {
+  document.querySelectorAll("[data-create-actual]").forEach(btn => {
+    btn.onclick = () => makeActualFromPlannedFinalV835(btn.dataset.createActual);
+  });
+  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
+    btn.onclick = () => copyLessonRecordV59(btn.dataset.copyLesson);
+  });
+}
+
+bindLessonPairButtonsV59 = bindLessonPairButtonsFinalV835;
+
+function renderLessonRowsFinalV835(rows) {
+  const plannedRows = rows.filter(x => x.lesson_type === "planned");
+  const actualRows = rows.filter(x => x.lesson_type === "actual");
+  const actualByPlan = new Map();
+  const unlinkedActual = [];
+
+  actualRows.forEach(actual => {
+    let planId = actual.planned_lesson_id;
+
+    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
+      const matched = schoolStableFindMatchingPlannedLessonV70(actual);
+      if (matched) planId = matched.id;
+    }
+    if (!planId && typeof findMatchingPlannedLesson === "function") {
+      const matched = findMatchingPlannedLesson(actual);
+      if (matched) planId = matched.id;
+    }
+
+    if (planId) {
+      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
+      actualByPlan.get(planId).push(actual);
+    } else {
+      unlinkedActual.push(actual);
+    }
+  });
+
+  const sortFn = typeof compareLessonsV78 === "function"
+    ? compareLessonsV78
+    : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
+
+  const html = [];
+  let lastMonth = "";
+
+  function addMonthRow(ym) {
+    if (ym !== lastMonth) {
+      lastMonth = ym;
+      html.push(`<tr class="month-group-row"><td colspan="12">${esc(expenseMonthLabel(ym))}</td></tr>`);
+      html.push(`<tr class="lesson-sub-head lesson-sub-head-body">
+        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态/计费</th><th>内容/操作</th>
+        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态/计费</th><th>内容/操作</th>
+      </tr>`);
+    }
+  }
+
+  plannedRows.slice().sort(sortFn).forEach(plan => {
+    const ym = plan.year_month || "未归属月份";
+    addMonthRow(ym);
+    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
+
+    if (!actuals.length) {
+      html.push(`<tr class="lesson-pair-row compact">${lessonPairCellsFinalV835(plan, "planned")}${lessonPairCellsFinalV835(null, "actual")}</tr>`);
+    } else {
+      actuals.forEach((actual, index) => {
+        const left = index === 0
+          ? lessonPairCellsFinalV835(plan, "planned")
+          : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
+        html.push(`<tr class="lesson-pair-row compact">${left}${lessonPairCellsFinalV835(actual, "actual")}</tr>`);
+      });
+    }
+  });
+
+  unlinkedActual.slice().sort(sortFn).forEach(actual => {
+    const ym = actual.year_month || "未归属月份";
+    addMonthRow(ym);
+    html.push(`<tr class="lesson-pair-row compact">${lessonPairCellsFinalV835(null, "planned")}${lessonPairCellsFinalV835(actual, "actual")}</tr>`);
+  });
+
+  return html.join("");
+}
+
+function renderLessonsFinalV835() {
+  const tbody = document.getElementById("lessonsTable");
+  if (!tbody) return;
+
+  updateLessonFilters();
+  const rows = filterLessons().slice().sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
+  renderLessonStats(rows);
+
+  const html = renderLessonRowsFinalV835(rows);
+  tbody.innerHTML = html || `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
+  bindLessonPairButtonsFinalV835();
+  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
+}
+
+renderLessons = renderLessonsFinalV835;
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    renderLessonsFinalV835();
+    normalizeExchangeRateInputV835();
+  }, 800);
+});
+
+const renderAllBeforeV835 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV835) {
+  renderAll = function() {
+    renderAllBeforeV835();
+    renderLessonsFinalV835();
+    normalizeExchangeRateInputV835();
   };
 }
 

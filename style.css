@@ -1018,3 +1018,143 @@ button:disabled {
   background: #fef2f2;
   color: #b91c1c;
 }
+
+
+/* === v8.3.5 lesson list final compact layout === */
+#page-lessons .table-wrap {
+  overflow-x: auto;
+}
+
+#page-lessons .table-wrap table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  min-width: 1180px;
+}
+
+#page-lessons .table-wrap th,
+#page-lessons .table-wrap td {
+  border: 1px solid var(--line);
+  padding: 5px 6px;
+  vertical-align: middle;
+  line-height: 1.25;
+}
+
+#page-lessons .lesson-pair-head {
+  padding: 7px 8px;
+  text-align: center;
+  font-weight: 800;
+}
+
+#page-lessons thead .lesson-sub-head {
+  display: none;
+}
+
+#page-lessons .lesson-sub-head-body th {
+  background: #f8fbff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  padding: 5px 4px;
+}
+
+#page-lessons .month-group-row td {
+  padding: 7px 10px;
+  font-weight: 800;
+  border: 1px solid var(--line);
+  background: #eaf6fd;
+}
+
+#page-lessons .lesson-pair-row.compact > td {
+  height: auto;
+  min-height: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#page-lessons .lesson-pair-row > td:nth-child(6) {
+  border-right: 3px solid var(--line);
+}
+
+.lesson-main-text {
+  font-weight: 700;
+}
+
+.lesson-status-cell {
+  text-align: center;
+}
+
+.lesson-status-cell .badge {
+  display: inline-flex;
+  margin: 1px;
+  padding: 3px 7px;
+  font-size: 11px;
+}
+
+.lesson-content-actions-cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px;
+  gap: 8px;
+  align-items: center;
+}
+
+.lesson-content-cell {
+  min-height: 18px;
+  line-height: 1.3;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.lesson-actions-grid.final {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  align-items: center;
+}
+
+.lesson-actions-grid.final .lesson-select-box {
+  grid-column: span 2;
+  justify-content: flex-start;
+  margin: 0;
+  font-size: 11px;
+}
+
+.lesson-mini-btn {
+  min-height: 27px;
+  padding: 4px 7px !important;
+  font-size: 11px !important;
+  border-radius: 8px !important;
+  white-space: nowrap;
+}
+
+#page-lessons .muted-small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+#page-lessons .lesson-empty-side {
+  padding: 12px 8px;
+  text-align: center;
+  color: var(--muted);
+  background: #fafcff;
+}
+
+/* === v8.3.5 settlement detail grid cleanup === */
+#page-student-settlement .lesson-content-actions-cell {
+  display: block;
+}
+
+#page-student-settlement .lesson-content-cell {
+  border: none !important;
+  padding: 0;
+  margin: 0;
+  min-height: 0;
+}
+
+#page-student-settlement .lesson-pair-row > td {
+  height: auto;
+  min-height: 0;
+}

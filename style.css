@@ -777,3 +777,28 @@ tr.dragging {
   justify-content: center;
   font-size: 26px;
 }
+
+
+/* === v8.2 lesson required hint === */
+.required-hint {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.required-hint.ok {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

@@ -5021,3 +5021,103 @@ if (renderAllBeforeV81) {
   };
 }
 
+
+
+
+// === v8.2 lesson import dialog + student required final override ===
+function updateLessonStudentRequiredStateV82() {
+  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  const addBtn = document.getElementById("lessonAddBtn");
+  const importBtn = document.getElementById("lessonImportExcelBtn");
+  const hint = document.getElementById("lessonStudentRequiredHint");
+
+  const disabled = !studentId;
+  if (addBtn) {
+    addBtn.disabled = disabled;
+    addBtn.title = disabled ? "请先选择学生" : "";
+  }
+  if (importBtn) {
+    importBtn.disabled = disabled;
+    importBtn.title = disabled ? "请先选择学生" : "";
+  }
+  if (hint) {
+    hint.classList.toggle("ok", !disabled);
+    hint.textContent = disabled ? "学生必选" : "已选择学生";
+  }
+}
+
+function bindLessonStudentRequiredV82() {
+  const studentFilter = document.getElementById("lessonStudentFilter");
+  if (studentFilter && studentFilter.dataset.boundRequiredV82 !== "true") {
+    studentFilter.dataset.boundRequiredV82 = "true";
+    studentFilter.addEventListener("change", updateLessonStudentRequiredStateV82);
+  }
+  updateLessonStudentRequiredStateV82();
+}
+
+function openLessonExcelUploadDialogV82() {
+  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  if (!studentId) {
+    showMessage("请先在课时管理筛选中选择学生。", "error");
+    updateLessonStudentRequiredStateV82();
+    return;
+  }
+
+  const lessonInput = document.getElementById("lessonImportExcelInput");
+  if (!lessonInput) return;
+
+  const opener = typeof openUploadDialogV81 === "function" ? openUploadDialogV81 : openUploadDialogV80;
+  opener({
+    title: "导入课时 Excel",
+    hint: "将 Excel 文件拖入这里",
+    acceptText: "支持 .xlsx / .xls。点击下方按钮选择文件。",
+    input: lessonInput,
+    onFile: async file => {
+      if (!/\.(xlsx|xls)$/i.test(file.name)) {
+        showMessage("暂时只支持 .xlsx / .xls 文件。", "error");
+        return;
+      }
+      await importLessonExcelFile(file);
+    },
+  });
+}
+
+function bindLessonUploadDialogFinalV82() {
+  const lessonBtn = document.getElementById("lessonImportExcelBtn");
+  const lessonInput = document.getElementById("lessonImportExcelInput");
+
+  if (lessonBtn) {
+    // Final override: click the page button only opens the upload dialog.
+    // It never opens the OS file picker directly.
+    lessonBtn.onclick = event => {
+      event.preventDefault();
+      event.stopPropagation();
+      openLessonExcelUploadDialogV82();
+    };
+  }
+
+  if (lessonInput) {
+    lessonInput.onchange = async () => {
+      const file = lessonInput.files && lessonInput.files[0];
+      lessonInput.value = "";
+      if (!file) return;
+      await importLessonExcelFile(file);
+      if (typeof closeUploadDialogV80 === "function") closeUploadDialogV80();
+    };
+  }
+
+  bindLessonStudentRequiredV82();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(bindLessonUploadDialogFinalV82, 800);
+});
+
+const renderAllBeforeV82 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV82) {
+  renderAll = function() {
+    renderAllBeforeV82();
+    bindLessonUploadDialogFinalV82();
+  };
+}
+

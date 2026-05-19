@@ -4282,3 +4282,149 @@ if (renderAllBeforeV76) {
   };
 }
 
+
+
+
+// === v7.7 lesson sort + select all ===
+function lessonTeacherOrderV77(item) {
+  const name = item?.teacher?.display_name || item?.teacher?.name || "";
+  const idx = (state.teachers || []).findIndex(t => t.id === item?.teacher_id);
+  return `${idx < 0 ? 9999 : idx}_${name}`;
+}
+
+function lessonSubjectOrderV77(item) {
+  const sort = Number(item?.subject?.sort_order ?? 9999);
+  const name = item?.subject?.name || "";
+  return `${String(sort).padStart(6, "0")}_${name}`;
+}
+
+function compareLessonsV77(a, b) {
+  // 月份升序 → 周/日期升序 → 老师顺序 → 科目顺序 → 开始时间
+  const month = String(a.year_month || "").localeCompare(String(b.year_month || ""));
+  if (month !== 0) return month;
+
+  const date = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
+  if (date !== 0) return date;
+
+  const teacher = lessonTeacherOrderV77(a).localeCompare(lessonTeacherOrderV77(b));
+  if (teacher !== 0) return teacher;
+
+  const subject = lessonSubjectOrderV77(a).localeCompare(lessonSubjectOrderV77(b));
+  if (subject !== 0) return subject;
+
+  return String(a.start_time || "").localeCompare(String(b.start_time || ""));
+}
+
+function selectAllLessonsV77() {
+  document.querySelectorAll(".lesson-delete-check").forEach(x => {
+    x.checked = true;
+  });
+}
+
+const bindLessonDeleteSelectedBeforeV77 = typeof bindLessonDeleteSelectedV76 === "function" ? bindLessonDeleteSelectedV76 : null;
+function bindLessonSelectAllV77() {
+  if (bindLessonDeleteSelectedBeforeV77) bindLessonDeleteSelectedBeforeV77();
+
+  const selectAllBtn = document.getElementById("lessonSelectAllBtn");
+  if (selectAllBtn && selectAllBtn.dataset.boundV77 !== "true") {
+    selectAllBtn.dataset.boundV77 = "true";
+    selectAllBtn.onclick = selectAllLessonsV77;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(bindLessonSelectAllV77, 500);
+});
+
+// Override lesson renderer to use template-like ascending order.
+// This keeps the existing v5.9 paired layout, but changes ordering to:
+// 月份升序 → 周一日期升序 → 老师 → 科目 → 开始时间
+const renderLessonsBeforeV77 = typeof renderLessons === "function" ? renderLessons : null;
+if (renderLessonsBeforeV77) {
+  renderLessons = function() {
+    const tbody = document.getElementById("lessonsTable");
+    if (!tbody) return;
+
+    updateLessonFilters();
+    const rows = filterLessons().slice().sort(compareLessonsV77);
+
+    renderLessonStats(rows);
+
+    const plannedRows = rows.filter(x => x.lesson_type === "planned");
+    const actualRows = rows.filter(x => x.lesson_type === "actual");
+    const actualByPlan = new Map();
+    const unlinkedActual = [];
+
+    actualRows.forEach(actual => {
+      let planId = actual.planned_lesson_id;
+
+      if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
+        const matched = schoolStableFindMatchingPlannedLessonV70(actual);
+        if (matched) planId = matched.id;
+      }
+
+      if (!planId && typeof findMatchingPlannedLesson === "function") {
+        const matched = findMatchingPlannedLesson(actual);
+        if (matched) planId = matched.id;
+      }
+
+      if (planId) {
+        if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
+        actualByPlan.get(planId).push(actual);
+      } else {
+        unlinkedActual.push(actual);
+      }
+    });
+
+    for (const list of actualByPlan.values()) {
+      list.sort(compareLessonsV77);
+    }
+
+    const html = [];
+    let lastMonth = "";
+
+    function addMonthRow(ym) {
+      if (ym !== lastMonth) {
+        lastMonth = ym;
+        html.push(`<tr class="month-group-row"><td colspan="12">${esc(expenseMonthLabel(ym))}</td></tr>`);
+      }
+    }
+
+    plannedRows.forEach(plan => {
+      const ym = plan.year_month || "未归属月份";
+      addMonthRow(ym);
+      const actuals = actualByPlan.get(plan.id) || [];
+
+      if (!actuals.length) {
+        html.push(`<tr class="lesson-pair-row">${lessonPairCells(plan, "planned")}${lessonPairCells(null, "actual")}</tr>`);
+      } else {
+        actuals.forEach((actual, index) => {
+          const left = index === 0
+            ? lessonPairCells(plan, "planned")
+            : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
+          html.push(`<tr class="lesson-pair-row">${left}${lessonPairCells(actual, "actual")}</tr>`);
+        });
+      }
+    });
+
+    unlinkedActual.sort(compareLessonsV77).forEach(actual => {
+      const ym = actual.year_month || "未归属月份";
+      addMonthRow(ym);
+      html.push(`<tr class="lesson-pair-row">${lessonPairCells(null, "planned")}${lessonPairCells(actual, "actual")}</tr>`);
+    });
+
+    tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
+
+    if (typeof bindLessonPairButtonsV59 === "function") bindLessonPairButtonsV59();
+    if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
+  };
+}
+
+const renderAllBeforeV77 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV77) {
+  renderAll = function() {
+    renderAllBeforeV77();
+    bindLessonSelectAllV77();
+  };
+}
+

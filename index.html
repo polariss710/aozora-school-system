@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="stylesheet" href="./style.css?v=7.4" />
+  <link rel="stylesheet" href="./style.css?v=7.5" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -23,7 +23,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v7.4</p>
+        <p>运营管理系统 v7.5</p>
       </div>
 
       <nav class="nav">
@@ -316,6 +316,8 @@
           <div class="cards-grid finance-mini-stats">
             <div class="stat-card"><span>预定课时合计</span><strong id="lessonPlannedHours">0</strong></div>
             <div class="stat-card"><span>实际课时合计</span><strong id="lessonActualHours">0</strong></div>
+            <div class="stat-card"><span>预定课时费合计</span><strong id="lessonPlannedFeeTotal">0</strong></div>
+            <div class="stat-card"><span>实际课时费合计</span><strong id="lessonActualFeeTotal">0</strong></div>
             <div class="stat-card"><span>已上课数量</span><strong id="lessonCompletedCount">0</strong></div>
             <div class="stat-card"><span>取消/放假数量</span><strong id="lessonCancelledCount">0</strong></div>
             <div class="stat-card"><span>记录数</span><strong id="lessonRecordCount">0</strong></div>
@@ -455,6 +457,6 @@
     </div>
   </div>
 
-  <script src="./app.js?v=7.4"></script>
+  <script src="./app.js?v=7.5"></script>
 </body>
 </html>

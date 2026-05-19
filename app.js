@@ -560,18 +560,33 @@ function filterLessons() {
   );
 }
 
+
+function formatCurrencyTotal(value, currency = "JPY") {
+  const n = Number(value || 0);
+  return `${n.toLocaleString()} ${currency}`;
+}
+
 function renderLessonStats(rows) {
-  const plannedHours = rows
-    .filter(x => x.lesson_type === "planned")
-    .reduce((sum, x) => sum + Number(x.duration_hours || 0), 0);
-  const actualHours = rows
-    .filter(x => x.lesson_type === "actual" && x.status !== "cancelled" && x.status !== "holiday")
-    .reduce((sum, x) => sum + Number(x.duration_hours || 0), 0);
+  const plannedRows = rows.filter(x => x.lesson_type === "planned");
+  const actualRows = rows.filter(x => x.lesson_type === "actual" && x.status !== "cancelled" && x.status !== "holiday");
+  const plannedHours = plannedRows.reduce((sum, x) => sum + Number(x.duration_hours || 0), 0);
+  const actualHours = actualRows.reduce((sum, x) => sum + Number(x.duration_hours || 0), 0);
+
+  const plannedFee = plannedRows
+    .filter(x => x.is_billable !== false)
+    .reduce((sum, x) => sum + Number(x.lesson_fee || (Number(x.unit_price || 0) * Number(x.duration_hours || 0)) || 0), 0);
+
+  const actualFee = actualRows
+    .filter(x => x.is_billable !== false)
+    .reduce((sum, x) => sum + Number(x.lesson_fee || (Number(x.unit_price || 0) * Number(x.duration_hours || 0)) || 0), 0);
+
   const completedCount = rows.filter(x => x.status === "completed").length;
   const cancelledCount = rows.filter(x => x.status === "cancelled" || x.status === "holiday").length;
 
   setOptionalText("lessonPlannedHours", money(plannedHours));
   setOptionalText("lessonActualHours", money(actualHours));
+  setOptionalText("lessonPlannedFeeTotal", formatCurrencyTotal(plannedFee, "JPY"));
+  setOptionalText("lessonActualFeeTotal", formatCurrencyTotal(actualFee, "JPY"));
   setOptionalText("lessonCompletedCount", completedCount);
   setOptionalText("lessonCancelledCount", cancelledCount);
   setOptionalText("lessonRecordCount", rows.length);
@@ -1052,6 +1067,8 @@ function getFields(type) {
     { name: "start_time", label: "开始时间", type: "time" },
     { name: "end_time", label: "结束时间", type: "time" },
     { name: "duration_hours", label: "时长（H）", type: "number", default: 2, required: true },
+    { name: "unit_price", label: "课程单价", type: "number", default: "" },
+    { name: "lesson_fee", label: "应收课时费", type: "number", default: "" },
     { name: "status", label: "状态", type: "select", default: "completed", options: lessonStatusOptions() },
     { name: "is_billable", label: "计费", type: "checkbox", default: true },
     { name: "lesson_content", label: "上课内容", type: "textarea", full: true },
@@ -3350,7 +3367,7 @@ function lessonPairCells(item, side) {
     <td>${lessonPairTeacherText(item)}</td>
     <td>
       ${lessonPairSubjectText(item)}<br>
-      <span class="muted-small">${lessonPairTimeText(item)} / ${money(item.duration_hours)}H</span>
+      <span class="muted-small">${lessonPairTimeText(item)} / ${money(item.duration_hours)}H / ${formatCurrencyTotal(Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0), "JPY")}</span>
     </td>
     <td>${lessonPairStatus(item)}</td>
     <td>
@@ -3697,6 +3714,27 @@ function weekLabelFromDate(date) {
   return `${date.getMonth() + 1}.${date.getDate()}周`;
 }
 
+
+function teacherIdFromExcelName(name) {
+  const text = String(name || "").replace(/\s+/g, "").toLowerCase();
+  if (!text) return "";
+
+  const matched = (state.teachers || []).find(t => {
+    const name1 = String(t.name || "").replace(/\s+/g, "").toLowerCase();
+    const name2 = String(t.display_name || "").replace(/\s+/g, "").toLowerCase();
+    return (name1 && (name1.includes(text) || text.includes(name1))) ||
+           (name2 && (name2.includes(text) || text.includes(name2)));
+  });
+
+  return matched?.id || "";
+}
+
+function numericExcelValue(value) {
+  if (value === null || value === undefined || value === "") return 0;
+  const n = Number(String(value).replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
 function subjectIdFromExcelName(name) {
   const text = String(name || "").replace(/\s+/g, "").toLowerCase();
   if (!text) return "";
@@ -3725,12 +3763,16 @@ function buildLessonImportColumnMap(headerRow) {
   headerRow.forEach((cell, idx) => {
     const text = String(cell || "").trim();
     if (!text) return;
+
+    if (text.includes("担当") || text.includes("老师") || text.includes("教師") || text.includes("讲师")) map.teacher = idx;
     if (text.includes("科目")) map.subject = idx;
     if (text.includes("日期")) map.date = idx;
+    if (text.includes("回数")) map.count = idx;
     if (text.includes("内容")) map.content = idx;
     if (text.includes("時長") || text.includes("时长") || text === "H" || text.includes("時間")) map.duration = idx;
+    if (text.includes("课程单价") || text.includes("単価") || text.includes("单价")) map.unitPrice = idx;
+    if (text.includes("应收课时费") || text.includes("應收課時費") || text.includes("课时费") || text.includes("授業料")) map.lessonFee = idx;
     if (text.includes("教室")) map.roomFee = idx;
-    if (text.includes("老师") || text.includes("教師")) map.teacher = idx;
     if (text.includes("开始") || text.includes("開始")) map.start = idx;
     if (text.includes("结束") || text.includes("終了")) map.end = idx;
   });
@@ -3762,8 +3804,7 @@ async function importLessonExcelFile(file) {
   }
 
   const businessEntityId = state.students.find(x => x.id === ctx.studentId)?.business_entity_id || state.businessEntities[0]?.id || "";
-  const fallbackTeacherId = ctx.teacherId || state.teachers[0]?.id || "";
-
+  const fallbackTeacherId = ctx.teacherId || "";
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
   const sheetName = workbook.SheetNames[0];
@@ -3778,27 +3819,50 @@ async function importLessonExcelFile(file) {
 
   const col = buildLessonImportColumnMap(rows[headerIndex]);
   const records = [];
+  let currentTeacherText = "";
+  let currentSubjectText = "";
+  let skipped = 0;
 
   for (let r = headerIndex + 1; r < rows.length; r++) {
     const row = rows[r];
-    const subjectText = row[col.subject] || "";
-    const dateValue = row[col.date];
-    const durationRaw = col.duration !== undefined ? row[col.duration] : "";
-
     const lineText = row.map(x => String(x || "").trim()).join("");
     if (!lineText) continue;
     if (/合计|小计|總計|总计/.test(lineText)) continue;
 
-    const weekStart = parseLessonExcelWeekStart(dateValue, ctx.baseYear);
-    const duration = Number(String(durationRaw || "").replace(/[^\d.]/g, "")) || 0;
-    if (!weekStart || !duration) continue;
+    const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
+    const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
 
-    const subjectId = subjectIdFromExcelName(subjectText) || ctx.subjectId;
-    if (!subjectId) {
-      console.warn("Subject not matched, skipped row", row);
+    // Merged cells appear as blank in following rows, so forward-fill teacher and subject.
+    if (teacherCell) currentTeacherText = teacherCell;
+    if (subjectCell) currentSubjectText = subjectCell;
+
+    const dateValue = col.date !== undefined ? row[col.date] : "";
+    const durationRaw = col.duration !== undefined ? row[col.duration] : "";
+    const weekStart = parseLessonExcelWeekStart(dateValue, ctx.baseYear);
+    const duration = numericExcelValue(durationRaw);
+
+    if (!weekStart || !duration) {
+      skipped++;
       continue;
     }
 
+    const subjectId = subjectIdFromExcelName(currentSubjectText) || ctx.subjectId;
+    const teacherId = teacherIdFromExcelName(currentTeacherText) || fallbackTeacherId;
+
+    if (!subjectId) {
+      console.warn("Subject not matched, skipped row", row);
+      skipped++;
+      continue;
+    }
+
+    if (!teacherId) {
+      console.warn("Teacher not matched and no fallback teacher, skipped row", row);
+      skipped++;
+      continue;
+    }
+
+    const unitPrice = col.unitPrice !== undefined ? numericExcelValue(row[col.unitPrice]) : 0;
+    const lessonFee = col.lessonFee !== undefined ? numericExcelValue(row[col.lessonFee]) : (unitPrice && duration ? unitPrice * duration : 0);
     const yearMonth = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, "0")}`;
 
     records.push({
@@ -3806,25 +3870,28 @@ async function importLessonExcelFile(file) {
       lesson_date: formatDateYmd(weekStart),
       year_month: yearMonth,
       student_id: ctx.studentId,
-      teacher_id: fallbackTeacherId || null,
+      teacher_id: teacherId,
       subject_id: subjectId,
       business_entity_id: businessEntityId || null,
       start_time: col.start !== undefined ? String(row[col.start] || "") : "",
       end_time: col.end !== undefined ? String(row[col.end] || "") : "",
       duration_hours: duration,
+      unit_price: unitPrice || 0,
+      lesson_fee: lessonFee || 0,
       lesson_content: col.content !== undefined ? String(row[col.content] || "") : "",
       status: "planned",
       is_billable: true,
-      note: `Excel导入：${sheetName} / ${weekLabelFromDate(weekStart)}`,
+      note: `Excel导入：${sheetName} / ${weekLabelFromDate(weekStart)}${col.count !== undefined && row[col.count] ? " / 回数:" + row[col.count] : ""}`,
     });
   }
 
   if (!records.length) {
-    showMessage("没有读取到可导入的课时记录。请确认已选择学生，且模板中有日期和时长。", "error");
+    showMessage("没有读取到可导入的课时记录。请确认已选择学生，且模板中有日期、时长、科目和担当老师。", "error");
     return;
   }
 
-  const ok = confirm(`将导入 ${records.length} 条预定课时。\n归属月份按周一所在月份计算。\n是否继续？`);
+  const totalFee = records.reduce((sum, x) => sum + Number(x.lesson_fee || 0), 0);
+  const ok = confirm(`将导入 ${records.length} 条预定课时。\n预定课时费合计：${totalFee.toLocaleString()} JPY\n跳过行数：${skipped}\n归属月份按周一所在月份计算。\n是否继续？`);
   if (!ok) return;
 
   const { error } = await db.from(tables.lessons).insert(records);
@@ -3869,6 +3936,8 @@ function exportCurrentLessonsExcel() {
         "开始": item.start_time || "",
         "结束": item.end_time || "",
         "时长H": Number(item.duration_hours || 0),
+        "课程单价": Number(item.unit_price || 0),
+        "应收课时费": Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0),
         "状态": lessonStatusLabel(item.status),
         "计费": item.is_billable ? "是" : "否",
         "内容": item.lesson_content || "",

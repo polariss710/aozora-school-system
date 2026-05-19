@@ -1688,3 +1688,214 @@ button:disabled {
   margin: 0 !important;
   min-height: 0 !important;
 }
+
+/* === v8.3.10 lesson and settlement column tuning === */
+#page-lessons .table-wrap {
+  overflow-x: auto !important;
+}
+
+#page-lessons table {
+  border-collapse: collapse !important;
+  table-layout: fixed !important;
+  width: 100% !important;
+  min-width: 1340px !important;
+}
+
+#page-lessons thead .lesson-sub-head {
+  display: none !important;
+}
+
+#page-lessons th,
+#page-lessons td {
+  border: 1px solid var(--line) !important;
+  padding: 4px 5px !important;
+  line-height: 1.18 !important;
+  vertical-align: middle !important;
+}
+
+#page-lessons .month-group-row td {
+  background: #eaf6fd !important;
+  color: var(--primary-dark) !important;
+  font-weight: 800 !important;
+  padding: 7px 10px !important;
+}
+
+#page-lessons .lesson-sub-head-body.v8310 th {
+  background: #f8fbff !important;
+  color: var(--muted) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  text-align: center !important;
+  padding: 5px 3px !important;
+}
+
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(8) {
+  border-right: 3px solid var(--line) !important;
+}
+
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(1),
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(9) {
+  width: 1.2% !important;
+  text-align: center !important;
+}
+
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(2),
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(10) {
+  width: 6.4% !important;
+}
+
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(3),
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(11) {
+  width: 4.8% !important;
+}
+
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(4),
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(12) {
+  width: 5.8% !important;
+}
+
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(5),
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(13) {
+  width: 13.6% !important;
+}
+
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(6),
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(14) {
+  width: 4.2% !important;
+  text-align: center !important;
+}
+
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(7),
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(15) {
+  width: 4.8% !important;
+}
+
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(8),
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(16) {
+  width: 9.2% !important;
+}
+
+#page-lessons .col-date span,
+#page-lessons .col-subject span,
+#page-student-settlement .col-date span,
+#page-student-settlement .col-subject span {
+  display: block !important;
+  margin-top: 2px !important;
+  font-size: 11px !important;
+  color: var(--muted) !important;
+  line-height: 1.15 !important;
+}
+
+#page-lessons .col-subject strong,
+#page-student-settlement .col-subject strong {
+  display: block !important;
+  font-weight: 800 !important;
+}
+
+#page-lessons .col-status .badge,
+#page-student-settlement .col-status .badge {
+  display: inline-flex !important;
+  margin: 1px !important;
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+}
+
+#page-lessons .lesson-check-only input {
+  margin: 0 !important;
+}
+
+#page-lessons .lesson-content-text,
+#page-student-settlement .settlement-content-text {
+  font-size: 13px !important;
+  line-height: 1.25 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#page-lessons .lesson-action-col {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 4px !important;
+}
+
+#page-lessons .lesson-row-btn,
+#page-student-settlement .settlement-row-btn {
+  min-height: 25px !important;
+  padding: 3px 6px !important;
+  font-size: 11px !important;
+  border-radius: 8px !important;
+  white-space: nowrap !important;
+}
+
+/* settlement table */
+#page-student-settlement table {
+  border-collapse: collapse !important;
+  table-layout: fixed !important;
+  width: 100% !important;
+  min-width: 1240px !important;
+}
+
+#page-student-settlement thead .lesson-sub-head {
+  display: none !important;
+}
+
+#page-student-settlement .settlement-v8310 th {
+  background: #f8fbff !important;
+  color: var(--muted) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  text-align: center !important;
+  padding: 5px 3px !important;
+}
+
+#page-student-settlement .lesson-pair-row.settlement-v8310 > td:nth-child(7) {
+  border-right: 3px solid var(--line) !important;
+}
+
+#page-student-settlement .lesson-pair-row.settlement-v8310 > td:nth-child(1),
+#page-student-settlement .lesson-pair-row.settlement-v8310 > td:nth-child(8) {
+  width: 7% !important;
+}
+
+#page-student-settlement .lesson-pair-row.settlement-v8310 > td:nth-child(2),
+#page-student-settlement .lesson-pair-row.settlement-v8310 > td:nth-child(9) {
+  width: 5% !important;
+}
+
+#page-student-settlement .lesson-pair-row.settlement-v8310 > td:nth-child(3),
+#page-student-settlement .lesson-pair-row.settlement-v8310 > td:nth-child(10) {
+  width: 6% !important;
+}
+
+#page-student-settlement .lesson-pair-row.settlement-v8310 > td:nth-child(4),
+#page-student-settlement .lesson-pair-row.settlement-v8310 > td:nth-child(11) {
+  width: 13% !important;
+}
+
+#page-student-settlement .lesson-pair-row.settlement-v8310 > td:nth-child(5),
+#page-student-settlement .lesson-pair-row.settlement-v8310 > td:nth-child(12) {
+  width: 5.2% !important;
+}
+
+#page-student-settlement .lesson-pair-row.settlement-v8310 > td:nth-child(6),
+#page-student-settlement .lesson-pair-row.settlement-v8310 > td:nth-child(13) {
+  width: 8% !important;
+}
+
+#page-student-settlement .lesson-pair-row.settlement-v8310 > td:nth-child(7),
+#page-student-settlement .lesson-pair-row.settlement-v8310 > td:nth-child(14) {
+  width: 4.8% !important;
+}
+
+#page-student-settlement .settlement-action-col {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 4px !important;
+}
+
+#page-student-settlement .settlement-row-btn {
+  width: 100% !important;
+}
+
+#page-student-settlement .settlement-mini-table tr.hidden-settlement-row-v838:has(td#settlementReceivedJpy) { display: table-row !important; }

@@ -8201,3 +8201,215 @@ if (renderAllBeforeV853) {
   };
 }
 
+
+
+// === v8.5.4 lesson pair row chronological sort fix ===
+function compareDateTimeAscV854(a, b) {
+  const date = String(a?.lesson_date || "").localeCompare(String(b?.lesson_date || ""));
+  if (date !== 0) return date;
+
+  const start = String(a?.start_time || "").localeCompare(String(b?.start_time || ""));
+  if (start !== 0) return start;
+
+  const end = String(a?.end_time || "").localeCompare(String(b?.end_time || ""));
+  if (end !== 0) return end;
+
+  return String(a?.created_at || "").localeCompare(String(b?.created_at || ""));
+}
+
+function subjectRankForSortV854(item) {
+  if (typeof subjectRankByTrackV8314 === "function") return subjectRankByTrackV8314(item);
+  if (typeof subjectSortKeyV8312 === "function") return subjectSortKeyV8312(item);
+  return 999;
+}
+
+function lessonPairSortKeyDateV854(plan, actuals) {
+  // 右侧有实际课时的行，按实际课时日期排序；否则按预定课时日期排序。
+  const firstActual = (actuals || []).slice().sort(compareDateTimeAscV854)[0];
+  return firstActual || plan;
+}
+
+function compareLessonPairV854(a, b) {
+  const aBase = lessonPairSortKeyDateV854(a.plan, a.actuals);
+  const bBase = lessonPairSortKeyDateV854(b.plan, b.actuals);
+
+  const month = String((aBase || a.plan)?.year_month || "").localeCompare(String((bBase || b.plan)?.year_month || ""));
+  if (month !== 0) return month;
+
+  // 课程顺序仍然优先：日语 → 数学 → 文/理科顺序。
+  const ar = subjectRankForSortV854(a.plan || aBase);
+  const br = subjectRankForSortV854(b.plan || bBase);
+  if (ar !== br) return ar - br;
+
+  const subject = String((a.plan || aBase)?.subject?.name || "").localeCompare(String((b.plan || bBase)?.subject?.name || ""));
+  if (subject !== 0) return subject;
+
+  // 同一课程下，按右侧实际课时日期/时间正序。如果没有实际课时，按预定日期/时间正序。
+  const dt = compareDateTimeAscV854(aBase, bBase);
+  if (dt !== 0) return dt;
+
+  const teacher = String((a.plan || aBase)?.teacher?.display_name || (a.plan || aBase)?.teacher?.name || "")
+    .localeCompare(String((b.plan || bBase)?.teacher?.display_name || (b.plan || bBase)?.teacher?.name || ""));
+  if (teacher !== 0) return teacher;
+
+  return String((a.plan || aBase)?.id || "").localeCompare(String((b.plan || bBase)?.id || ""));
+}
+
+function buildLessonPairGroupsV854(rows) {
+  const plannedRows = rows.filter(x => x.lesson_type === "planned");
+  const actualRows = rows.filter(x => x.lesson_type === "actual");
+  const actualByPlan = new Map();
+  const unlinkedActual = [];
+
+  actualRows.forEach(actual => {
+    let planId = actual.planned_lesson_id;
+
+    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
+      const matched = schoolStableFindMatchingPlannedLessonV70(actual);
+      if (matched) planId = matched.id;
+    }
+    if (!planId && typeof findMatchingPlannedLesson === "function") {
+      const matched = findMatchingPlannedLesson(actual);
+      if (matched) planId = matched.id;
+    }
+
+    if (planId) {
+      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
+      actualByPlan.get(planId).push(actual);
+    } else {
+      unlinkedActual.push(actual);
+    }
+  });
+
+  const pairs = plannedRows.map(plan => ({
+    plan,
+    actuals: (actualByPlan.get(plan.id) || []).slice().sort(compareDateTimeAscV854),
+  }));
+
+  pairs.sort(compareLessonPairV854);
+  unlinkedActual.sort(compareDateTimeAscV854);
+
+  return { pairs, unlinkedActual };
+}
+
+function renderLessonRowsV854(rows) {
+  const { pairs, unlinkedActual } = buildLessonPairGroupsV854(rows);
+
+  const html = [];
+  let lastMonth = "";
+
+  function rowMonth(pairOrActual) {
+    if (pairOrActual.plan) {
+      const base = lessonPairSortKeyDateV854(pairOrActual.plan, pairOrActual.actuals);
+      return base?.year_month || pairOrActual.plan?.year_month || "未归属月份";
+    }
+    return pairOrActual.year_month || "未归属月份";
+  }
+
+  function addMonthRow(ym) {
+    if (ym !== lastMonth) {
+      lastMonth = ym;
+      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
+      html.push(`<tr class="lesson-sub-head-body v8310">
+        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+      </tr>`);
+    }
+  }
+
+  pairs.forEach(pair => {
+    addMonthRow(rowMonth(pair));
+
+    if (!pair.actuals.length) {
+      html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV852(pair.plan, "planned")}${lessonPairCellsV852(null, "actual")}</tr>`);
+      return;
+    }
+
+    pair.actuals.forEach((actual, index) => {
+      const left = index === 0
+        ? lessonPairCellsV852(pair.plan, "planned")
+        : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
+      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonPairCellsV852(actual, "actual")}</tr>`);
+    });
+  });
+
+  unlinkedActual.forEach(actual => {
+    addMonthRow(actual.year_month || "未归属月份");
+    html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV852(null, "planned")}${lessonPairCellsV852(actual, "actual")}</tr>`);
+  });
+
+  return html.join("");
+}
+
+function renderLessonsV854() {
+  const tbody = document.getElementById("lessonsTable");
+  if (!tbody) return;
+
+  updateLessonFilters();
+  const rows = filterLessons().slice();
+  renderLessonStats(rows);
+
+  tbody.innerHTML = renderLessonRowsV854(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
+
+  if (typeof bindLessonButtonsV8310 === "function") bindLessonButtonsV8310();
+  if (typeof bindActualButtonsV851 === "function") bindActualButtonsV851();
+  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
+}
+
+renderLessons = renderLessonsV854;
+
+function renderSettlementPairedLessonsV854(planned, actual) {
+  const tbody = document.getElementById("settlementLessonsTable");
+  if (!tbody) return;
+
+  const rows = [...planned, ...actual];
+  const { pairs, unlinkedActual } = buildLessonPairGroupsV854(rows);
+
+  const html = [];
+  html.push(`<tr class="lesson-sub-head-body settlement-v8310">
+    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+  </tr>`);
+
+  pairs.forEach(pair => {
+    if (!pair.actuals.length) {
+      html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV852(pair.plan, "planned")}${settlementLessonCellsV852(null, "actual")}</tr>`);
+      return;
+    }
+
+    pair.actuals.forEach((act, index) => {
+      const left = index === 0
+        ? settlementLessonCellsV852(pair.plan, "planned")
+        : `<td colspan="7" class="lesson-empty-side">同一预定课时</td>`;
+      html.push(`<tr class="lesson-pair-row settlement-v8310">${left}${settlementLessonCellsV852(act, "actual")}</tr>`);
+    });
+  });
+
+  unlinkedActual.forEach(act => {
+    html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV852(null, "planned")}${settlementLessonCellsV852(act, "actual")}</tr>`);
+  });
+
+  tbody.innerHTML = html.length > 1 ? html.join("") : `<tr><td colspan="14" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
+}
+
+if (typeof renderSettlementPairedLessonsV834 === "function") renderSettlementPairedLessonsV834 = renderSettlementPairedLessonsV854;
+if (typeof renderSettlementPairedLessonsV8310 === "function") renderSettlementPairedLessonsV8310 = renderSettlementPairedLessonsV854;
+if (typeof renderSettlementPairedLessonsV852 === "function") renderSettlementPairedLessonsV852 = renderSettlementPairedLessonsV854;
+if (typeof renderSettlementPairedLessonsV853 === "function") renderSettlementPairedLessonsV853 = renderSettlementPairedLessonsV854;
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    if (typeof renderLessons === "function") renderLessons();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  }, 1000);
+});
+
+const renderAllBeforeV854 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV854) {
+  renderAll = function() {
+    renderAllBeforeV854();
+    if (typeof renderLessons === "function") renderLessons();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  };
+}
+

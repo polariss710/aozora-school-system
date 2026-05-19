@@ -1158,3 +1158,189 @@ button:disabled {
   height: auto;
   min-height: 0;
 }
+
+
+/* === v8.3.6 lesson list and settlement final layout === */
+#page-lessons .table-wrap {
+  overflow-x: auto;
+}
+
+#page-lessons .table-wrap table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  min-width: 1320px;
+}
+
+#page-lessons .table-wrap th,
+#page-lessons .table-wrap td {
+  border: 1px solid var(--line);
+  padding: 5px 6px;
+  vertical-align: middle;
+  line-height: 1.25;
+}
+
+#page-lessons .lesson-pair-head {
+  padding: 7px 8px;
+  text-align: center;
+  font-weight: 800;
+}
+
+#page-lessons thead .lesson-sub-head {
+  display: none;
+}
+
+#page-lessons .lesson-sub-head-body th {
+  background: #f8fbff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  padding: 5px 4px;
+}
+
+#page-lessons .month-group-row td {
+  padding: 7px 10px;
+  font-weight: 800;
+  border: 1px solid var(--line);
+  background: #eaf6fd;
+}
+
+#page-lessons .lesson-pair-row.compact > td {
+  height: auto;
+  min-height: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#page-lessons .lesson-pair-row > td:nth-child(6) {
+  border-right: 3px solid var(--line);
+}
+
+/* Final column width: date/name/teacher/status narrower, content wider */
+#page-lessons .lesson-pair-row > td:nth-child(1),
+#page-lessons .lesson-pair-row > td:nth-child(7),
+#page-lessons .lesson-sub-head-body > th:nth-child(1),
+#page-lessons .lesson-sub-head-body > th:nth-child(7) {
+  width: 7%;
+}
+
+#page-lessons .lesson-pair-row > td:nth-child(2),
+#page-lessons .lesson-pair-row > td:nth-child(8),
+#page-lessons .lesson-sub-head-body > th:nth-child(2),
+#page-lessons .lesson-sub-head-body > th:nth-child(8) {
+  width: 5.5%;
+}
+
+#page-lessons .lesson-pair-row > td:nth-child(3),
+#page-lessons .lesson-pair-row > td:nth-child(9),
+#page-lessons .lesson-sub-head-body > th:nth-child(3),
+#page-lessons .lesson-sub-head-body > th:nth-child(9) {
+  width: 6.5%;
+}
+
+#page-lessons .lesson-pair-row > td:nth-child(4),
+#page-lessons .lesson-pair-row > td:nth-child(10),
+#page-lessons .lesson-sub-head-body > th:nth-child(4),
+#page-lessons .lesson-sub-head-body > th:nth-child(10) {
+  width: 13%;
+}
+
+#page-lessons .lesson-pair-row > td:nth-child(5),
+#page-lessons .lesson-pair-row > td:nth-child(11),
+#page-lessons .lesson-sub-head-body > th:nth-child(5),
+#page-lessons .lesson-sub-head-body > th:nth-child(11) {
+  width: 5.5%;
+}
+
+#page-lessons .lesson-pair-row > td:nth-child(6),
+#page-lessons .lesson-pair-row > td:nth-child(12),
+#page-lessons .lesson-sub-head-body > th:nth-child(6),
+#page-lessons .lesson-sub-head-body > th:nth-child(12) {
+  width: 21%;
+}
+
+.lesson-main-text {
+  font-weight: 700;
+}
+
+.lesson-status-cell {
+  text-align: center;
+}
+
+.lesson-status-cell .badge {
+  display: inline-flex;
+  margin: 1px;
+  padding: 3px 7px;
+  font-size: 11px;
+}
+
+.lesson-content-actions-cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 176px;
+  gap: 8px;
+  align-items: center;
+}
+
+.lesson-content-cell {
+  min-height: 18px;
+  line-height: 1.3;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.lesson-actions-grid.final {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  align-items: center;
+}
+
+.lesson-actions-grid.final .lesson-select-box {
+  grid-column: span 2;
+  justify-content: flex-start;
+  margin: 0;
+  font-size: 11px;
+}
+
+.lesson-mini-btn {
+  min-height: 27px;
+  padding: 4px 7px !important;
+  font-size: 11px !important;
+  border-radius: 8px !important;
+  white-space: nowrap;
+}
+
+#page-lessons .muted-small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+#page-lessons .lesson-empty-side {
+  padding: 12px 8px;
+  text-align: center;
+  color: var(--muted);
+  background: #fafcff;
+}
+
+/* settlement page: remove inner grid/double-border caused by reused lesson cell layout */
+#page-student-settlement .lesson-content-actions-cell {
+  display: block !important;
+}
+
+#page-student-settlement .lesson-content-cell {
+  border: 0 !important;
+  outline: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+#page-student-settlement .lesson-pair-row > td {
+  height: auto;
+  min-height: 0;
+}

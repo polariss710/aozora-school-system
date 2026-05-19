@@ -345,8 +345,8 @@ function renderStudentsTable() {
       <td>${esc(item.name)}</td>
       <td>${esc(item.business_entity?.name || "")}</td>
       <td>${esc(item.target_type || "")}</td>
-      <td>${esc(item.wechat || "")}</td>
-      <td>${esc(item.parent_name || "")}</td>
+      <td>${money(item.preset_exchange_rate || 0)}</td>
+      <td>${formatCnyV83(item.previous_balance_cny || 0)}</td>
       <td>${statusBadge(item.status)}</td>
       <td>${esc(short(item.note))}</td>
       <td>${actionButtons("student", item.id)}</td>
@@ -716,6 +716,7 @@ function switchPage(page) {
     business: ["业务归属", "管理公司与个人业务归属"],
     students: ["学生管理", "管理学生基础资料与升学信息"],
     lessons: ["课时管理", "管理学生预定课时与实际课时"],
+  "student-settlement": ["学生月度结算", "按学生和月份计算预定课时费与实际课时费"],
     teachers: ["老师管理", "管理老师资料与工资信息"],
     subjects: ["科目管理", "管理课程科目与分类"],
     accounts: ["账户管理", "管理公司账户与垫付账户"],
@@ -1046,6 +1047,8 @@ function getFields(type) {
     { name: "display_name", label: "显示名" },
     { name: "business_entity_id", label: "默认业务归属", type: "select", options: businessOptions, required: true },
     { name: "target_type", label: "学习目标" },
+    { name: "preset_exchange_rate", label: "预设汇率", type: "number", default: "" },
+    { name: "previous_balance_cny", label: "上月结余/补交（人民币）", type: "number", default: "" },
     { name: "wechat", label: "微信" },
     { name: "phone", label: "电话" },
     { name: "parent_name", label: "家长姓名" },
@@ -3542,6 +3545,7 @@ switchPage = function(page) {
     business: ["业务归属", "管理公司与个人业务归属"],
     students: ["学生管理", "管理学生基础资料与升学信息"],
     lessons: ["课时管理", "管理学生预定课时与实际课时"],
+  "student-settlement": ["学生月度结算", "按学生和月份计算预定课时费与实际课时费"],
     teachers: ["老师管理", "管理老师资料与工资信息"],
     subjects: ["科目管理", "管理课程科目与分类"],
     accounts: ["账户管理", "管理公司账户与垫付账户"],
@@ -5118,6 +5122,300 @@ if (renderAllBeforeV82) {
   renderAll = function() {
     renderAllBeforeV82();
     bindLessonUploadDialogFinalV82();
+  };
+}
+
+
+
+
+// === v8.3 student monthly settlement ===
+function formatCnyV83(value) {
+  const n = Number(value || 0);
+  return `${n.toLocaleString()} CNY`;
+}
+
+function formatJpyV83(value) {
+  const n = Math.round(Number(value || 0));
+  return `${n.toLocaleString()} JPY`;
+}
+
+function studentLabelV83(student) {
+  return student?.display_name || student?.name || "";
+}
+
+function fillStudentSelectV83(selectId, keepValue = true) {
+  const el = document.getElementById(selectId);
+  if (!el) return;
+  const old = keepValue ? el.value : "";
+  el.innerHTML = `<option value="">选择学生</option>` + (state.students || [])
+    .map(s => `<option value="${escAttr(s.id)}">${esc(studentLabelV83(s))}</option>`)
+    .join("");
+  el.value = old;
+}
+
+function feeOfLessonV83(item) {
+  return Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0);
+}
+
+function settlementRowsV83() {
+  const month = document.getElementById("settlementMonthFilter")?.value || currentYearMonth();
+  const studentId = document.getElementById("settlementStudentFilter")?.value || "";
+  const lessons = (state.lessonRecords || []).filter(x =>
+    x.student_id === studentId &&
+    x.year_month === month &&
+    x.is_billable !== false
+  );
+  const planned = lessons.filter(x => x.lesson_type === "planned");
+  const actual = lessons.filter(x =>
+    x.lesson_type === "actual" &&
+    (x.status === "completed" || x.status === "makeup" || x.status === "planned")
+  );
+  return { month, studentId, lessons, planned, actual };
+}
+
+function sumLessonHoursV83(rows) {
+  return rows.reduce((sum, x) => sum + Number(x.duration_hours || 0), 0);
+}
+
+function sumLessonFeeV83(rows) {
+  return rows.reduce((sum, x) => sum + feeOfLessonV83(x), 0);
+}
+
+function sumIncomeV83(studentId, month, currency) {
+  return (state.incomeRecords || [])
+    .filter(x =>
+      x.student_id === studentId &&
+      x.year_month === month &&
+      x.income_category === "tuition" &&
+      x.status === "received" &&
+      x.currency === currency
+    )
+    .reduce((sum, x) => sum + Number(x.amount || 0), 0);
+}
+
+function renderStudentSettlement() {
+  fillStudentSelectV83("settlementStudentFilter");
+  const { month, studentId, lessons, planned, actual } = settlementRowsV83();
+  const student = (state.students || []).find(x => x.id === studentId);
+  const hint = document.getElementById("settlementStudentHint");
+
+  if (hint) {
+    hint.classList.toggle("ok", !!studentId);
+    hint.textContent = studentId ? "已选择学生" : "学生必选";
+  }
+
+  if (!studentId || !student) {
+    ["settlementPlannedHours", "settlementActualHours", "settlementPlannedJpy", "settlementActualJpy",
+     "settlementPrevBalanceCny", "settlementExchangeRate", "settlementPlannedJpy2", "settlementPlannedCny",
+     "settlementPlannedTotalCny", "settlementActualJpy2", "settlementActualCny", "settlementReceivedCny", "settlementReceivedJpy"].forEach(id => setOptionalText(id, "0"));
+    const tbody = document.getElementById("settlementLessonsTable");
+    if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="empty-row">请先选择学生</td></tr>`;
+    return;
+  }
+
+  const rate = Number(student.preset_exchange_rate || 0);
+  const prevBalanceCny = Number(student.previous_balance_cny || 0);
+  const plannedJpy = sumLessonFeeV83(planned);
+  const actualJpy = sumLessonFeeV83(actual);
+  const plannedCny = plannedJpy * rate;
+  const actualCny = actualJpy * rate;
+  const plannedTotalCny = plannedCny - prevBalanceCny;
+  const receivedCny = sumIncomeV83(studentId, month, "CNY");
+  const receivedJpy = sumIncomeV83(studentId, month, "JPY");
+
+  setOptionalText("settlementPlannedHours", money(sumLessonHoursV83(planned)));
+  setOptionalText("settlementActualHours", money(sumLessonHoursV83(actual)));
+  setOptionalText("settlementPlannedJpy", formatJpyV83(plannedJpy));
+  setOptionalText("settlementActualJpy", formatJpyV83(actualJpy));
+
+  setOptionalText("settlementPrevBalanceCny", formatCnyV83(prevBalanceCny));
+  setOptionalText("settlementExchangeRate", money(rate));
+  setOptionalText("settlementPlannedJpy2", formatJpyV83(plannedJpy));
+  setOptionalText("settlementPlannedCny", formatCnyV83(plannedCny));
+  setOptionalText("settlementPlannedTotalCny", formatCnyV83(plannedTotalCny));
+
+  setOptionalText("settlementActualJpy2", formatJpyV83(actualJpy));
+  setOptionalText("settlementActualCny", formatCnyV83(actualCny));
+  setOptionalText("settlementReceivedCny", formatCnyV83(receivedCny));
+  setOptionalText("settlementReceivedJpy", formatJpyV83(receivedJpy));
+
+  const sorted = lessons.slice().sort((a, b) => {
+    const type = String(a.lesson_type || "").localeCompare(String(b.lesson_type || ""));
+    if (type !== 0) return type;
+    const date = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
+    if (date !== 0) return date;
+    return String(a.start_time || "").localeCompare(String(b.start_time || ""));
+  });
+
+  const tbody = document.getElementById("settlementLessonsTable");
+  if (!tbody) return;
+  tbody.innerHTML = sorted.length ? sorted.map(item => `
+    <tr>
+      <td>${esc(lessonTypeLabel(item.lesson_type))}</td>
+      <td>${esc(displayRecordDate(item.lesson_date || ""))}</td>
+      <td>${esc(item.teacher?.display_name || item.teacher?.name || "")}</td>
+      <td>${esc(item.subject?.name || "")}</td>
+      <td>${money(item.duration_hours)}H</td>
+      <td>${formatJpyV83(item.unit_price || 0)}</td>
+      <td>${formatJpyV83(feeOfLessonV83(item))}</td>
+      <td>${esc(lessonStatusLabel(item.status))}</td>
+      <td>${esc(short(item.lesson_content || item.note, 24))}</td>
+    </tr>
+  `).join("") : `<tr><td colspan="9" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
+}
+
+function bindStudentSettlementV83() {
+  const month = document.getElementById("settlementMonthFilter");
+  const student = document.getElementById("settlementStudentFilter");
+  const refresh = document.getElementById("settlementRefreshBtn");
+
+  fillStudentSelectV83("settlementStudentFilter");
+
+  if (month && !month.value) month.value = currentYearMonth();
+
+  if (month && month.dataset.boundV83 !== "true") {
+    month.dataset.boundV83 = "true";
+    month.addEventListener("change", renderStudentSettlement);
+  }
+  if (student && student.dataset.boundV83 !== "true") {
+    student.dataset.boundV83 = "true";
+    student.addEventListener("change", renderStudentSettlement);
+  }
+  if (refresh && refresh.dataset.boundV83 !== "true") {
+    refresh.dataset.boundV83 = "true";
+    refresh.onclick = renderStudentSettlement;
+  }
+  renderStudentSettlement();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(bindStudentSettlementV83, 700);
+});
+
+const renderAllBeforeV83 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV83) {
+  renderAll = function() {
+    renderAllBeforeV83();
+    bindStudentSettlementV83();
+  };
+}
+
+const switchPageBeforeV83 = typeof switchPage === "function" ? switchPage : null;
+if (switchPageBeforeV83) {
+  switchPage = function(page) {
+    switchPageBeforeV83(page);
+    if (page === "student-settlement") {
+      bindStudentSettlementV83();
+    }
+  };
+}
+
+
+
+// === v8.3.1 lesson UI and actual-copy fix ===
+function lessonPairActionsNoContentV831(item) {
+  if (!item) return "";
+  const actualButton = item.lesson_type === "planned"
+    ? `<button class="secondary-btn" data-create-actual="${escAttr(item.id)}">生成实际</button>`
+    : "";
+  return `
+    <div class="table-actions lesson-actions">
+      ${lessonSelectCheckboxV76 ? lessonSelectCheckboxV76(item) : ""}
+      ${actualButton}
+      <button class="secondary-btn" data-copy-lesson="${escAttr(item.id)}">复制</button>
+      <button class="secondary-btn" data-edit="${escAttr(item.id)}" data-type="lesson">编辑</button>
+      <button class="danger-btn" data-delete="${escAttr(item.id)}" data-type="lesson">删除</button>
+    </div>
+  `;
+}
+
+function lessonPairCellsV831(item, side) {
+  if (!item) {
+    return `<td colspan="6" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
+  }
+
+  const fee = Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0);
+  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
+
+  return `
+    <td>
+      ${lessonPairDateText(item)}<br>
+      <span class="muted-small">${esc(item.year_month || "")}</span>
+    </td>
+    <td>${lessonPairStudentText(item)}</td>
+    <td>${lessonPairTeacherText(item)}</td>
+    <td>
+      ${lessonPairSubjectText(item)}<br>
+      <span class="muted-small">${lessonPairTimeText(item)} / ${money(item.duration_hours)}H / ${formatCurrencyTotal(fee, "JPY")}</span>
+    </td>
+    <td>
+      ${badge(lessonStatusLabel(item.status), statusClass)}<br>
+      ${item.is_billable ? badge("计费") : badge("不计费", "gray")}
+    </td>
+    <td>
+      <div class="lesson-content-cell">${esc(short(item.lesson_content || item.note, 28))}</div>
+      ${lessonPairActionsNoContentV831(item)}
+    </td>
+  `;
+}
+
+// Override cell renderer used by existing renderLessons overrides.
+lessonPairCells = lessonPairCellsV831;
+
+function makeActualFromPlannedV831(id) {
+  const plan = state.lessonRecords.find(x => x.id === id);
+  if (!plan) return;
+
+  const prefill = {
+    lesson_type: "actual",
+    planned_lesson_id: plan.id,
+    lesson_date: plan.lesson_date || todayStr(),
+    year_month: plan.year_month || currentYearMonth(),
+    student_id: plan.student_id || "",
+    teacher_id: plan.teacher_id || "",
+    subject_id: plan.subject_id || "",
+    business_entity_id: plan.business_entity_id || "",
+    start_time: plan.start_time || "",
+    end_time: plan.end_time || "",
+    duration_hours: plan.duration_hours || 0,
+    unit_price: plan.unit_price || 0,
+    lesson_fee: plan.lesson_fee || (Number(plan.unit_price || 0) * Number(plan.duration_hours || 0)) || 0,
+    status: "completed",
+    is_billable: plan.is_billable !== false,
+    lesson_content: "",
+    note: "",
+  };
+
+  state.pendingActualPlanId = plan.id;
+  openCreateModal("lesson", prefill);
+
+  const form = document.getElementById("modalForm");
+  let hidden = form?.querySelector('input[name="planned_lesson_id"]');
+  if (!hidden && form) {
+    hidden = document.createElement("input");
+    hidden.type = "hidden";
+    hidden.name = "planned_lesson_id";
+    form.appendChild(hidden);
+  }
+  if (hidden) hidden.value = plan.id;
+
+  const title = document.getElementById("modalTitle");
+  if (title) title.textContent = "从预定生成实际课时";
+}
+
+// Override actual creation handler.
+makeActualFromPlanned = makeActualFromPlannedV831;
+
+// Rebind buttons after render to ensure override takes effect.
+const bindLessonPairButtonsBeforeV831 = typeof bindLessonPairButtonsV59 === "function" ? bindLessonPairButtonsV59 : null;
+if (bindLessonPairButtonsBeforeV831) {
+  bindLessonPairButtonsV59 = function() {
+    document.querySelectorAll("[data-create-actual]").forEach(btn => {
+      btn.onclick = () => makeActualFromPlannedV831(btn.dataset.createActual);
+    });
+    document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
+      btn.onclick = () => copyLessonRecordV59(btn.dataset.copyLesson);
+    });
   };
 }
 

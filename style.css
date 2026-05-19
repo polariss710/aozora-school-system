@@ -802,3 +802,79 @@ button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+
+/* === v8.3 student settlement === */
+.settlement-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.settlement-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  padding: 14px;
+}
+
+.settlement-card h4 {
+  margin: 0 0 10px;
+}
+
+.settlement-mini-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.settlement-mini-table th,
+.settlement-mini-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 8px;
+  text-align: left;
+}
+
+.settlement-mini-table th {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.settlement-mini-table td {
+  font-weight: 800;
+}
+
+.settlement-mini-table .total-row th,
+.settlement-mini-table .total-row td {
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+
+/* === v8.3.1 lesson list grid lines === */
+#page-lessons .table-wrap table {
+  border-collapse: collapse;
+}
+
+#page-lessons .table-wrap th,
+#page-lessons .table-wrap td {
+  border: 1px solid var(--line);
+}
+
+#page-lessons .month-group-row td {
+  border: 1px solid var(--line);
+}
+
+#page-lessons .lesson-pair-row > td:nth-child(6) {
+  border-right: 3px solid var(--line);
+}
+
+.lesson-content-cell {
+  margin-bottom: 6px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.lesson-actions {
+  margin-top: 4px;
+}

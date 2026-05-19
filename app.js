@@ -8413,3 +8413,178 @@ if (renderAllBeforeV854) {
   };
 }
 
+
+
+// === v8.5.5 stable planned lesson link priority ===
+function lessonIdTextV855(value) {
+  return String(value || "").trim();
+}
+
+function buildActualByExplicitPlanV855(actualRows) {
+  const actualByPlan = new Map();
+  const unlinkedActual = [];
+
+  actualRows.forEach(actual => {
+    const explicitPlanId = lessonIdTextV855(actual.planned_lesson_id);
+
+    // v8.5.5 important rule:
+    // If actual lesson has planned_lesson_id, trust it absolutely.
+    // Do not re-match by date/time/subject, otherwise duplicate weekly planned rows can attach to the wrong row.
+    if (explicitPlanId) {
+      if (!actualByPlan.has(explicitPlanId)) actualByPlan.set(explicitPlanId, []);
+      actualByPlan.get(explicitPlanId).push(actual);
+    } else {
+      unlinkedActual.push(actual);
+    }
+  });
+
+  actualByPlan.forEach((items, key) => {
+    items.sort(compareDateTimeAscV854 || compareDateTimeAscV853 || ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""))));
+  });
+  unlinkedActual.sort(compareDateTimeAscV854 || compareDateTimeAscV853 || ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""))));
+
+  return { actualByPlan, unlinkedActual };
+}
+
+function comparePlannedRowsByCourseDateV855(a, b) {
+  // Left side planned lessons should keep the stable planned-course order.
+  if (typeof compareLessonsV78 === "function") {
+    const r = compareLessonsV78(a, b);
+    if (r !== 0) return r;
+  }
+
+  const date = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
+  if (date !== 0) return date;
+
+  const start = String(a.start_time || "").localeCompare(String(b.start_time || ""));
+  if (start !== 0) return start;
+
+  return String(a.id || "").localeCompare(String(b.id || ""));
+}
+
+function renderLessonRowsV855(rows) {
+  const plannedRows = rows.filter(x => x.lesson_type === "planned");
+  const actualRows = rows.filter(x => x.lesson_type === "actual");
+
+  const { actualByPlan, unlinkedActual } = buildActualByExplicitPlanV855(actualRows);
+
+  const html = [];
+  let lastMonth = "";
+
+  function addMonthRow(ym) {
+    if (ym !== lastMonth) {
+      lastMonth = ym;
+      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
+      html.push(`<tr class="lesson-sub-head-body v8310">
+        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+      </tr>`);
+    }
+  }
+
+  plannedRows.slice().sort(comparePlannedRowsByCourseDateV855).forEach(plan => {
+    const ym = plan.year_month || "未归属月份";
+    addMonthRow(ym);
+
+    const actuals = (actualByPlan.get(lessonIdTextV855(plan.id)) || []).slice()
+      .sort(compareDateTimeAscV854 || compareDateTimeAscV853 || ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""))));
+
+    if (!actuals.length) {
+      html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV852(plan, "planned")}${lessonPairCellsV852(null, "actual")}</tr>`);
+      return;
+    }
+
+    actuals.forEach((actual, index) => {
+      const left = index === 0
+        ? lessonPairCellsV852(plan, "planned")
+        : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
+      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonPairCellsV852(actual, "actual")}</tr>`);
+    });
+  });
+
+  // Actual lessons without planned_lesson_id stay in unlinked area.
+  // They are not guessed into duplicate planned rows.
+  unlinkedActual.forEach(actual => {
+    const ym = actual.year_month || "未归属月份";
+    addMonthRow(ym);
+    html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV852(null, "planned")}${lessonPairCellsV852(actual, "actual")}</tr>`);
+  });
+
+  return html.join("");
+}
+
+function renderLessonsV855() {
+  const tbody = document.getElementById("lessonsTable");
+  if (!tbody) return;
+
+  updateLessonFilters();
+  const rows = filterLessons().slice();
+  renderLessonStats(rows);
+
+  tbody.innerHTML = renderLessonRowsV855(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
+
+  if (typeof bindLessonButtonsV8310 === "function") bindLessonButtonsV8310();
+  if (typeof bindActualButtonsV851 === "function") bindActualButtonsV851();
+  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
+}
+
+renderLessons = renderLessonsV855;
+
+function renderSettlementPairedLessonsV855(planned, actual) {
+  const tbody = document.getElementById("settlementLessonsTable");
+  if (!tbody) return;
+
+  const { actualByPlan, unlinkedActual } = buildActualByExplicitPlanV855(actual);
+
+  const html = [];
+  html.push(`<tr class="lesson-sub-head-body settlement-v8310">
+    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+  </tr>`);
+
+  planned.slice().sort(comparePlannedRowsByCourseDateV855).forEach(plan => {
+    const actuals = (actualByPlan.get(lessonIdTextV855(plan.id)) || []).slice()
+      .sort(compareDateTimeAscV854 || compareDateTimeAscV853 || ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""))));
+
+    if (!actuals.length) {
+      html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV852(plan, "planned")}${settlementLessonCellsV852(null, "actual")}</tr>`);
+      return;
+    }
+
+    actuals.forEach((act, index) => {
+      const left = index === 0
+        ? settlementLessonCellsV852(plan, "planned")
+        : `<td colspan="7" class="lesson-empty-side">同一预定课时</td>`;
+      html.push(`<tr class="lesson-pair-row settlement-v8310">${left}${settlementLessonCellsV852(act, "actual")}</tr>`);
+    });
+  });
+
+  unlinkedActual.forEach(act => {
+    html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV852(null, "planned")}${settlementLessonCellsV852(act, "actual")}</tr>`);
+  });
+
+  tbody.innerHTML = html.length > 1 ? html.join("") : `<tr><td colspan="14" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
+}
+
+if (typeof renderSettlementPairedLessonsV834 === "function") renderSettlementPairedLessonsV834 = renderSettlementPairedLessonsV855;
+if (typeof renderSettlementPairedLessonsV8310 === "function") renderSettlementPairedLessonsV8310 = renderSettlementPairedLessonsV855;
+if (typeof renderSettlementPairedLessonsV852 === "function") renderSettlementPairedLessonsV852 = renderSettlementPairedLessonsV855;
+if (typeof renderSettlementPairedLessonsV853 === "function") renderSettlementPairedLessonsV853 = renderSettlementPairedLessonsV855;
+if (typeof renderSettlementPairedLessonsV854 === "function") renderSettlementPairedLessonsV854 = renderSettlementPairedLessonsV855;
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    if (typeof renderLessons === "function") renderLessons();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  }, 1000);
+});
+
+const renderAllBeforeV855 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV855) {
+  renderAll = function() {
+    renderAllBeforeV855();
+    if (typeof renderLessons === "function") renderLessons();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  };
+}
+

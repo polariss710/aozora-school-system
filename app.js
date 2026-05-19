@@ -4671,3 +4671,220 @@ if (renderAllBeforeV79) {
   };
 }
 
+
+
+// === v8.0 upload dialog + teacher order adjustment ===
+function lessonCreatedAtTimeV80(item) {
+  const t = item?.created_at ? new Date(item.created_at).getTime() : 0;
+  return Number.isFinite(t) ? t : 0;
+}
+
+function buildLessonTeacherOrderMapV80(rows) {
+  const map = new Map();
+  const sorted = (rows || [])
+    .filter(x => x.teacher_id)
+    .slice()
+    .sort((a, b) => {
+      const ca = lessonCreatedAtTimeV80(a);
+      const cb = lessonCreatedAtTimeV80(b);
+      if (ca !== cb) return ca - cb;
+      return String(a.id || "").localeCompare(String(b.id || ""));
+    });
+
+  sorted.forEach(item => {
+    if (!map.has(item.teacher_id)) {
+      map.set(item.teacher_id, map.size);
+    }
+  });
+
+  return map;
+}
+
+const lessonTeacherOrderBeforeV80 = typeof lessonTeacherOrderV77 === "function" ? lessonTeacherOrderV77 : null;
+if (lessonTeacherOrderBeforeV80) {
+  lessonTeacherOrderV77 = function(item) {
+    const orderMap = window.lessonTeacherOrderMapV80;
+    if (orderMap && item?.teacher_id && orderMap.has(item.teacher_id)) {
+      const name = item?.teacher?.display_name || item?.teacher?.name || "";
+      return `${String(orderMap.get(item.teacher_id)).padStart(6, "0")}_${name}`;
+    }
+    return lessonTeacherOrderBeforeV80(item);
+  };
+}
+
+const renderLessonsBeforeV80 = typeof renderLessons === "function" ? renderLessons : null;
+if (renderLessonsBeforeV80) {
+  renderLessons = function() {
+    try {
+      const rows = typeof filterLessons === "function" ? filterLessons() : (state.lessonRecords || []);
+      window.lessonTeacherOrderMapV80 = buildLessonTeacherOrderMapV80(rows);
+    } catch (error) {
+      console.warn("teacher order map failed", error);
+    }
+    renderLessonsBeforeV80();
+  };
+}
+
+function ensureUploadDialogV80() {
+  let modal = document.getElementById("uploadDialogV80");
+  if (modal) return modal;
+
+  modal = document.createElement("div");
+  modal.id = "uploadDialogV80";
+  modal.className = "upload-dialog hidden";
+  modal.innerHTML = `
+    <div class="upload-dialog-card">
+      <div class="upload-dialog-header">
+        <h3 id="uploadDialogTitleV80">上传文件</h3>
+        <button type="button" class="icon-btn" id="uploadDialogCloseV80">×</button>
+      </div>
+      <div class="upload-dialog-drop" id="uploadDialogDropV80">
+        <div class="upload-dialog-icon">⬆</div>
+        <p id="uploadDialogHintV80">拖入文件到这里</p>
+        <button type="button" class="primary-btn" id="uploadDialogPickV80">选择文件</button>
+        <p class="form-help" id="uploadDialogAcceptV80"></p>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  document.getElementById("uploadDialogCloseV80").onclick = closeUploadDialogV80;
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) closeUploadDialogV80();
+  });
+
+  return modal;
+}
+
+function closeUploadDialogV80() {
+  const modal = document.getElementById("uploadDialogV80");
+  if (modal) modal.classList.add("hidden");
+  window.uploadDialogHandlerV80 = null;
+  window.uploadDialogInputV80 = null;
+}
+
+function openUploadDialogV80(config) {
+  const modal = ensureUploadDialogV80();
+  const drop = document.getElementById("uploadDialogDropV80");
+  const title = document.getElementById("uploadDialogTitleV80");
+  const hint = document.getElementById("uploadDialogHintV80");
+  const accept = document.getElementById("uploadDialogAcceptV80");
+  const pick = document.getElementById("uploadDialogPickV80");
+
+  title.textContent = config.title || "上传文件";
+  hint.textContent = config.hint || "拖入文件到这里";
+  accept.textContent = config.acceptText || "";
+  window.uploadDialogHandlerV80 = config.onFile;
+  window.uploadDialogInputV80 = config.input;
+
+  pick.onclick = () => config.input?.click();
+
+  if (drop.dataset.boundV80 !== "true") {
+    drop.dataset.boundV80 = "true";
+
+    ["dragenter", "dragover"].forEach(name => {
+      drop.addEventListener(name, event => {
+        event.preventDefault();
+        event.stopPropagation();
+        drop.classList.add("drag-over");
+      });
+    });
+
+    ["dragleave", "drop"].forEach(name => {
+      drop.addEventListener(name, event => {
+        event.preventDefault();
+        event.stopPropagation();
+        drop.classList.remove("drag-over");
+      });
+    });
+
+    drop.addEventListener("drop", async event => {
+      const file = event.dataTransfer?.files?.[0];
+      if (!file) return;
+      if (typeof window.uploadDialogHandlerV80 === "function") {
+        await window.uploadDialogHandlerV80(file);
+        closeUploadDialogV80();
+      }
+    });
+  }
+
+  modal.classList.remove("hidden");
+}
+
+function bindUploadDialogButtonsV80() {
+  const expenseBtn = document.getElementById("importExpensePdfBtn");
+  const expenseInput = document.getElementById("expensePdfInput");
+  if (expenseBtn && expenseInput && expenseBtn.dataset.boundDialogV80 !== "true") {
+    expenseBtn.dataset.boundDialogV80 = "true";
+    expenseBtn.onclick = () => openUploadDialogV80({
+      title: "凭证读取",
+      hint: "将 PDF / JPG / PNG 拖入这里",
+      acceptText: "支持 PDF、JPG、PNG。也可以点击按钮选择文件。",
+      input: expenseInput,
+      onFile: async file => {
+        const lower = file.name.toLowerCase();
+        if (!(file.type === "application/pdf" || file.type.startsWith("image/") || /\.(pdf|jpg|jpeg|png)$/i.test(lower))) {
+          showMessage("暂时只支持 PDF / JPG / PNG 文件。", "error");
+          return;
+        }
+        await handleExpenseReceiptFileV79(file);
+      },
+    });
+
+    expenseInput.onchange = async () => {
+      const file = expenseInput.files && expenseInput.files[0];
+      expenseInput.value = "";
+      if (!file) return;
+      await handleExpenseReceiptFileV79(file);
+      closeUploadDialogV80();
+    };
+  }
+
+  const lessonBtn = document.getElementById("lessonImportExcelBtn");
+  const lessonInput = document.getElementById("lessonImportExcelInput");
+  if (lessonBtn && lessonInput && lessonBtn.dataset.boundDialogV80 !== "true") {
+    lessonBtn.dataset.boundDialogV80 = "true";
+    lessonBtn.onclick = () => {
+      const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+      if (!studentId) {
+        showMessage("请先在课时管理筛选中选择学生，再导入 Excel。", "error");
+        return;
+      }
+
+      openUploadDialogV80({
+        title: "导入课时 Excel",
+        hint: "将 Excel 文件拖入这里",
+        acceptText: "支持 .xlsx / .xls。也可以点击按钮选择文件。",
+        input: lessonInput,
+        onFile: async file => {
+          if (!/\.(xlsx|xls)$/i.test(file.name)) {
+            showMessage("暂时只支持 .xlsx / .xls 文件。", "error");
+            return;
+          }
+          await importLessonExcelFile(file);
+        },
+      });
+    };
+
+    lessonInput.onchange = async () => {
+      const file = lessonInput.files && lessonInput.files[0];
+      lessonInput.value = "";
+      if (!file) return;
+      await importLessonExcelFile(file);
+      closeUploadDialogV80();
+    };
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(bindUploadDialogButtonsV80, 600);
+});
+
+const renderAllBeforeV80Upload = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV80Upload) {
+  renderAll = function() {
+    renderAllBeforeV80Upload();
+    bindUploadDialogButtonsV80();
+  };
+}
+

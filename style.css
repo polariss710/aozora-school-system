@@ -666,3 +666,33 @@ tr.dragging {
 #page-lessons .lesson-pair-row > td:nth-child(6) {
   border-right: 2px solid var(--line);
 }
+
+
+/* === v7.9 drag & drop upload zones === */
+.drop-upload-zone {
+  border: 1.5px dashed var(--line);
+  border-radius: 14px;
+  background: #f8fbff;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.drop-upload-zone.compact {
+  min-height: 42px;
+}
+
+.drop-upload-zone span {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.drop-upload-zone.drag-over {
+  border-color: var(--primary);
+  background: #eef7ff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="stylesheet" href="./style.css?v=7.8" />
+  <link rel="stylesheet" href="./style.css?v=7.9" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -23,7 +23,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v7.8</p>
+        <p>运营管理系统 v7.9</p>
       </div>
 
       <nav class="nav">
@@ -249,9 +249,12 @@
           <div class="panel-header">
             <h3>支出记录</h3>
             <div class="panel-actions">
-              <button class="secondary-btn" id="importExpensePdfBtn" type="button">凭证读取</button>
+              <div class="drop-upload-zone compact" id="expenseReceiptDropZone">
+                <button class="secondary-btn" id="importExpensePdfBtn" type="button">凭证读取</button>
+                <span>拖入PDF/图片，或点击选择</span>
+                <input type="file" id="expensePdfInput" accept="application/pdf,.pdf,image/*,.jpg,.jpeg,.png" class="hidden" />
+              </div>
               <button class="primary-btn" data-open-modal="expense">新增支出</button>
-              <input type="file" id="expensePdfInput" accept="application/pdf,.pdf,image/*,.jpg,.jpeg,.png" class="hidden" />
             </div>
           </div>
           <div class="toolbar finance-toolbar">
@@ -286,7 +289,10 @@
           <div class="panel-header">
             <h3>课时管理</h3>
             <div class="panel-actions">
-              <button class="secondary-btn" id="lessonImportExcelBtn" type="button">导入Excel</button>
+              <div class="drop-upload-zone compact" id="lessonExcelDropZone">
+                <button class="secondary-btn" id="lessonImportExcelBtn" type="button">导入Excel</button>
+                <span>拖入Excel，或点击选择</span>
+              </div>
               <button class="secondary-btn" id="lessonExportExcelBtn" type="button">导出Excel</button>
               <button class="secondary-btn" id="lessonSelectAllBtn" type="button">全部勾选</button>
               <button class="danger-btn" id="lessonDeleteSelectedBtn" type="button">删除勾选课时</button>
@@ -460,6 +466,6 @@
     </div>
   </div>
 
-  <script src="./app.js?v=7.8"></script>
+  <script src="./app.js?v=7.9"></script>
 </body>
 </html>

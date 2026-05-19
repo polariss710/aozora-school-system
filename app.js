@@ -4531,3 +4531,143 @@ if (renderLessonsBeforeV78) {
   };
 }
 
+
+
+// === v7.9 drag & drop upload zones ===
+function setupDropUploadZoneV79(zoneId, inputId, onFile, options = {}) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  if (!zone || !input || zone.dataset.boundDropV79 === "true") return;
+
+  zone.dataset.boundDropV79 = "true";
+
+  const pickFile = () => input.click();
+
+  zone.addEventListener("click", (event) => {
+    // Let any button inside the drop zone also open the same file picker.
+    event.preventDefault();
+    pickFile();
+  });
+
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    input.value = "";
+    if (!file) return;
+    await onFile(file);
+  };
+
+  ["dragenter", "dragover"].forEach(name => {
+    zone.addEventListener(name, (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      zone.classList.add("drag-over");
+    });
+  });
+
+  ["dragleave", "drop"].forEach(name => {
+    zone.addEventListener(name, (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      zone.classList.remove("drag-over");
+    });
+  });
+
+  zone.addEventListener("drop", async (event) => {
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+
+    if (options.acceptRegex && !options.acceptRegex.test(file.name.toLowerCase()) && !(file.type && options.acceptTypeRegex?.test(file.type))) {
+      showMessage(options.rejectMessage || "文件格式不支持。", "error");
+      return;
+    }
+
+    await onFile(file);
+  });
+}
+
+async function handleExpenseReceiptFileV79(file) {
+  try {
+    showMessage("凭证读取中，请稍等...", "ok");
+    let text = "";
+    const lowerName = file.name.toLowerCase();
+
+    if (file.type === "application/pdf" || lowerName.endsWith(".pdf")) {
+      text = await extractPdfText(file);
+    } else if (file.type.startsWith("image/") || /\.(jpg|jpeg|png)$/i.test(file.name)) {
+      text = await extractImageText(file);
+    } else {
+      throw new Error("暂时只支持 PDF / JPG / PNG 文件。");
+    }
+
+    const parsed = normalizeParsedExpenseAmount(parseExpenseReceiptText(text, file.name), text);
+    state.pendingExpenseAttachment = {
+      file,
+      extractedText: text,
+      sourceType: file.type.startsWith("image/") ? "image_ocr" : "pdf_text",
+    };
+
+    openCreateModal("expense", parsed);
+    applyExpensePrefillToModal(parsed);
+    setExpenseFilterToParsedMonth(parsed);
+    showMessage(`读取完成，识别金额：${money(parsed.amount)}。`, "ok");
+  } catch (error) {
+    console.error(error);
+    showMessage(`凭证读取失败：${error.message || error}`, "error");
+  }
+}
+
+function bindExpensePdfImportV79() {
+  setupDropUploadZoneV79(
+    "expenseReceiptDropZone",
+    "expensePdfInput",
+    handleExpenseReceiptFileV79,
+    {
+      acceptRegex: /\.(pdf|jpg|jpeg|png)$/i,
+      acceptTypeRegex: /^(application\/pdf|image\/)/,
+      rejectMessage: "暂时只支持 PDF / JPG / PNG 文件。",
+    }
+  );
+}
+
+function bindLessonExcelActionsV79() {
+  setupDropUploadZoneV79(
+    "lessonExcelDropZone",
+    "lessonImportExcelInput",
+    async (file) => {
+      const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+      if (!studentId) {
+        showMessage("请先在课时管理筛选中选择学生，再导入 Excel。", "error");
+        return;
+      }
+      await importLessonExcelFile(file);
+    },
+    {
+      acceptRegex: /\.(xlsx|xls)$/i,
+      acceptTypeRegex: /(spreadsheet|excel|sheet)/i,
+      rejectMessage: "暂时只支持 .xlsx / .xls 文件。",
+    }
+  );
+
+  const exportBtn = document.getElementById("lessonExportExcelBtn");
+  if (exportBtn && exportBtn.dataset.boundExportV79 !== "true") {
+    exportBtn.dataset.boundExportV79 = "true";
+    exportBtn.onclick = exportCurrentLessonsExcel;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    bindExpensePdfImportV79();
+    bindLessonExcelActionsV79();
+  }, 500);
+});
+
+const renderAllBeforeV79 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV79) {
+  renderAll = function() {
+    renderAllBeforeV79();
+    bindExpensePdfImportV79();
+    bindLessonExcelActionsV79();
+  };
+}
+

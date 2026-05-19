@@ -1947,3 +1947,31 @@ button:disabled {
 #page-student-settlement .settlement-mini-table tr.total-row:last-child td:last-child {
   border-bottom-right-radius: 12px !important;
 }
+
+/* === v8.4 settlement difference === */
+#page-student-settlement .settlement-result {
+  font-weight: 900;
+}
+
+#page-student-settlement .settlement-result.due {
+  color: #b91c1c;
+}
+
+#page-student-settlement .settlement-result.credit {
+  color: #047857;
+}
+
+#page-student-settlement .settlement-result.clear {
+  color: #2563eb;
+}
+
+#page-student-settlement .settlement-final-row th,
+#page-student-settlement .settlement-final-row td {
+  background: #ecfdf5 !important;
+  color: #065f46;
+}
+
+/* === v8.5 income settlement fields === */
+#page-income .month-group-row td {
+  font-weight: 800;
+}

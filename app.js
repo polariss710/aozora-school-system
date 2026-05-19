@@ -1061,6 +1061,9 @@ function getFields(type) {
     { name: "lesson_type", label: "课时类型", type: "select", default: "actual", options: lessonTypeOptions(), required: true },
     { name: "lesson_date", label: "上课日期", type: "date", default: todayStr(), required: true },
     { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
+    { name: "settlement_month", label: "学生结算月份", type: "month", default: currentYearMonth() },
+    { name: "payment_currency", label: "实际付款币种", type: "select", default: "CNY", options: [{ value: "CNY", label: "人民币" }, { value: "JPY", label: "日元" }] },
+    { name: "include_in_student_settlement", label: "计入学生月度结算", type: "checkbox", default: true },
     { name: "student_id", label: "学生", type: "select", options: studentOptions(), required: true },
     { name: "teacher_id", label: "老师", type: "select", options: teacherOptions(), required: true },
     { name: "subject_id", label: "科目", type: "select", options: lessonSubjectOptions(), required: true },
@@ -1100,6 +1103,9 @@ function getFields(type) {
   if (type === "income") return [
     { name: "income_date", label: "收入日期", type: "date", default: todayStr(), required: true },
     { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
+    { name: "settlement_month", label: "学生结算月份", type: "month", default: currentYearMonth() },
+    { name: "payment_currency", label: "实际付款币种", type: "select", default: "CNY", options: [{ value: "CNY", label: "人民币" }, { value: "JPY", label: "日元" }] },
+    { name: "include_in_student_settlement", label: "计入学生月度结算", type: "checkbox", default: true },
     { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
     { name: "account_id", label: "入账账户", type: "select", options: accountOptions(), required: true },
     { name: "income_category", label: "收入分类", type: "select", default: "tuition", options: incomeCategoryOptions() },
@@ -1119,6 +1125,9 @@ function getFields(type) {
   if (type === "expense") return [
     { name: "expense_date", label: "支出日期", type: "date", default: todayStr(), required: true },
     { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
+    { name: "settlement_month", label: "学生结算月份", type: "month", default: currentYearMonth() },
+    { name: "payment_currency", label: "实际付款币种", type: "select", default: "CNY", options: [{ value: "CNY", label: "人民币" }, { value: "JPY", label: "日元" }] },
+    { name: "include_in_student_settlement", label: "计入学生月度结算", type: "checkbox", default: true },
     { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
     { name: "account_id", label: "支付账户", type: "select", options: accountOptions(), required: true },
     { name: "expense_category", label: "支出分类", type: "select", default: "other", options: expenseCategoryOptions() },
@@ -1137,6 +1146,9 @@ function getFields(type) {
   if (type === "reimbursement") return [
     { name: "reimbursement_date", label: "报销日期", type: "date", default: todayStr(), required: true },
     { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
+    { name: "settlement_month", label: "学生结算月份", type: "month", default: currentYearMonth() },
+    { name: "payment_currency", label: "实际付款币种", type: "select", default: "CNY", options: [{ value: "CNY", label: "人民币" }, { value: "JPY", label: "日元" }] },
+    { name: "include_in_student_settlement", label: "计入学生月度结算", type: "checkbox", default: true },
     { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
     { name: "from_account_id", label: "公司出款账户", type: "select", options: companyAccountOptions(), required: true },
     { name: "to_account_id", label: "报销对象账户", type: "select", options: advanceAccountOptions(), required: true },
@@ -1261,6 +1273,9 @@ function schoolGetFieldsV24(type) {
   if (type === "expense") return [
     { name: "expense_date", label: "支出日期", type: "date", default: todayStr(), required: true },
     { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
+    { name: "settlement_month", label: "学生结算月份", type: "month", default: currentYearMonth() },
+    { name: "payment_currency", label: "实际付款币种", type: "select", default: "CNY", options: [{ value: "CNY", label: "人民币" }, { value: "JPY", label: "日元" }] },
+    { name: "include_in_student_settlement", label: "计入学生月度结算", type: "checkbox", default: true },
     { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
     { name: "account_id", label: "支付账户", type: "select", options: accountOptions(), required: true },
     { name: "expense_category", label: "支出分类", type: "select", default: "other", options: expenseCategoryOptions() },
@@ -1279,6 +1294,9 @@ function schoolGetFieldsV24(type) {
   if (type === "income") return [
     { name: "income_date", label: "收入日期", type: "date", default: todayStr(), required: true },
     { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
+    { name: "settlement_month", label: "学生结算月份", type: "month", default: currentYearMonth() },
+    { name: "payment_currency", label: "实际付款币种", type: "select", default: "CNY", options: [{ value: "CNY", label: "人民币" }, { value: "JPY", label: "日元" }] },
+    { name: "include_in_student_settlement", label: "计入学生月度结算", type: "checkbox", default: true },
     { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
     { name: "account_id", label: "入账账户", type: "select", options: accountOptions(), required: true },
     { name: "income_category", label: "收入分类", type: "select", default: "tuition", options: incomeCategoryOptions() },
@@ -7262,6 +7280,393 @@ if (renderAllBeforeV8314) {
     if (typeof renderStudentsTable === "function") renderStudentsTable();
     if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  };
+}
+
+
+
+// === v8.4 settlement difference calculation ===
+function formatSignedCnyV84(value) {
+  const n = Math.round(Number(value || 0));
+  const sign = n > 0 ? "+" : "";
+  return `${sign}${n.toLocaleString()} CNY`;
+}
+
+function settlementDifferenceLabelV84(value) {
+  const n = Math.round(Number(value || 0));
+  if (n > 0) return "应补交";
+  if (n < 0) return "应退还 / 转下月结余";
+  return "已结清";
+}
+
+function settlementDifferenceClassV84(value) {
+  const n = Math.round(Number(value || 0));
+  if (n > 0) return "due";
+  if (n < 0) return "credit";
+  return "clear";
+}
+
+function ensureSettlementDifferenceRowsV84() {
+  const cards = [...document.querySelectorAll("#page-student-settlement .settlement-card")];
+  const actualCard = cards.find(card => (card.textContent || "").includes("月底实际结算"));
+  if (!actualCard) return;
+
+  const tbody = actualCard.querySelector("tbody");
+  if (!tbody) return;
+
+  // Keep 已收学费（日元） visible; older versions hid this row.
+  let receivedJpyRow = document.getElementById("settlementReceivedJpy")?.closest("tr");
+  const receivedCnyRow = document.getElementById("settlementReceivedCny")?.closest("tr");
+
+  if (!receivedJpyRow && receivedCnyRow) {
+    receivedJpyRow = document.createElement("tr");
+    receivedJpyRow.innerHTML = `<th>已收学费（日元）</th><td id="settlementReceivedJpy">0</td>`;
+    tbody.insertBefore(receivedJpyRow, receivedCnyRow);
+  }
+  if (receivedJpyRow) {
+    receivedJpyRow.classList.remove("hidden-settlement-row-v838");
+    receivedJpyRow.style.display = "";
+  }
+
+  let plannedVsActualRow = document.getElementById("settlementPlannedActualDiffCny")?.closest("tr");
+  let finalStatusRow = document.getElementById("settlementFinalStatusCny")?.closest("tr");
+
+  if (!plannedVsActualRow) {
+    plannedVsActualRow = document.createElement("tr");
+    plannedVsActualRow.innerHTML = `<th>预定/实际差额（人民币）</th><td id="settlementPlannedActualDiffCny">0</td>`;
+  }
+
+  if (!finalStatusRow) {
+    finalStatusRow = document.createElement("tr");
+    finalStatusRow.className = "total-row settlement-final-row";
+    finalStatusRow.innerHTML = `<th>本月应补/应退/结余</th><td id="settlementFinalStatusCny">暂未计算</td>`;
+  }
+
+  // Remove older placeholder total row if it exists, then append our rows at the bottom.
+  [...tbody.querySelectorAll("tr")].forEach(row => {
+    if ((row.textContent || "").includes("本月课时费结余/补交") && !row.querySelector("#settlementFinalStatusCny")) {
+      row.remove();
+    }
+  });
+
+  if (!plannedVsActualRow.parentElement) tbody.appendChild(plannedVsActualRow);
+  if (!finalStatusRow.parentElement) tbody.appendChild(finalStatusRow);
+}
+
+function computeStudentSettlementV84() {
+  const month = document.getElementById("settlementMonthFilter")?.value || currentYearMonth();
+  const studentId = document.getElementById("settlementStudentFilter")?.value || "";
+  const student = (state.students || []).find(x => x.id === studentId);
+  if (!studentId || !student) return null;
+
+  const rate = Number(student.preset_exchange_rate || 0);
+  const prevBalanceCny = Number(student.previous_balance_cny || 0);
+
+  const lessonsAll = (state.lessonRecords || []).filter(x =>
+    x.student_id === studentId &&
+    x.year_month === month &&
+    x.is_billable !== false
+  );
+
+  const planned = lessonsAll.filter(x => x.lesson_type === "planned");
+  const actual = lessonsAll.filter(x =>
+    x.lesson_type === "actual" &&
+    (x.status === "completed" || x.status === "makeup")
+  );
+
+  const plannedJpy = sumLessonFeeV83(planned);
+  const actualJpy = sumLessonFeeV83(actual);
+  const plannedCny = plannedJpy * rate;
+  const actualCny = actualJpy * rate;
+  const plannedTotalCny = plannedCny - prevBalanceCny;
+
+  const receivedCny = sumIncomeV83(studentId, month, "CNY");
+  const receivedJpy = sumIncomeV83(studentId, month, "JPY");
+
+  // 预定/实际差额：实际应收 - 预定应收。正数表示实际比预定多，应补；负数表示实际比预定少。
+  const plannedActualDiffCny = actualCny - plannedCny;
+
+  // 月末最终结果：实际应收 - 已收 - 上月结余/补交
+  // 正数：还需要补交；负数：多收/结余/可退。
+  const finalDueCny = actualCny - receivedCny - prevBalanceCny;
+
+  return {
+    month,
+    studentId,
+    student,
+    rate,
+    prevBalanceCny,
+    planned,
+    actual,
+    plannedJpy,
+    actualJpy,
+    plannedCny,
+    actualCny,
+    plannedTotalCny,
+    receivedCny,
+    receivedJpy,
+    plannedActualDiffCny,
+    finalDueCny,
+  };
+}
+
+const renderStudentSettlementBeforeV84 = typeof renderStudentSettlement === "function" ? renderStudentSettlement : null;
+if (renderStudentSettlementBeforeV84) {
+  renderStudentSettlement = function() {
+    renderStudentSettlementBeforeV84();
+    ensureSettlementDifferenceRowsV84();
+
+    const result = computeStudentSettlementV84();
+    if (!result) {
+      setOptionalText("settlementPlannedActualDiffCny", "0");
+      setOptionalText("settlementFinalStatusCny", "暂未计算");
+      return;
+    }
+
+    setOptionalText("settlementPlannedActualDiffCny", formatSignedCnyV84(result.plannedActualDiffCny));
+
+    const finalLabel = settlementDifferenceLabelV84(result.finalDueCny);
+    const finalText = result.finalDueCny === 0
+      ? "已结清"
+      : `${finalLabel}：${formatSignedCnyV84(result.finalDueCny)}`;
+
+    const finalEl = document.getElementById("settlementFinalStatusCny");
+    if (finalEl) {
+      finalEl.textContent = finalText;
+      finalEl.className = `settlement-result ${settlementDifferenceClassV84(result.finalDueCny)}`;
+    }
+
+    const diffEl = document.getElementById("settlementPlannedActualDiffCny");
+    if (diffEl) {
+      diffEl.className = `settlement-result ${settlementDifferenceClassV84(result.plannedActualDiffCny)}`;
+    }
+
+    // Re-apply the core amount fields so older renderers cannot leave stale values.
+    setOptionalText("settlementReceivedJpy", formatJpyV83(result.receivedJpy));
+    setOptionalText("settlementReceivedCny", formatCnyV83(result.receivedCny));
+    setOptionalText("settlementActualJpy2", formatJpyV83(result.actualJpy));
+    setOptionalText("settlementActualCny", formatCnyV83(result.actualCny));
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    ensureSettlementDifferenceRowsV84();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  }, 1000);
+});
+
+const renderAllBeforeV84 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV84) {
+  renderAll = function() {
+    renderAllBeforeV84();
+    ensureSettlementDifferenceRowsV84();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  };
+}
+
+const switchPageBeforeV84 = typeof switchPage === "function" ? switchPage : null;
+if (switchPageBeforeV84) {
+  switchPage = function(page) {
+    switchPageBeforeV84(page);
+    if (page === "student-settlement") {
+      setTimeout(() => {
+        ensureSettlementDifferenceRowsV84();
+        if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+      }, 0);
+    }
+  };
+}
+
+
+
+// === v8.5 income payment currency and settlement month ===
+function paymentCurrencyLabelV85(value) {
+  if (value === "JPY") return "日元";
+  return "人民币";
+}
+
+function incomeSettlementMonthV85(item) {
+  return item.settlement_month || item.year_month || "";
+}
+
+function incomePaymentCurrencyV85(item) {
+  return item.payment_currency || item.currency || "CNY";
+}
+
+function incomeIncludeSettlementV85(item) {
+  return item.include_in_student_settlement !== false;
+}
+
+function renderIncomeTableV85() {
+  const tbody = document.getElementById("incomeTable");
+  if (!tbody) return;
+
+  const rows = filterFinanceRows(state.incomeRecords, "income")
+    .slice()
+    .sort((a, b) => {
+      const ma = a.year_month || "";
+      const mb = b.year_month || "";
+      if (ma !== mb) return mb.localeCompare(ma);
+      return String(b.income_date || b.created_at || "").localeCompare(String(a.income_date || a.created_at || ""));
+    });
+
+  const html = [];
+  let lastMonth = "";
+
+  rows.forEach(item => {
+    const ym = item.year_month || "未归属月份";
+    if (ym !== lastMonth) {
+      lastMonth = ym;
+      html.push(`
+        <tr class="month-group-row">
+          <td colspan="14">${esc(expenseMonthLabel(ym))}</td>
+        </tr>
+      `);
+    }
+
+    const paymentCurrency = incomePaymentCurrencyV85(item);
+
+    html.push(`
+      <tr>
+        <td>${esc(displayRecordDate(item.income_date || item.created_at))}</td>
+        <td>${esc(item.year_month || "")}</td>
+        <td>${esc(incomeSettlementMonthV85(item))}</td>
+        <td>${esc(item.business_entity?.name || "")}</td>
+        <td>${esc(incomeCategoryLabel(item.income_category))}</td>
+        <td>${esc(item.student?.name || "")}</td>
+        <td>${esc(short(item.description || item.note, 28))}</td>
+        <td>${esc(item.account?.name || "")}</td>
+        <td>${esc(paymentCurrencyLabelV85(paymentCurrency))}</td>
+        <td>${money(item.amount)}</td>
+        <td>${incomeIncludeSettlementV85(item) ? badge("计入") : badge("不计入", "gray")}</td>
+        <td>${financeStatusBadge(item.status)}</td>
+        <td>${item.is_taxable_income ? badge("计税") : badge("不计税", "gray")}</td>
+        <td>${actionButtons("income", item.id)}</td>
+      </tr>
+    `);
+  });
+
+  tbody.innerHTML = html.join("");
+}
+
+renderIncomeTable = renderIncomeTableV85;
+
+function sumIncomeV85(studentId, month, currency) {
+  return (state.incomeRecords || [])
+    .filter(x =>
+      x.student_id === studentId &&
+      incomeSettlementMonthV85(x) === month &&
+      x.income_category === "tuition" &&
+      x.status === "received" &&
+      incomePaymentCurrencyV85(x) === currency &&
+      incomeIncludeSettlementV85(x)
+    )
+    .reduce((sum, x) => sum + Number(x.amount || 0), 0);
+}
+
+// Override older settlement income calculation hook.
+sumIncomeV83 = sumIncomeV85;
+
+function computeReceivedEquivalentCnyV85(studentId, month, rate) {
+  const receivedCny = sumIncomeV85(studentId, month, "CNY");
+  const receivedJpy = sumIncomeV85(studentId, month, "JPY");
+  return {
+    receivedCny,
+    receivedJpy,
+    receivedEquivalentCny: receivedCny + (receivedJpy * Number(rate || 0)),
+  };
+}
+
+const computeStudentSettlementBeforeV85 = typeof computeStudentSettlementV84 === "function" ? computeStudentSettlementV84 : null;
+if (computeStudentSettlementBeforeV85) {
+  computeStudentSettlementV84 = function() {
+    const result = computeStudentSettlementBeforeV85();
+    if (!result) return result;
+
+    const received = computeReceivedEquivalentCnyV85(result.studentId, result.month, result.rate);
+    result.receivedCny = received.receivedCny;
+    result.receivedJpy = received.receivedJpy;
+    result.receivedEquivalentCny = received.receivedEquivalentCny;
+
+    // v8.5: final result uses CNY-equivalent received amount.
+    result.finalDueCny = result.actualCny - result.receivedEquivalentCny - result.prevBalanceCny;
+    return result;
+  };
+}
+
+function ensureSettlementEquivalentRowsV85() {
+  const actualCard = [...document.querySelectorAll("#page-student-settlement .settlement-card")]
+    .find(card => (card.textContent || "").includes("月底实际结算"));
+  if (!actualCard) return;
+
+  const tbody = actualCard.querySelector("tbody");
+  if (!tbody) return;
+
+  const finalRow = document.getElementById("settlementFinalStatusCny")?.closest("tr");
+  let equivalentRow = document.getElementById("settlementReceivedEquivalentCny")?.closest("tr");
+
+  if (!equivalentRow) {
+    equivalentRow = document.createElement("tr");
+    equivalentRow.innerHTML = `<th>已收折算合计（人民币）</th><td id="settlementReceivedEquivalentCny">0</td>`;
+  }
+
+  if (finalRow) {
+    tbody.insertBefore(equivalentRow, finalRow);
+  } else if (!equivalentRow.parentElement) {
+    tbody.appendChild(equivalentRow);
+  }
+}
+
+const renderStudentSettlementBeforeV85 = typeof renderStudentSettlement === "function" ? renderStudentSettlement : null;
+if (renderStudentSettlementBeforeV85) {
+  renderStudentSettlement = function() {
+    renderStudentSettlementBeforeV85();
+    ensureSettlementEquivalentRowsV85();
+
+    const month = document.getElementById("settlementMonthFilter")?.value || currentYearMonth();
+    const studentId = document.getElementById("settlementStudentFilter")?.value || "";
+    const student = (state.students || []).find(x => x.id === studentId);
+    if (!student) return;
+
+    const rate = Number(student.preset_exchange_rate || 0);
+    const received = computeReceivedEquivalentCnyV85(studentId, month, rate);
+
+    setOptionalText("settlementReceivedCny", formatCnyV83(received.receivedCny));
+    setOptionalText("settlementReceivedJpy", formatJpyV83(received.receivedJpy));
+    setOptionalText("settlementReceivedEquivalentCny", formatCnyV83(received.receivedEquivalentCny));
+
+    // If v8.4 final field exists, recalc it with equivalent received amount.
+    const actualJpy = Number((state.lessonRecords || [])
+      .filter(x => x.student_id === studentId && x.year_month === month && x.lesson_type === "actual" && x.is_billable !== false && (x.status === "completed" || x.status === "makeup"))
+      .reduce((sum, x) => sum + Number(x.lesson_fee || (Number(x.unit_price || 0) * Number(x.duration_hours || 0)) || 0), 0));
+    const actualCny = actualJpy * rate;
+    const prevBalanceCny = Number(student.previous_balance_cny || 0);
+    const finalDueCny = actualCny - received.receivedEquivalentCny - prevBalanceCny;
+
+    const finalEl = document.getElementById("settlementFinalStatusCny");
+    if (finalEl) {
+      const label = settlementDifferenceLabelV84(finalDueCny);
+      finalEl.textContent = finalDueCny === 0 ? "已结清" : `${label}：${formatSignedCnyV84(finalDueCny)}`;
+      finalEl.className = `settlement-result ${settlementDifferenceClassV84(finalDueCny)}`;
+    }
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    if (typeof renderIncomeTable === "function") renderIncomeTable();
+    ensureSettlementEquivalentRowsV85();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  }, 1000);
+});
+
+const renderAllBeforeV85 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV85) {
+  renderAll = function() {
+    renderAllBeforeV85();
+    if (typeof renderIncomeTable === "function") renderIncomeTable();
+    ensureSettlementEquivalentRowsV85();
   };
 }
 

@@ -645,3 +645,24 @@ tr.dragging {
 .lesson-select-box input {
   margin: 0;
 }
+
+
+/* === v7.8 lesson paired view fixed width === */
+#page-lessons .table-wrap table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+#page-lessons .lesson-pair-head {
+  width: 50%;
+}
+
+#page-lessons .lesson-pair-row > td {
+  width: 8.3333%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#page-lessons .lesson-pair-row > td:nth-child(6) {
+  border-right: 2px solid var(--line);
+}

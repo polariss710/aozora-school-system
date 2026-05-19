@@ -4428,3 +4428,106 @@ if (renderAllBeforeV77) {
   };
 }
 
+
+
+
+// === v7.8 lesson sort adjustment ===
+function compareLessonsV78(a, b) {
+  // 月份升序 → 老师顺序 → 科目顺序 → 周一日期/上课日期升序 → 开始时间
+  const month = String(a.year_month || "").localeCompare(String(b.year_month || ""));
+  if (month !== 0) return month;
+
+  const teacher = lessonTeacherOrderV77(a).localeCompare(lessonTeacherOrderV77(b));
+  if (teacher !== 0) return teacher;
+
+  const subject = lessonSubjectOrderV77(a).localeCompare(lessonSubjectOrderV77(b));
+  if (subject !== 0) return subject;
+
+  const date = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
+  if (date !== 0) return date;
+
+  return String(a.start_time || "").localeCompare(String(b.start_time || ""));
+}
+
+// Re-render lesson list with v7.8 order while keeping the paired planned/actual view.
+const renderLessonsBeforeV78 = typeof renderLessons === "function" ? renderLessons : null;
+if (renderLessonsBeforeV78) {
+  renderLessons = function() {
+    const tbody = document.getElementById("lessonsTable");
+    if (!tbody) return;
+
+    updateLessonFilters();
+    const rows = filterLessons().slice().sort(compareLessonsV78);
+
+    renderLessonStats(rows);
+
+    const plannedRows = rows.filter(x => x.lesson_type === "planned");
+    const actualRows = rows.filter(x => x.lesson_type === "actual");
+    const actualByPlan = new Map();
+    const unlinkedActual = [];
+
+    actualRows.forEach(actual => {
+      let planId = actual.planned_lesson_id;
+
+      if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
+        const matched = schoolStableFindMatchingPlannedLessonV70(actual);
+        if (matched) planId = matched.id;
+      }
+
+      if (!planId && typeof findMatchingPlannedLesson === "function") {
+        const matched = findMatchingPlannedLesson(actual);
+        if (matched) planId = matched.id;
+      }
+
+      if (planId) {
+        if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
+        actualByPlan.get(planId).push(actual);
+      } else {
+        unlinkedActual.push(actual);
+      }
+    });
+
+    for (const list of actualByPlan.values()) {
+      list.sort(compareLessonsV78);
+    }
+
+    const html = [];
+    let lastMonth = "";
+
+    function addMonthRow(ym) {
+      if (ym !== lastMonth) {
+        lastMonth = ym;
+        html.push(`<tr class="month-group-row"><td colspan="12">${esc(expenseMonthLabel(ym))}</td></tr>`);
+      }
+    }
+
+    plannedRows.forEach(plan => {
+      const ym = plan.year_month || "未归属月份";
+      addMonthRow(ym);
+      const actuals = actualByPlan.get(plan.id) || [];
+
+      if (!actuals.length) {
+        html.push(`<tr class="lesson-pair-row">${lessonPairCells(plan, "planned")}${lessonPairCells(null, "actual")}</tr>`);
+      } else {
+        actuals.forEach((actual, index) => {
+          const left = index === 0
+            ? lessonPairCells(plan, "planned")
+            : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
+          html.push(`<tr class="lesson-pair-row">${left}${lessonPairCells(actual, "actual")}</tr>`);
+        });
+      }
+    });
+
+    unlinkedActual.sort(compareLessonsV78).forEach(actual => {
+      const ym = actual.year_month || "未归属月份";
+      addMonthRow(ym);
+      html.push(`<tr class="lesson-pair-row">${lessonPairCells(null, "planned")}${lessonPairCells(actual, "actual")}</tr>`);
+    });
+
+    tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
+
+    if (typeof bindLessonPairButtonsV59 === "function") bindLessonPairButtonsV59();
+    if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
+  };
+}
+

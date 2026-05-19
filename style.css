@@ -1899,3 +1899,13 @@ button:disabled {
 }
 
 #page-student-settlement .settlement-mini-table tr.hidden-settlement-row-v838:has(td#settlementReceivedJpy) { display: table-row !important; }
+
+/* === v8.3.11 settlement received JPY visible === */
+#page-student-settlement #settlementReceivedJpy,
+#page-student-settlement #settlementReceivedJpy * {
+  display: revert !important;
+}
+
+#page-student-settlement tr.hidden-settlement-row-v838:has(#settlementReceivedJpy) {
+  display: table-row !important;
+}

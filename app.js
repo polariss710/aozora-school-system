@@ -6962,3 +6962,119 @@ if (renderAllBeforeReceivedJpyV8310) {
     showSettlementReceivedJpyV8310();
   };
 }
+
+
+// === v8.3.11 subject sort and settlement received JPY fix ===
+const SUBJECT_ORDER_V8311 = [
+  "日语", "日語", "日本語", "日本语", "EJU日语", "EJU日語",
+  "数学", "EJU数学",
+  "文综", "文綜", "综合科目", "総合科目", "EJU文综", "EJU総合科目",
+  "物理", "EJU物理",
+  "化学", "化學", "EJU化学",
+  "生物", "EJU生物",
+];
+
+function normalizeSubjectSortTextV8311(value) {
+  return String(value || "")
+    .replace(/\s+/g, "")
+    .replace(/[・･／/\\_\-—–.,，。()（）]/g, "")
+    .replace(/ｅｊｕ/gi, "EJU")
+    .toLowerCase();
+}
+
+function subjectRankV8311(item) {
+  const raw = item?.subject?.name || item?.subject_name || "";
+  const text = normalizeSubjectSortTextV8311(raw);
+
+  const contains = (patterns) => patterns.some(p => text.includes(normalizeSubjectSortTextV8311(p)));
+
+  if (contains(["日语", "日語", "日本語", "日本语"])) return 10;
+  if (contains(["数学"])) return 20;
+  if (contains(["文综", "文綜", "综合科目", "総合科目"])) return 30;
+  if (contains(["物理"])) return 40;
+  if (contains(["化学", "化學"])) return 50;
+  if (contains(["生物"])) return 60;
+
+  return 999;
+}
+
+function compareLessonsByFixedSubjectV8311(a, b) {
+  // 月份 → 老师 → 固定科目顺序（日语/数学/文综/物理/化学/生物）→ 日期 → 时间
+  const month = String(a.year_month || "").localeCompare(String(b.year_month || ""));
+  if (month !== 0) return month;
+
+  const teacher = (a.teacher?.display_name || a.teacher?.name || "").localeCompare(b.teacher?.display_name || b.teacher?.name || "");
+  if (teacher !== 0) return teacher;
+
+  const rank = subjectRankV8311(a) - subjectRankV8311(b);
+  if (rank !== 0) return rank;
+
+  const subjectName = String(a.subject?.name || "").localeCompare(String(b.subject?.name || ""));
+  if (subjectName !== 0) return subjectName;
+
+  const date = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
+  if (date !== 0) return date;
+
+  return String(a.start_time || "").localeCompare(String(b.start_time || ""));
+}
+
+// Override sort function used by the latest lesson/settlement renderers.
+compareLessonsV78 = compareLessonsByFixedSubjectV8311;
+
+function ensureSettlementReceivedJpyRowV8311() {
+  const actualTable = [...document.querySelectorAll(".settlement-card")].find(card => (card.textContent || "").includes("月底实际结算"));
+  if (!actualTable) return;
+
+  const tbody = actualTable.querySelector("tbody");
+  const actualCnyRow = [...actualTable.querySelectorAll("tr")].find(row => (row.textContent || "").includes("实际课时费（人民币）"));
+  const receivedCnyRow = [...actualTable.querySelectorAll("tr")].find(row => (row.textContent || "").includes("已收学费（人民币）"));
+  let receivedJpyRow = document.getElementById("settlementReceivedJpy")?.closest("tr");
+
+  if (!receivedJpyRow && tbody && receivedCnyRow) {
+    receivedJpyRow = document.createElement("tr");
+    receivedJpyRow.innerHTML = `<th>已收学费（日元）</th><td id="settlementReceivedJpy">0</td>`;
+    tbody.insertBefore(receivedJpyRow, receivedCnyRow);
+  } else if (receivedJpyRow && actualCnyRow && receivedCnyRow && receivedJpyRow.nextElementSibling !== receivedCnyRow) {
+    tbody.insertBefore(receivedJpyRow, receivedCnyRow);
+  }
+
+  if (receivedJpyRow) {
+    receivedJpyRow.classList.remove("hidden-settlement-row-v838");
+    receivedJpyRow.style.display = "";
+  }
+}
+
+// Patch settlement renderer to restore JPY row after older cleanup code runs.
+const renderStudentSettlementBeforeV8311 = typeof renderStudentSettlement === "function" ? renderStudentSettlement : null;
+if (renderStudentSettlementBeforeV8311) {
+  renderStudentSettlement = function() {
+    renderStudentSettlementBeforeV8311();
+    ensureSettlementReceivedJpyRowV8311();
+  };
+}
+
+const renderAllBeforeV8311 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV8311) {
+  renderAll = function() {
+    renderAllBeforeV8311();
+    ensureSettlementReceivedJpyRowV8311();
+    if (typeof renderLessons === "function") renderLessons();
+  };
+}
+
+const switchPageBeforeV8311 = typeof switchPage === "function" ? switchPage : null;
+if (switchPageBeforeV8311) {
+  switchPage = function(page) {
+    switchPageBeforeV8311(page);
+    if (page === "student-settlement") setTimeout(ensureSettlementReceivedJpyRowV8311, 0);
+    if (page === "lessons" && typeof renderLessons === "function") setTimeout(renderLessons, 0);
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    ensureSettlementReceivedJpyRowV8311();
+    if (typeof renderLessons === "function") renderLessons();
+  }, 1000);
+});
+

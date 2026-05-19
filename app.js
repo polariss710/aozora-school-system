@@ -8588,3 +8588,274 @@ if (renderAllBeforeV855) {
   };
 }
 
+
+
+// === v8.5.6 lesson fee auto calc + planned week-start display ===
+function toIsoDateV856(value) {
+  if (!value) return "";
+  const text = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  if (/^\d{4}\/\d{2}\/\d{2}$/.test(text)) return text.replaceAll("/", "-");
+  const d = new Date(text);
+  if (Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function mondayOfDateV856(value) {
+  const iso = toIsoDateV856(value);
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const day = date.getDay(); // 0=Sun, 1=Mon
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  const yy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
+function plannedWeekDateDisplayV856(item) {
+  const monday = mondayOfDateV856(item?.lesson_date);
+  if (!monday) return "";
+  return `${monday}周`;
+}
+
+function actualDateDisplayV856(item) {
+  return toIsoDateV856(item?.lesson_date) || lessonPairDateText(item) || "";
+}
+
+function yearMonthDateDisplayV856(item) {
+  const iso = toIsoDateV856(item?.lesson_date);
+  return iso || item?.year_month || "";
+}
+
+function attachLessonAutoCalcV856() {
+  const form = document.getElementById("modalForm");
+  if (!form || state.editing?.type !== "lesson") return;
+
+  const duration = form.querySelector('[name="duration_hours"]');
+  const unit = form.querySelector('[name="unit_price"]');
+  const fee = form.querySelector('[name="lesson_fee"]');
+  if (!duration || !unit || !fee) return;
+
+  const recalc = () => {
+    const h = Number(duration.value || 0);
+    const p = Number(unit.value || 0);
+    if (!Number.isFinite(h) || !Number.isFinite(p)) return;
+    if (h <= 0 || p <= 0) {
+      if (!fee.dataset.userEdited) fee.value = "";
+      return;
+    }
+    // Always recalc when duration/unit change; user can still overwrite fee manually after.
+    const result = h * p;
+    fee.value = Number.isInteger(result) ? String(result) : String(Math.round(result));
+    fee.dataset.autoCalculated = "true";
+  };
+
+  ["input", "change"].forEach(evt => {
+    duration.addEventListener(evt, recalc);
+    unit.addEventListener(evt, recalc);
+  });
+
+  fee.addEventListener("input", () => {
+    fee.dataset.userEdited = "true";
+  });
+
+  recalc();
+}
+
+const buildFormBeforeV856 = typeof buildForm === "function" ? buildForm : null;
+if (buildFormBeforeV856) {
+  buildForm = function(type, data = {}) {
+    buildFormBeforeV856(type, data);
+    if (type === "lesson") {
+      attachLessonAutoCalcV856();
+    }
+  };
+}
+
+// Stronger copy: include unit price and lesson fee.
+function copyLessonRecordV856(id) {
+  const item = state.lessonRecords.find(x => x.id === id);
+  if (!item) return;
+
+  const data = {
+    ...item,
+    id: undefined,
+    lesson_date: item.lesson_date || todayStr(),
+    year_month: item.year_month || currentYearMonth(),
+    start_time: item.start_time || "",
+    end_time: item.end_time || "",
+    duration_hours: item.duration_hours || 0,
+    unit_price: item.unit_price || 0,
+    lesson_fee: item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0,
+    lesson_content: item.lesson_content || "",
+    note: item.note || "",
+  };
+
+  openCreateModal("lesson", data);
+  const title = document.getElementById("modalTitle");
+  if (title) title.textContent = "复制课时";
+  setTimeout(attachLessonAutoCalcV856, 0);
+}
+
+copyLessonRecordV59 = copyLessonRecordV856;
+
+function makeActualFromPlannedV856(id) {
+  const plan = state.lessonRecords.find(x => x.id === id);
+  if (!plan) return;
+
+  const prefill = {
+    lesson_type: "actual",
+    planned_lesson_id: plan.id,
+    lesson_date: plan.lesson_date || todayStr(),
+    year_month: plan.year_month || currentYearMonth(),
+    student_id: plan.student_id || "",
+    teacher_id: plan.teacher_id || "",
+    subject_id: plan.subject_id || "",
+    business_entity_id: plan.business_entity_id || "",
+    start_time: plan.start_time || "",
+    end_time: plan.end_time || "",
+    duration_hours: plan.duration_hours || 0,
+    unit_price: plan.unit_price || 0,
+    lesson_fee: plan.lesson_fee || (Number(plan.unit_price || 0) * Number(plan.duration_hours || 0)) || 0,
+    status: "completed",
+    is_billable: plan.is_billable !== false,
+    lesson_content: "",
+    note: "",
+  };
+
+  state.pendingActualPlanId = plan.id;
+  openCreateModal("lesson", prefill);
+
+  const form = document.getElementById("modalForm");
+  let hidden = form?.querySelector('input[name="planned_lesson_id"]');
+  if (!hidden && form) {
+    hidden = document.createElement("input");
+    hidden.type = "hidden";
+    hidden.name = "planned_lesson_id";
+    form.appendChild(hidden);
+  }
+  if (hidden) hidden.value = plan.id;
+
+  const title = document.getElementById("modalTitle");
+  if (title) title.textContent = "从预定生成实际课时";
+  attachLessonAutoCalcV856();
+}
+
+makeActualFromPlanned = makeActualFromPlannedV856;
+
+function lessonPairCellsV856(item, side) {
+  if (!item) {
+    return `<td colspan="8" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
+  }
+
+  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
+  const timeText = lessonPairTimeText(item) || "时间未定";
+  const content = esc(short(item.lesson_content || item.note || "", 22));
+  const dateDisplay = item.lesson_type === "planned" ? plannedWeekDateDisplayV856(item) : actualDateDisplayV856(item);
+
+  return `
+    <td class="col-check"><label class="lesson-check-only"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /></label></td>
+    <td class="col-date"><div>${esc(dateDisplay)}</div><span>${esc(yearMonthDateDisplayV856(item))}</span></td>
+    <td class="col-student">${lessonPairStudentText(item)}</td>
+    <td class="col-teacher">${lessonPairTeacherText(item)}</td>
+    <td class="col-subject"><strong>${lessonPairSubjectText(item)}</strong><span>${timeText} / ${money(item.duration_hours)}H</span></td>
+    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable ? badge("计费") : badge("不计费", "gray")}</td>
+    <td class="col-content"><div class="lesson-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${content}</div></td>
+    <td class="col-actions">${lessonActionButtonsV8310 ? lessonActionButtonsV8310(item) : ""}</td>
+  `;
+}
+
+lessonPairCells = lessonPairCellsV856;
+
+function settlementLessonCellsV856(item, side) {
+  if (!item) {
+    return `<td colspan="7" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
+  }
+
+  const fee = feeOfLessonV83(item);
+  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
+  const timeText = [item.start_time, item.end_time].filter(Boolean).join("-");
+  const studentName = item.student?.display_name || item.student?.name || "";
+  const teacherName = item.teacher?.display_name || item.teacher?.name || "";
+  const subjectName = item.subject?.name || "";
+  const dateDisplay = item.lesson_type === "planned" ? plannedWeekDateDisplayV856(item) : actualDateDisplayV856(item);
+
+  return `
+    <td class="col-date"><div>${esc(dateDisplay)}</div><span>${esc(yearMonthDateDisplayV856(item))}</span></td>
+    <td class="col-student">${esc(studentName)}</td>
+    <td class="col-teacher">${esc(teacherName)}</td>
+    <td class="col-subject">
+      <strong>${esc(subjectName)}</strong>
+      <span>${esc(timeText || "时间未定")} / ${money(item.duration_hours)}H</span>
+      <span>${formatJpyV83(fee)}</span>
+    </td>
+    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable !== false ? badge("计费") : badge("不计费", "gray")}</td>
+    <td class="col-content"><div class="settlement-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${esc(short(item.lesson_content || item.note || "", 28))}</div></td>
+    <td class="col-actions">${typeof settlementActionButtonsV8310 === "function" ? settlementActionButtonsV8310(item) : ""}</td>
+  `;
+}
+
+// Override render rows to use new cell formatter, keeping v8.5.5 stable link logic if available.
+if (typeof renderLessonRowsV855 === "function") {
+  const renderLessonRowsBeforeV856 = renderLessonRowsV855;
+  renderLessonRowsV855 = function(rows) {
+    const oldCells = lessonPairCells;
+    lessonPairCells = lessonPairCellsV856;
+    const html = renderLessonRowsBeforeV856(rows);
+    lessonPairCells = lessonPairCellsV856;
+    return html;
+  };
+}
+
+if (typeof renderSettlementPairedLessonsV855 === "function") {
+  const renderSettlementBeforeV856 = renderSettlementPairedLessonsV855;
+  renderSettlementPairedLessonsV855 = function(planned, actual) {
+    const oldCells = settlementLessonCellsV852;
+    settlementLessonCellsV852 = settlementLessonCellsV856;
+    const result = renderSettlementBeforeV856(planned, actual);
+    settlementLessonCellsV852 = settlementLessonCellsV856;
+    return result;
+  };
+}
+
+function bindLessonButtonsV856() {
+  document.querySelectorAll("[data-create-actual]").forEach(btn => {
+    btn.onclick = () => makeActualFromPlannedV856(btn.dataset.createActual);
+  });
+  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
+    btn.onclick = () => copyLessonRecordV856(btn.dataset.copyLesson);
+  });
+}
+
+bindLessonPairButtonsV59 = bindLessonButtonsV856;
+
+const renderLessonsBeforeV856 = typeof renderLessons === "function" ? renderLessons : null;
+if (renderLessonsBeforeV856) {
+  renderLessons = function() {
+    renderLessonsBeforeV856();
+    bindLessonButtonsV856();
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    bindLessonButtonsV856();
+    if (typeof renderLessons === "function") renderLessons();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  }, 1000);
+});
+
+const renderAllBeforeV856 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV856) {
+  renderAll = function() {
+    renderAllBeforeV856();
+    bindLessonButtonsV856();
+  };
+}
+

@@ -1909,3 +1909,41 @@ button:disabled {
 #page-student-settlement tr.hidden-settlement-row-v838:has(#settlementReceivedJpy) {
   display: table-row !important;
 }
+
+/* === v8.3.13 settlement card background clipping === */
+#page-student-settlement .settlement-card {
+  overflow: hidden !important;
+  border-radius: 16px !important;
+}
+
+#page-student-settlement .settlement-mini-table {
+  width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  overflow: hidden !important;
+}
+
+#page-student-settlement .settlement-mini-table th,
+#page-student-settlement .settlement-mini-table td {
+  box-sizing: border-box !important;
+  background-clip: padding-box !important;
+}
+
+#page-student-settlement .settlement-mini-table tr.total-row th,
+#page-student-settlement .settlement-mini-table tr.total-row td {
+  background: #ecfdf5 !important;
+}
+
+#page-student-settlement .settlement-mini-table tr.total-row:last-child th,
+#page-student-settlement .settlement-mini-table tr.total-row:last-child td {
+  border-bottom: 0 !important;
+}
+
+#page-student-settlement .settlement-mini-table tr.total-row:last-child th:first-child {
+  border-bottom-left-radius: 12px !important;
+}
+
+#page-student-settlement .settlement-mini-table tr.total-row:last-child td:last-child {
+  border-bottom-right-radius: 12px !important;
+}

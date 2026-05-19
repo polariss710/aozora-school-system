@@ -344,6 +344,7 @@ function renderStudentsTable() {
     <tr>
       <td>${esc(item.name)}</td>
       <td>${esc(item.business_entity?.name || "")}</td>
+      <td>${courseTrackLabelV8314(item.course_track)}</td>
       <td>${money(item.preset_exchange_rate || 0)}</td>
       <td>${statusBadge(item.status)}</td>
       <td>${esc(short(item.note))}</td>
@@ -1044,6 +1045,7 @@ function getFields(type) {
     { name: "name", label: "学生姓名", required: true },
     { name: "display_name", label: "显示名" },
     { name: "business_entity_id", label: "默认业务归属", type: "select", options: businessOptions, required: true },
+    { name: "course_track", label: "文理区分", type: "select", default: "science", options: [{ value: "science", label: "理科" }, { value: "humanities", label: "文科" }] },
     { name: "preset_exchange_rate", label: "预设汇率", type: "number", default: "", step: "0.0001" },
     { name: "wechat", label: "微信" },
     { name: "phone", label: "电话" },
@@ -7077,4 +7079,189 @@ document.addEventListener("DOMContentLoaded", () => {
     if (typeof renderLessons === "function") renderLessons();
   }, 1000);
 });
+
+
+
+// === v8.3.12 force fixed subject sort ===
+function subjectSortKeyV8312(item) {
+  const name = String(item?.subject?.name || item?.subject_name || "")
+    .replace(/\s+/g, "")
+    .replace(/[・･／/\\_\-—–.,，。()（）]/g, "")
+    .toLowerCase();
+
+  // Do not depend on DB sort_order. Force business-defined course order.
+  if (/日语|日語|日本語|日本语/.test(name)) return 10;
+  if (/数学|數学/.test(name)) return 20;
+  if (/文综|文綜|综合科目|綜合科目|総合科目/.test(name)) return 30;
+  if (/物理/.test(name)) return 40;
+  if (/化学|化學/.test(name)) return 50;
+  if (/生物/.test(name)) return 60;
+  return 999;
+}
+
+function compareLessonsByFixedSubjectV8312(a, b) {
+  // 修正：课程顺序优先于老师顺序。
+  // 月份 → 固定课程顺序（日语/数学/文综/物理/化学/生物）→ 老师 → 日期 → 时间
+  const month = String(a.year_month || "").localeCompare(String(b.year_month || ""));
+  if (month !== 0) return month;
+
+  const subjectRank = subjectSortKeyV8312(a) - subjectSortKeyV8312(b);
+  if (subjectRank !== 0) return subjectRank;
+
+  const subjectName = String(a.subject?.name || "").localeCompare(String(b.subject?.name || ""));
+  if (subjectName !== 0) return subjectName;
+
+  const teacher = String(a.teacher?.display_name || a.teacher?.name || "").localeCompare(String(b.teacher?.display_name || b.teacher?.name || ""));
+  if (teacher !== 0) return teacher;
+
+  const date = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
+  if (date !== 0) return date;
+
+  return String(a.start_time || "").localeCompare(String(b.start_time || ""));
+}
+
+// Override every known sort hook from previous versions.
+compareLessonsV78 = compareLessonsByFixedSubjectV8312;
+compareLessonsV77 = compareLessonsByFixedSubjectV8312;
+compareLessonsByFixedSubjectV8311 = compareLessonsByFixedSubjectV8312;
+
+// Re-render current pages after overriding sort hooks.
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    if (typeof renderLessons === "function") renderLessons();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  }, 1000);
+});
+
+const renderAllBeforeV8312 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV8312) {
+  renderAll = function() {
+    renderAllBeforeV8312();
+    if (typeof renderLessons === "function") renderLessons();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  };
+}
+
+const switchPageBeforeV8312 = typeof switchPage === "function" ? switchPage : null;
+if (switchPageBeforeV8312) {
+  switchPage = function(page) {
+    switchPageBeforeV8312(page);
+    if (page === "lessons" && typeof renderLessons === "function") setTimeout(renderLessons, 0);
+    if (page === "student-settlement" && typeof renderStudentSettlement === "function") setTimeout(renderStudentSettlement, 0);
+  };
+}
+
+
+
+// === v8.3.14 student course track sort ===
+function courseTrackLabelV8314(value) {
+  if (value === "humanities") return "文科";
+  if (value === "science") return "理科";
+  return "理科";
+}
+
+function lessonStudentTrackV8314(item) {
+  const studentId = item?.student_id || item?.student?.id;
+  const student = (state.students || []).find(s => s.id === studentId) || item?.student;
+  return student?.course_track || "science";
+}
+
+function normalizeSubjectSortTextV8314(value) {
+  return String(value || "")
+    .replace(/\s+/g, "")
+    .replace(/[・･／/\\_\-—–.,，。()（）]/g, "")
+    .toLowerCase();
+}
+
+function subjectRankByTrackV8314(item) {
+  const track = lessonStudentTrackV8314(item);
+  const name = normalizeSubjectSortTextV8314(item?.subject?.name || item?.subject_name || "");
+
+  const isJapanese = /日语|日語|日本語|日本语/.test(name);
+  const isMath = /数学|數学/.test(name);
+  const isHumanities = /文综|文綜|综合科目|綜合科目|総合科目/.test(name);
+  const isPhysics = /物理/.test(name);
+  const isChemistry = /化学|化學/.test(name);
+  const isBiology = /生物/.test(name);
+
+  if (track === "humanities") {
+    if (isJapanese) return 10;
+    if (isMath) return 20;
+    if (isHumanities) return 30;
+    if (isPhysics) return 90;
+    if (isChemistry) return 91;
+    if (isBiology) return 92;
+    return 999;
+  }
+
+  // science default: 日语 → 数学 → 物理 → 化学 → 生物 → 文综
+  if (isJapanese) return 10;
+  if (isMath) return 20;
+  if (isPhysics) return 30;
+  if (isChemistry) return 40;
+  if (isBiology) return 50;
+  if (isHumanities) return 60;
+  return 999;
+}
+
+function compareLessonsByTrackSubjectV8314(a, b) {
+  const month = String(a.year_month || "").localeCompare(String(b.year_month || ""));
+  if (month !== 0) return month;
+
+  const rank = subjectRankByTrackV8314(a) - subjectRankByTrackV8314(b);
+  if (rank !== 0) return rank;
+
+  const subjectName = String(a.subject?.name || "").localeCompare(String(b.subject?.name || ""));
+  if (subjectName !== 0) return subjectName;
+
+  const teacher = String(a.teacher?.display_name || a.teacher?.name || "").localeCompare(String(b.teacher?.display_name || b.teacher?.name || ""));
+  if (teacher !== 0) return teacher;
+
+  const date = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
+  if (date !== 0) return date;
+
+  return String(a.start_time || "").localeCompare(String(b.start_time || ""));
+}
+
+// Override all previous sort hooks.
+compareLessonsV78 = compareLessonsByTrackSubjectV8314;
+compareLessonsV77 = compareLessonsByTrackSubjectV8314;
+compareLessonsByFixedSubjectV8311 = compareLessonsByTrackSubjectV8314;
+compareLessonsByFixedSubjectV8312 = compareLessonsByTrackSubjectV8314;
+
+function normalizeCourseTrackInputV8314() {
+  document.querySelectorAll('select[name="course_track"]').forEach(select => {
+    if (!select.value) select.value = "science";
+  });
+}
+
+const buildFormBeforeV8314 = typeof buildForm === "function" ? buildForm : null;
+if (buildFormBeforeV8314) {
+  buildForm = function(type, data = {}) {
+    buildFormBeforeV8314(type, data);
+    if (type === "student") {
+      normalizeCourseTrackInputV8314();
+      if (typeof normalizeExchangeRateInputV837 === "function") normalizeExchangeRateInputV837();
+      if (typeof normalizeExchangeRateInputV839 === "function") normalizeExchangeRateInputV839();
+    }
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    if (typeof renderStudentsTable === "function") renderStudentsTable();
+    if (typeof renderLessons === "function") renderLessons();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  }, 1000);
+});
+
+const renderAllBeforeV8314 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV8314) {
+  renderAll = function() {
+    renderAllBeforeV8314();
+    if (typeof renderStudentsTable === "function") renderStudentsTable();
+    if (typeof renderLessons === "function") renderLessons();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  };
+}
 

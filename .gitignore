@@ -4,3 +4,8 @@ node_modules/
 .env.local
 *.log
 領収書/
+
+# Build/test reports
+v*_build_report.txt
+v*_smoke_test_checklist.md
+v*_cleanup_notes.sql

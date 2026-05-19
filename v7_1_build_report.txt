@@ -1,4 +1,0 @@
-node --check exit=0
-STDOUT:
-
-STDERR:

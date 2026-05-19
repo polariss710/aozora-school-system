@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="stylesheet" href="./style.css?v=7.2" />
+  <link rel="stylesheet" href="./style.css?v=7.3" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -16,13 +16,14 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v7.2</p>
+        <p>运营管理系统 v7.3</p>
       </div>
 
       <nav class="nav">
@@ -284,7 +285,12 @@
         <div class="panel">
           <div class="panel-header">
             <h3>课时管理</h3>
-            <button class="primary-btn" data-open-modal="lesson" type="button">新增课时</button>
+            <div class="panel-actions">
+              <button class="secondary-btn" id="lessonImportExcelBtn" type="button">导入Excel</button>
+              <button class="secondary-btn" id="lessonExportExcelBtn" type="button">导出Excel</button>
+              <button class="primary-btn" data-open-modal="lesson" type="button">新增课时</button>
+              <input type="file" id="lessonImportExcelInput" class="hidden" accept=".xlsx,.xls" />
+            </div>
           </div>
           <div class="toolbar finance-toolbar">
             <input type="month" id="lessonMonthFilter" />
@@ -449,6 +455,6 @@
     </div>
   </div>
 
-  <script src="./app.js?v=7.2"></script>
+  <script src="./app.js?v=7.3"></script>
 </body>
 </html>

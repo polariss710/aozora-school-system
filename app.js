@@ -3635,3 +3635,299 @@ if (typeof money !== "function") {
   }
 }
 
+
+
+
+// === v7.3 lesson Excel import/export ===
+function lessonExcelRequireXLSX() {
+  if (typeof XLSX === "undefined") {
+    showMessage("Excel 功能库尚未加载，请刷新页面后再试。", "error");
+    return false;
+  }
+  return true;
+}
+
+function parseLessonExcelWeekStart(value, baseYear) {
+  if (value === null || value === undefined || value === "") return null;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return mondayOfDate(value);
+  }
+
+  if (typeof value === "number") {
+    // Excel serial date
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (parsed && parsed.y && parsed.m && parsed.d) {
+      return mondayOfDate(new Date(parsed.y, parsed.m - 1, parsed.d));
+    }
+  }
+
+  const text = String(value).trim();
+  const md = text.match(/(\d{1,2})\s*[\.\/月-]\s*(\d{1,2})/);
+  if (md) {
+    const date = new Date(Number(baseYear), Number(md[1]) - 1, Number(md[2]));
+    return mondayOfDate(date);
+  }
+
+  const ymd = text.match(/(\d{4})\s*[\/-]\s*(\d{1,2})\s*[\/-]\s*(\d{1,2})/);
+  if (ymd) {
+    const date = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
+    return mondayOfDate(date);
+  }
+
+  return null;
+}
+
+function mondayOfDate(date) {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = d.getDay(); // 0 Sun, 1 Mon
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function formatDateYmd(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function weekLabelFromDate(date) {
+  return `${date.getMonth() + 1}.${date.getDate()}周`;
+}
+
+function subjectIdFromExcelName(name) {
+  const text = String(name || "").replace(/\s+/g, "").toLowerCase();
+  if (!text) return "";
+
+  const matched = (state.subjects || []).find(s => {
+    const subject = String(s.name || "").replace(/\s+/g, "").toLowerCase();
+    return subject && (subject.includes(text) || text.includes(subject));
+  });
+
+  return matched?.id || "";
+}
+
+function findLessonImportHeaderRow(rows) {
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r].map(x => String(x || "").trim());
+    const joined = row.join("|");
+    if (joined.includes("科目") && joined.includes("日期") && (joined.includes("时长") || joined.includes("時間") || joined.includes("H"))) {
+      return r;
+    }
+  }
+  return -1;
+}
+
+function buildLessonImportColumnMap(headerRow) {
+  const map = {};
+  headerRow.forEach((cell, idx) => {
+    const text = String(cell || "").trim();
+    if (!text) return;
+    if (text.includes("科目")) map.subject = idx;
+    if (text.includes("日期")) map.date = idx;
+    if (text.includes("内容")) map.content = idx;
+    if (text.includes("時長") || text.includes("时长") || text === "H" || text.includes("時間")) map.duration = idx;
+    if (text.includes("教室")) map.roomFee = idx;
+    if (text.includes("老师") || text.includes("教師")) map.teacher = idx;
+    if (text.includes("开始") || text.includes("開始")) map.start = idx;
+    if (text.includes("结束") || text.includes("終了")) map.end = idx;
+  });
+  return map;
+}
+
+function selectedLessonImportContext() {
+  const month = document.getElementById("lessonMonthFilter")?.value || currentYearMonth();
+  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  const teacherId = document.getElementById("lessonTeacherFilter")?.value || "";
+  const subjectId = document.getElementById("lessonSubjectFilter")?.value || "";
+
+  return {
+    month,
+    baseYear: Number(String(month).slice(0, 4)) || new Date().getFullYear(),
+    studentId,
+    teacherId,
+    subjectId,
+  };
+}
+
+async function importLessonExcelFile(file) {
+  if (!lessonExcelRequireXLSX()) return;
+
+  const ctx = selectedLessonImportContext();
+  if (!ctx.studentId) {
+    showMessage("导入前请先在课时管理筛选中选择学生。", "error");
+    return;
+  }
+
+  const businessEntityId = state.students.find(x => x.id === ctx.studentId)?.business_entity_id || state.businessEntities[0]?.id || "";
+  const fallbackTeacherId = ctx.teacherId || state.teachers[0]?.id || "";
+
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
+
+  const headerIndex = findLessonImportHeaderRow(rows);
+  if (headerIndex < 0) {
+    showMessage("没有找到包含「科目 / 日期 / 时长」的预定课时表头。", "error");
+    return;
+  }
+
+  const col = buildLessonImportColumnMap(rows[headerIndex]);
+  const records = [];
+
+  for (let r = headerIndex + 1; r < rows.length; r++) {
+    const row = rows[r];
+    const subjectText = row[col.subject] || "";
+    const dateValue = row[col.date];
+    const durationRaw = col.duration !== undefined ? row[col.duration] : "";
+
+    const lineText = row.map(x => String(x || "").trim()).join("");
+    if (!lineText) continue;
+    if (/合计|小计|總計|总计/.test(lineText)) continue;
+
+    const weekStart = parseLessonExcelWeekStart(dateValue, ctx.baseYear);
+    const duration = Number(String(durationRaw || "").replace(/[^\d.]/g, "")) || 0;
+    if (!weekStart || !duration) continue;
+
+    const subjectId = subjectIdFromExcelName(subjectText) || ctx.subjectId;
+    if (!subjectId) {
+      console.warn("Subject not matched, skipped row", row);
+      continue;
+    }
+
+    const yearMonth = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, "0")}`;
+
+    records.push({
+      lesson_type: "planned",
+      lesson_date: formatDateYmd(weekStart),
+      year_month: yearMonth,
+      student_id: ctx.studentId,
+      teacher_id: fallbackTeacherId || null,
+      subject_id: subjectId,
+      business_entity_id: businessEntityId || null,
+      start_time: col.start !== undefined ? String(row[col.start] || "") : "",
+      end_time: col.end !== undefined ? String(row[col.end] || "") : "",
+      duration_hours: duration,
+      lesson_content: col.content !== undefined ? String(row[col.content] || "") : "",
+      status: "planned",
+      is_billable: true,
+      note: `Excel导入：${sheetName} / ${weekLabelFromDate(weekStart)}`,
+    });
+  }
+
+  if (!records.length) {
+    showMessage("没有读取到可导入的课时记录。请确认已选择学生，且模板中有日期和时长。", "error");
+    return;
+  }
+
+  const ok = confirm(`将导入 ${records.length} 条预定课时。\n归属月份按周一所在月份计算。\n是否继续？`);
+  if (!ok) return;
+
+  const { error } = await db.from(tables.lessons).insert(records);
+  if (error) {
+    showMessage(`导入失败：${error.message}`, "error");
+    return;
+  }
+
+  await loadAll();
+  renderAll();
+  showMessage(`已导入 ${records.length} 条预定课时。`, "ok");
+}
+
+function exportCurrentLessonsExcel() {
+  if (!lessonExcelRequireXLSX()) return;
+
+  const rows = typeof filterLessons === "function" ? filterLessons() : (state.lessonRecords || []);
+  if (!rows.length) {
+    showMessage("当前筛选条件下没有可导出的课时记录。", "error");
+    return;
+  }
+
+  const data = rows
+    .slice()
+    .sort((a, b) => {
+      const d = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
+      if (d !== 0) return d;
+      return String(a.start_time || "").localeCompare(String(b.start_time || ""));
+    })
+    .map(item => {
+      const date = item.lesson_date ? new Date(item.lesson_date + "T00:00:00") : null;
+      const weekStart = date ? mondayOfDate(date) : null;
+      return {
+        "类型": lessonTypeLabel(item.lesson_type),
+        "关联预定ID": item.planned_lesson_id || "",
+        "日期": item.lesson_date || "",
+        "周表示": weekStart ? weekLabelFromDate(weekStart) : "",
+        "归属月份": item.year_month || "",
+        "学生": item.student?.display_name || item.student?.name || "",
+        "老师": item.teacher?.display_name || item.teacher?.name || "",
+        "科目": item.subject?.name || "",
+        "开始": item.start_time || "",
+        "结束": item.end_time || "",
+        "时长H": Number(item.duration_hours || 0),
+        "状态": lessonStatusLabel(item.status),
+        "计费": item.is_billable ? "是" : "否",
+        "内容": item.lesson_content || "",
+        "备注": item.note || "",
+      };
+    });
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "课时记录");
+
+  const month = document.getElementById("lessonMonthFilter")?.value || "all";
+  const studentText = document.getElementById("lessonStudentFilter")?.selectedOptions?.[0]?.textContent || "all";
+  const safeStudent = studentText.replace(/[\\/:*?"<>|]/g, "_").slice(0, 20);
+  XLSX.writeFile(workbook, `课时记录_${safeStudent}_${month}.xlsx`);
+}
+
+function bindLessonExcelActions() {
+  const importBtn = document.getElementById("lessonImportExcelBtn");
+  const importInput = document.getElementById("lessonImportExcelInput");
+  const exportBtn = document.getElementById("lessonExportExcelBtn");
+
+  if (importBtn && importBtn.dataset.boundExcelV73 !== "true") {
+    importBtn.dataset.boundExcelV73 = "true";
+    importBtn.onclick = () => {
+      const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+      if (!studentId) {
+        showMessage("请先在课时管理筛选中选择学生，再导入 Excel。", "error");
+        return;
+      }
+      importInput?.click();
+    };
+  }
+
+  if (importInput && importInput.dataset.boundExcelV73 !== "true") {
+    importInput.dataset.boundExcelV73 = "true";
+    importInput.onchange = async () => {
+      const file = importInput.files && importInput.files[0];
+      if (!file) return;
+      await importLessonExcelFile(file);
+      importInput.value = "";
+    };
+  }
+
+  if (exportBtn && exportBtn.dataset.boundExcelV73 !== "true") {
+    exportBtn.dataset.boundExcelV73 = "true";
+    exportBtn.onclick = exportCurrentLessonsExcel;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(bindLessonExcelActions, 500);
+});
+
+const renderAllBeforeLessonExcelV73 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeLessonExcelV73) {
+  renderAll = function() {
+    renderAllBeforeLessonExcelV73();
+    bindLessonExcelActions();
+  };
+}
+

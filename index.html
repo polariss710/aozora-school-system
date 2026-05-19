@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="stylesheet" href="./style.css?v=8.3.2" />
+  <link rel="stylesheet" href="./style.css?v=8.3.4" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -140,7 +140,7 @@
             <table>
               <thead>
                 <tr>
-                  <th>姓名</th><th>业务归属</th><th>目标</th><th>预设汇率</th><th>上月结余/补交</th><th>状态</th><th>备注</th><th>操作</th>
+                  <th>姓名</th><th>业务归属</th><th>预设汇率</th><th>状态</th><th>备注</th><th>操作</th>
                 </tr>
               </thead>
               <tbody id="studentsTable"></tbody>
@@ -202,7 +202,11 @@
             <table>
               <thead>
                 <tr>
-                  <th>类型</th><th>日期</th><th>老师</th><th>科目</th><th>时长</th><th>单价</th><th>课时费</th><th>状态</th><th>内容</th>
+                  <th colspan="6" class="lesson-pair-head">预定课时</th><th colspan="6" class="lesson-pair-head actual">实际课时</th>
+                </tr>
+                <tr class="lesson-sub-head">
+                  <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态/计费</th><th>内容</th>
+                  <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态/计费</th><th>内容</th>
                 </tr>
               </thead>
               <tbody id="settlementLessonsTable"></tbody>
@@ -395,6 +399,10 @@
                 <tr>
                   <th colspan="6" class="lesson-pair-head">预定课时</th><th colspan="6" class="lesson-pair-head actual">实际课时</th>
                 </tr>
+                <tr class="lesson-sub-head">
+                  <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态/计费</th><th>内容/操作</th>
+                  <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态/计费</th><th>内容/操作</th>
+                </tr>
               </thead>
               <tbody id="lessonsTable"></tbody>
             </table>
@@ -524,6 +532,6 @@
     </div>
   </div>
 
-  <script src="./app.js?v=8.3.2"></script>
+  <script src="./app.js?v=8.3.4"></script>
 </body>
 </html>

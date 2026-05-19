@@ -344,9 +344,7 @@ function renderStudentsTable() {
     <tr>
       <td>${esc(item.name)}</td>
       <td>${esc(item.business_entity?.name || "")}</td>
-      <td>${esc(item.target_type || "")}</td>
       <td>${money(item.preset_exchange_rate || 0)}</td>
-      <td>${formatCnyV83(item.previous_balance_cny || 0)}</td>
       <td>${statusBadge(item.status)}</td>
       <td>${esc(short(item.note))}</td>
       <td>${actionButtons("student", item.id)}</td>
@@ -1046,9 +1044,7 @@ function getFields(type) {
     { name: "name", label: "学生姓名", required: true },
     { name: "display_name", label: "显示名" },
     { name: "business_entity_id", label: "默认业务归属", type: "select", options: businessOptions, required: true },
-    { name: "target_type", label: "学习目标" },
     { name: "preset_exchange_rate", label: "预设汇率", type: "number", default: "" },
-    { name: "previous_balance_cny", label: "上月结余/补交（人民币）", type: "number", default: "" },
     { name: "wechat", label: "微信" },
     { name: "phone", label: "电话" },
     { name: "parent_name", label: "家长姓名" },
@@ -5416,6 +5412,329 @@ if (bindLessonPairButtonsBeforeV831) {
     document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
       btn.onclick = () => copyLessonRecordV59(btn.dataset.copyLesson);
     });
+  };
+}
+
+
+
+// === v8.3.3 compact lesson list layout ===
+function lessonPairActionsCompactV833(item) {
+  if (!item) return "";
+  const actualButton = item.lesson_type === "planned"
+    ? `<button class="secondary-btn lesson-mini-btn" data-create-actual="${escAttr(item.id)}">生成实际</button>`
+    : "";
+
+  const selectBox = typeof lessonSelectCheckboxV76 === "function"
+    ? lessonSelectCheckboxV76(item)
+    : `<label class="lesson-select-box"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /> 勾选</label>`;
+
+  return `
+    <div class="lesson-actions-grid">
+      ${selectBox}
+      ${actualButton}
+      <button class="secondary-btn lesson-mini-btn" data-copy-lesson="${escAttr(item.id)}">复制</button>
+      <button class="secondary-btn lesson-mini-btn" data-edit="${escAttr(item.id)}" data-type="lesson">编辑</button>
+      <button class="danger-btn lesson-mini-btn" data-delete="${escAttr(item.id)}" data-type="lesson">删除</button>
+    </div>
+  `;
+}
+
+function lessonPairCellsCompactV833(item, side) {
+  if (!item) {
+    return `<td colspan="6" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
+  }
+
+  const fee = Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0);
+  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
+  const timeLine = `${lessonPairTimeText(item) || "时间未定"} / ${money(item.duration_hours)}H / ${formatCurrencyTotal(fee, "JPY")}`;
+
+  return `
+    <td class="lesson-date-cell">
+      <div>${lessonPairDateText(item)}</div>
+      <span class="muted-small">${esc(item.year_month || "")}</span>
+    </td>
+    <td class="lesson-name-cell">${lessonPairStudentText(item)}</td>
+    <td class="lesson-teacher-cell">${lessonPairTeacherText(item)}</td>
+    <td class="lesson-subject-cell">
+      <div>${lessonPairSubjectText(item)}</div>
+      <span class="muted-small">${timeLine}</span>
+    </td>
+    <td class="lesson-status-cell">
+      ${badge(lessonStatusLabel(item.status), statusClass)}
+      ${item.is_billable ? badge("计费") : badge("不计费", "gray")}
+    </td>
+    <td class="lesson-content-actions-cell">
+      <div class="lesson-content-cell">${esc(short(item.lesson_content || item.note, 36))}</div>
+      ${lessonPairActionsCompactV833(item)}
+    </td>
+  `;
+}
+
+lessonPairCells = lessonPairCellsCompactV833;
+
+function makeActualFromPlannedCompactV833(id) {
+  const plan = state.lessonRecords.find(x => x.id === id);
+  if (!plan) return;
+
+  const prefill = {
+    lesson_type: "actual",
+    planned_lesson_id: plan.id,
+    lesson_date: plan.lesson_date || todayStr(),
+    year_month: plan.year_month || currentYearMonth(),
+    student_id: plan.student_id || "",
+    teacher_id: plan.teacher_id || "",
+    subject_id: plan.subject_id || "",
+    business_entity_id: plan.business_entity_id || "",
+    start_time: plan.start_time || "",
+    end_time: plan.end_time || "",
+    duration_hours: plan.duration_hours || 0,
+    unit_price: plan.unit_price || 0,
+    lesson_fee: plan.lesson_fee || (Number(plan.unit_price || 0) * Number(plan.duration_hours || 0)) || 0,
+    status: "completed",
+    is_billable: plan.is_billable !== false,
+    lesson_content: "",
+    note: "",
+  };
+
+  state.pendingActualPlanId = plan.id;
+  openCreateModal("lesson", prefill);
+
+  const form = document.getElementById("modalForm");
+  let hidden = form?.querySelector('input[name="planned_lesson_id"]');
+  if (!hidden && form) {
+    hidden = document.createElement("input");
+    hidden.type = "hidden";
+    hidden.name = "planned_lesson_id";
+    form.appendChild(hidden);
+  }
+  if (hidden) hidden.value = plan.id;
+
+  const title = document.getElementById("modalTitle");
+  if (title) title.textContent = "从预定生成实际课时";
+}
+
+makeActualFromPlanned = makeActualFromPlannedCompactV833;
+
+function bindLessonPairButtonsCompactV833() {
+  document.querySelectorAll("[data-create-actual]").forEach(btn => {
+    btn.onclick = () => makeActualFromPlannedCompactV833(btn.dataset.createActual);
+  });
+  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
+    btn.onclick = () => copyLessonRecordV59(btn.dataset.copyLesson);
+  });
+}
+
+bindLessonPairButtonsV59 = bindLessonPairButtonsCompactV833;
+
+const renderLessonsBeforeV833 = typeof renderLessons === "function" ? renderLessons : null;
+if (renderLessonsBeforeV833) {
+  renderLessons = function() {
+    renderLessonsBeforeV833();
+    bindLessonPairButtonsCompactV833();
+  };
+}
+
+
+
+// === v8.3.4 settlement calculation and paired detail fix ===
+function rateErrorTextV834(student) {
+  const rate = Number(student?.preset_exchange_rate || 0);
+  if (rate > 0) return "";
+  return "该学生预设汇率为 0，请先到「学生管理」编辑学生，填写预设汇率。";
+}
+
+function settlementLessonCellsV834(item, side) {
+  if (!item) {
+    return `<td colspan="6" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
+  }
+
+  const fee = feeOfLessonV83(item);
+  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
+  const timeText = [item.start_time, item.end_time].filter(Boolean).join(" - ");
+  const studentName = item.student?.display_name || item.student?.name || "";
+  const teacherName = item.teacher?.display_name || item.teacher?.name || "";
+  const subjectName = item.subject?.name || "";
+
+  return `
+    <td class="lesson-date-cell">
+      <div>${esc(displayRecordDate(item.lesson_date || ""))}</div>
+      <span class="muted-small">${esc(item.year_month || "")}</span>
+    </td>
+    <td class="lesson-name-cell">${esc(studentName)}</td>
+    <td class="lesson-teacher-cell">${esc(teacherName)}</td>
+    <td class="lesson-subject-cell">
+      <div>${esc(subjectName)}</div>
+      <span class="muted-small">${esc(timeText || "时间未定")} / ${money(item.duration_hours)}H / ${formatJpyV83(fee)}</span>
+    </td>
+    <td class="lesson-status-cell">
+      ${badge(lessonStatusLabel(item.status), statusClass)}
+      ${item.is_billable !== false ? badge("计费") : badge("不计费", "gray")}
+    </td>
+    <td class="lesson-content-actions-cell">
+      <div class="lesson-content-cell">${esc(short(item.lesson_content || item.note, 36))}</div>
+    </td>
+  `;
+}
+
+function renderSettlementPairedLessonsV834(planned, actual) {
+  const tbody = document.getElementById("settlementLessonsTable");
+  if (!tbody) return;
+
+  const actualByPlan = new Map();
+  const unlinkedActual = [];
+
+  actual.forEach(row => {
+    let planId = row.planned_lesson_id;
+
+    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
+      const matched = schoolStableFindMatchingPlannedLessonV70(row);
+      if (matched) planId = matched.id;
+    }
+    if (!planId && typeof findMatchingPlannedLesson === "function") {
+      const matched = findMatchingPlannedLesson(row);
+      if (matched) planId = matched.id;
+    }
+
+    if (planId) {
+      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
+      actualByPlan.get(planId).push(row);
+    } else {
+      unlinkedActual.push(row);
+    }
+  });
+
+  const html = [];
+  const plannedSorted = planned.slice().sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
+
+  plannedSorted.forEach(plan => {
+    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
+    if (!actuals.length) {
+      html.push(`<tr class="lesson-pair-row">${settlementLessonCellsV834(plan, "planned")}${settlementLessonCellsV834(null, "actual")}</tr>`);
+    } else {
+      actuals.forEach((act, index) => {
+        const left = index === 0
+          ? settlementLessonCellsV834(plan, "planned")
+          : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
+        html.push(`<tr class="lesson-pair-row">${left}${settlementLessonCellsV834(act, "actual")}</tr>`);
+      });
+    }
+  });
+
+  unlinkedActual
+    .slice()
+    .sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")))
+    .forEach(act => {
+      html.push(`<tr class="lesson-pair-row">${settlementLessonCellsV834(null, "planned")}${settlementLessonCellsV834(act, "actual")}</tr>`);
+    });
+
+  tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="12" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
+}
+
+function renderStudentSettlementV834() {
+  fillStudentSelectV83("settlementStudentFilter");
+  const month = document.getElementById("settlementMonthFilter")?.value || currentYearMonth();
+  const studentId = document.getElementById("settlementStudentFilter")?.value || "";
+  const student = (state.students || []).find(x => x.id === studentId);
+  const hint = document.getElementById("settlementStudentHint");
+
+  if (hint) {
+    hint.classList.toggle("ok", !!studentId && !!student && Number(student.preset_exchange_rate || 0) > 0);
+    hint.textContent = !studentId ? "学生必选" : (rateErrorTextV834(student) || "已选择学生");
+  }
+
+  if (!studentId || !student) {
+    ["settlementPlannedHours", "settlementActualHours", "settlementPlannedJpy", "settlementActualJpy",
+     "settlementPrevBalanceCny", "settlementExchangeRate", "settlementPlannedJpy2", "settlementPlannedCny",
+     "settlementPlannedTotalCny", "settlementActualJpy2", "settlementActualCny", "settlementReceivedCny", "settlementReceivedJpy"].forEach(id => setOptionalText(id, "0"));
+    const tbody = document.getElementById("settlementLessonsTable");
+    if (tbody) tbody.innerHTML = `<tr><td colspan="12" class="empty-row">请先选择学生</td></tr>`;
+    return;
+  }
+
+  const rate = Number(student.preset_exchange_rate || 0);
+  if (rate <= 0) {
+    showMessage(rateErrorTextV834(student), "error");
+  }
+
+  const lessonsAll = (state.lessonRecords || []).filter(x =>
+    x.student_id === studentId &&
+    x.year_month === month &&
+    x.is_billable !== false
+  );
+
+  // Important: planned and actual are separated strictly.
+  // Planned settlement must not include actual lessons.
+  const planned = lessonsAll.filter(x => x.lesson_type === "planned");
+  const actual = lessonsAll.filter(x =>
+    x.lesson_type === "actual" &&
+    (x.status === "completed" || x.status === "makeup")
+  );
+
+  const prevBalanceCny = Number(student.previous_balance_cny || 0);
+  const plannedJpy = sumLessonFeeV83(planned);
+  const actualJpy = sumLessonFeeV83(actual);
+  const plannedCny = plannedJpy * rate;
+  const actualCny = actualJpy * rate;
+  const plannedTotalCny = plannedCny - prevBalanceCny;
+  const receivedCny = sumIncomeV83(studentId, month, "CNY");
+  const receivedJpy = sumIncomeV83(studentId, month, "JPY");
+
+  setOptionalText("settlementPlannedHours", money(sumLessonHoursV83(planned)));
+  setOptionalText("settlementActualHours", money(sumLessonHoursV83(actual)));
+  setOptionalText("settlementPlannedJpy", formatJpyV83(plannedJpy));
+  setOptionalText("settlementActualJpy", formatJpyV83(actualJpy));
+
+  setOptionalText("settlementPrevBalanceCny", formatCnyV83(prevBalanceCny));
+  setOptionalText("settlementExchangeRate", money(rate));
+  setOptionalText("settlementPlannedJpy2", formatJpyV83(plannedJpy));
+  setOptionalText("settlementPlannedCny", formatCnyV83(plannedCny));
+  setOptionalText("settlementPlannedTotalCny", formatCnyV83(plannedTotalCny));
+
+  setOptionalText("settlementActualJpy2", formatJpyV83(actualJpy));
+  setOptionalText("settlementActualCny", formatCnyV83(actualCny));
+  setOptionalText("settlementReceivedCny", formatCnyV83(receivedCny));
+  setOptionalText("settlementReceivedJpy", formatJpyV83(receivedJpy));
+
+  renderSettlementPairedLessonsV834(planned, actual);
+}
+
+// Override v8.3 settlement renderer.
+renderStudentSettlement = renderStudentSettlementV834;
+
+function bindStudentSettlementV834() {
+  if (typeof bindStudentSettlementV83 === "function") bindStudentSettlementV83();
+
+  const refresh = document.getElementById("settlementRefreshBtn");
+  if (refresh) refresh.onclick = renderStudentSettlementV834;
+
+  const month = document.getElementById("settlementMonthFilter");
+  if (month) month.onchange = renderStudentSettlementV834;
+
+  const student = document.getElementById("settlementStudentFilter");
+  if (student) student.onchange = renderStudentSettlementV834;
+
+  renderStudentSettlementV834();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(bindStudentSettlementV834, 800);
+});
+
+const renderAllBeforeV834 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV834) {
+  renderAll = function() {
+    renderAllBeforeV834();
+    bindStudentSettlementV834();
+  };
+}
+
+const switchPageBeforeV834 = typeof switchPage === "function" ? switchPage : null;
+if (switchPageBeforeV834) {
+  switchPage = function(page) {
+    switchPageBeforeV834(page);
+    if (page === "student-settlement") {
+      bindStudentSettlementV834();
+    }
   };
 }
 

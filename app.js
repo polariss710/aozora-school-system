@@ -7786,3 +7786,226 @@ document.addEventListener("DOMContentLoaded", () => {
   setTimeout(bindActualButtonsV851, 1000);
 });
 
+
+
+// === v8.5.2 week label for planned lesson dates ===
+function lessonDateWithWeekLabelV852(item) {
+  const base = lessonPairDateText(item);
+  if (item?.lesson_type === "planned" && base && !String(base).endsWith("周")) {
+    return `${base}周`;
+  }
+  return base;
+}
+
+function lessonPairCellsV852(item, side) {
+  if (!item) {
+    return `<td colspan="8" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
+  }
+
+  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
+  const timeText = lessonPairTimeText(item) || "时间未定";
+  const content = esc(short(item.lesson_content || item.note || "", 22));
+
+  return `
+    <td class="col-check"><label class="lesson-check-only"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /></label></td>
+    <td class="col-date"><div>${lessonDateWithWeekLabelV852(item)}</div><span>${esc(item.year_month || "")}</span></td>
+    <td class="col-student">${lessonPairStudentText(item)}</td>
+    <td class="col-teacher">${lessonPairTeacherText(item)}</td>
+    <td class="col-subject"><strong>${lessonPairSubjectText(item)}</strong><span>${timeText} / ${money(item.duration_hours)}H</span></td>
+    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable ? badge("计费") : badge("不计费", "gray")}</td>
+    <td class="col-content"><div class="lesson-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${content}</div></td>
+    <td class="col-actions">${lessonActionButtonsV8310 ? lessonActionButtonsV8310(item) : ""}</td>
+  `;
+}
+
+// Override lesson table date display.
+lessonPairCells = lessonPairCellsV852;
+
+function renderLessonRowsV852(rows) {
+  const plannedRows = rows.filter(x => x.lesson_type === "planned");
+  const actualRows = rows.filter(x => x.lesson_type === "actual");
+  const actualByPlan = new Map();
+  const unlinkedActual = [];
+
+  actualRows.forEach(actual => {
+    let planId = actual.planned_lesson_id;
+    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
+      const matched = schoolStableFindMatchingPlannedLessonV70(actual);
+      if (matched) planId = matched.id;
+    }
+    if (!planId && typeof findMatchingPlannedLesson === "function") {
+      const matched = findMatchingPlannedLesson(actual);
+      if (matched) planId = matched.id;
+    }
+    if (planId) {
+      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
+      actualByPlan.get(planId).push(actual);
+    } else {
+      unlinkedActual.push(actual);
+    }
+  });
+
+  const sortFn = typeof compareLessonsV78 === "function"
+    ? compareLessonsV78
+    : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
+
+  const html = [];
+  let lastMonth = "";
+
+  function addMonthRow(ym) {
+    if (ym !== lastMonth) {
+      lastMonth = ym;
+      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
+      html.push(`<tr class="lesson-sub-head-body v8310">
+        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+      </tr>`);
+    }
+  }
+
+  plannedRows.slice().sort(sortFn).forEach(plan => {
+    const ym = plan.year_month || "未归属月份";
+    addMonthRow(ym);
+    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
+    if (!actuals.length) {
+      html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV852(plan, "planned")}${lessonPairCellsV852(null, "actual")}</tr>`);
+    } else {
+      actuals.forEach((actual, index) => {
+        const left = index === 0
+          ? lessonPairCellsV852(plan, "planned")
+          : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
+        html.push(`<tr class="lesson-pair-row v8310">${left}${lessonPairCellsV852(actual, "actual")}</tr>`);
+      });
+    }
+  });
+
+  unlinkedActual.slice().sort(sortFn).forEach(actual => {
+    const ym = actual.year_month || "未归属月份";
+    addMonthRow(ym);
+    html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV852(null, "planned")}${lessonPairCellsV852(actual, "actual")}</tr>`);
+  });
+
+  return html.join("");
+}
+
+function renderLessonsV852() {
+  const tbody = document.getElementById("lessonsTable");
+  if (!tbody) return;
+  updateLessonFilters();
+  const rows = filterLessons().slice().sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
+  renderLessonStats(rows);
+  tbody.innerHTML = renderLessonRowsV852(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
+  if (typeof bindLessonButtonsV8310 === "function") bindLessonButtonsV8310();
+  if (typeof bindActualButtonsV851 === "function") bindActualButtonsV851();
+  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
+}
+
+renderLessons = renderLessonsV852;
+
+function settlementLessonCellsV852(item, side) {
+  if (!item) {
+    return `<td colspan="7" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
+  }
+
+  const fee = feeOfLessonV83(item);
+  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
+  const timeText = [item.start_time, item.end_time].filter(Boolean).join("-");
+  const studentName = item.student?.display_name || item.student?.name || "";
+  const teacherName = item.teacher?.display_name || item.teacher?.name || "";
+  const subjectName = item.subject?.name || "";
+
+  return `
+    <td class="col-date"><div>${esc(item.lesson_type === "planned" ? `${displayRecordDate(item.lesson_date || "")}周` : displayRecordDate(item.lesson_date || ""))}</div><span>${esc(item.year_month || "")}</span></td>
+    <td class="col-student">${esc(studentName)}</td>
+    <td class="col-teacher">${esc(teacherName)}</td>
+    <td class="col-subject">
+      <strong>${esc(subjectName)}</strong>
+      <span>${esc(timeText || "时间未定")} / ${money(item.duration_hours)}H</span>
+      <span>${formatJpyV83(fee)}</span>
+    </td>
+    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable !== false ? badge("计费") : badge("不计费", "gray")}</td>
+    <td class="col-content"><div class="settlement-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${esc(short(item.lesson_content || item.note || "", 28))}</div></td>
+    <td class="col-actions">${typeof settlementActionButtonsV8310 === "function" ? settlementActionButtonsV8310(item) : ""}</td>
+  `;
+}
+
+function renderSettlementPairedLessonsV852(planned, actual) {
+  const tbody = document.getElementById("settlementLessonsTable");
+  if (!tbody) return;
+
+  const actualByPlan = new Map();
+  const unlinkedActual = [];
+
+  actual.forEach(row => {
+    let planId = row.planned_lesson_id;
+    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
+      const matched = schoolStableFindMatchingPlannedLessonV70(row);
+      if (matched) planId = matched.id;
+    }
+    if (!planId && typeof findMatchingPlannedLesson === "function") {
+      const matched = findMatchingPlannedLesson(row);
+      if (matched) planId = matched.id;
+    }
+
+    if (planId) {
+      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
+      actualByPlan.get(planId).push(row);
+    } else {
+      unlinkedActual.push(row);
+    }
+  });
+
+  const sortFn = typeof compareLessonsV78 === "function"
+    ? compareLessonsV78
+    : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
+
+  const html = [];
+  html.push(`<tr class="lesson-sub-head-body settlement-v8310">
+    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+  </tr>`);
+
+  planned.slice().sort(sortFn).forEach(plan => {
+    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
+    if (!actuals.length) {
+      html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV852(plan, "planned")}${settlementLessonCellsV852(null, "actual")}</tr>`);
+    } else {
+      actuals.forEach((act, index) => {
+        const left = index === 0
+          ? settlementLessonCellsV852(plan, "planned")
+          : `<td colspan="7" class="lesson-empty-side">同一预定课时</td>`;
+        html.push(`<tr class="lesson-pair-row settlement-v8310">${left}${settlementLessonCellsV852(act, "actual")}</tr>`);
+      });
+    }
+  });
+
+  unlinkedActual.slice().sort(sortFn).forEach(act => {
+    html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV852(null, "planned")}${settlementLessonCellsV852(act, "actual")}</tr>`);
+  });
+
+  tbody.innerHTML = html.length > 1 ? html.join("") : `<tr><td colspan="14" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
+}
+
+if (typeof renderSettlementPairedLessonsV834 === "function") {
+  renderSettlementPairedLessonsV834 = renderSettlementPairedLessonsV852;
+}
+if (typeof renderSettlementPairedLessonsV8310 === "function") {
+  renderSettlementPairedLessonsV8310 = renderSettlementPairedLessonsV852;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    if (typeof renderLessons === "function") renderLessons();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  }, 1000);
+});
+
+const renderAllBeforeV852 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV852) {
+  renderAll = function() {
+    renderAllBeforeV852();
+    if (typeof renderLessons === "function") renderLessons();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  };
+}
+

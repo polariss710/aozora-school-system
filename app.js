@@ -4888,3 +4888,136 @@ if (renderAllBeforeV80Upload) {
   };
 }
 
+
+
+
+// === v8.1 upload dialog click behavior fix ===
+function openUploadDialogV81(config) {
+  const modal = ensureUploadDialogV80();
+  const drop = document.getElementById("uploadDialogDropV80");
+  const title = document.getElementById("uploadDialogTitleV80");
+  const hint = document.getElementById("uploadDialogHintV80");
+  const accept = document.getElementById("uploadDialogAcceptV80");
+  const pick = document.getElementById("uploadDialogPickV80");
+
+  title.textContent = config.title || "上传文件";
+  hint.textContent = config.hint || "拖入文件到这里";
+  accept.textContent = config.acceptText || "";
+  window.uploadDialogHandlerV80 = config.onFile;
+  window.uploadDialogInputV80 = config.input;
+
+  // Important: only this button opens the file picker.
+  // Clicking the dialog/drop area itself should not open the picker.
+  pick.onclick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    config.input?.click();
+  };
+
+  if (drop && drop.dataset.boundV81 !== "true") {
+    drop.dataset.boundV81 = "true";
+
+    ["dragenter", "dragover"].forEach(name => {
+      drop.addEventListener(name, event => {
+        event.preventDefault();
+        event.stopPropagation();
+        drop.classList.add("drag-over");
+      });
+    });
+
+    ["dragleave", "drop"].forEach(name => {
+      drop.addEventListener(name, event => {
+        event.preventDefault();
+        event.stopPropagation();
+        drop.classList.remove("drag-over");
+      });
+    });
+
+    drop.addEventListener("drop", async event => {
+      const file = event.dataTransfer?.files?.[0];
+      if (!file) return;
+      if (typeof window.uploadDialogHandlerV80 === "function") {
+        await window.uploadDialogHandlerV80(file);
+        closeUploadDialogV80();
+      }
+    });
+  }
+
+  modal.classList.remove("hidden");
+}
+
+function bindUploadDialogButtonsV81() {
+  const expenseBtn = document.getElementById("importExpensePdfBtn");
+  const expenseInput = document.getElementById("expensePdfInput");
+  if (expenseBtn && expenseInput) {
+    expenseBtn.onclick = () => openUploadDialogV81({
+      title: "凭证读取",
+      hint: "将 PDF / JPG / PNG 拖入这里",
+      acceptText: "支持 PDF、JPG、PNG。点击下方按钮选择文件。",
+      input: expenseInput,
+      onFile: async file => {
+        const lower = file.name.toLowerCase();
+        if (!(file.type === "application/pdf" || file.type.startsWith("image/") || /\.(pdf|jpg|jpeg|png)$/i.test(lower))) {
+          showMessage("暂时只支持 PDF / JPG / PNG 文件。", "error");
+          return;
+        }
+        await handleExpenseReceiptFileV79(file);
+      },
+    });
+
+    expenseInput.onchange = async () => {
+      const file = expenseInput.files && expenseInput.files[0];
+      expenseInput.value = "";
+      if (!file) return;
+      await handleExpenseReceiptFileV79(file);
+      closeUploadDialogV80();
+    };
+  }
+
+  const lessonBtn = document.getElementById("lessonImportExcelBtn");
+  const lessonInput = document.getElementById("lessonImportExcelInput");
+  if (lessonBtn && lessonInput) {
+    lessonBtn.onclick = () => {
+      const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+      if (!studentId) {
+        showMessage("请先在课时管理筛选中选择学生，再导入 Excel。", "error");
+        return;
+      }
+
+      openUploadDialogV81({
+        title: "导入课时 Excel",
+        hint: "将 Excel 文件拖入这里",
+        acceptText: "支持 .xlsx / .xls。点击下方按钮选择文件。",
+        input: lessonInput,
+        onFile: async file => {
+          if (!/\.(xlsx|xls)$/i.test(file.name)) {
+            showMessage("暂时只支持 .xlsx / .xls 文件。", "error");
+            return;
+          }
+          await importLessonExcelFile(file);
+        },
+      });
+    };
+
+    lessonInput.onchange = async () => {
+      const file = lessonInput.files && lessonInput.files[0];
+      lessonInput.value = "";
+      if (!file) return;
+      await importLessonExcelFile(file);
+      closeUploadDialogV80();
+    };
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(bindUploadDialogButtonsV81, 700);
+});
+
+const renderAllBeforeV81 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV81) {
+  renderAll = function() {
+    renderAllBeforeV81();
+    bindUploadDialogButtonsV81();
+  };
+}
+

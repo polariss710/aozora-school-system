@@ -1088,7 +1088,7 @@ function getFields(type) {
     { name: "student_id", label: "学生", type: "select", options: studentOptions(), className: "tuition-student-row" },
     { name: "description", label: "说明", full: true },
     { name: "currency", label: "币种", type: "select", default: "CNY", options: currencyOptions() },
-    { name: "amount", label: "金额", type: "number", default: 0, required: true },
+    { name: "amount", label: "金额", type: "number", default: "", required: true },
     { name: "exchange_rate", label: "汇率", type: "number" },
     { name: "payment_method", label: "收款方式", type: "select", options: paymentMethodOptions() },
     { name: "status", label: "状态", type: "select", default: "received", options: incomeStatusOptions() },
@@ -1106,7 +1106,7 @@ function getFields(type) {
     { name: "expense_category", label: "支出分类", type: "select", default: "other", options: expenseCategoryOptions() },
     { name: "description", label: "说明", full: true },
     { name: "currency", label: "币种", type: "select", default: "JPY", options: currencyOptions() },
-    { name: "amount", label: "金额", type: "number", default: 0, required: true },
+    { name: "amount", label: "金额", type: "number", default: "", required: true },
     { name: "exchange_rate", label: "汇率", type: "number" },
     { name: "payment_method", label: "支付方式", type: "select", options: paymentMethodOptions() },
     { name: "status", label: "状态", type: "select", default: "paid", options: expenseStatusOptions() },
@@ -1123,7 +1123,7 @@ function getFields(type) {
     { name: "from_account_id", label: "公司出款账户", type: "select", options: companyAccountOptions(), required: true },
     { name: "to_account_id", label: "报销对象账户", type: "select", options: advanceAccountOptions(), required: true },
     { name: "currency", label: "币种", type: "select", default: "JPY", options: currencyOptions() },
-    { name: "amount", label: "报销金额", type: "number", default: 0, required: true },
+    { name: "amount", label: "报销金额", type: "number", default: "", required: true },
     { name: "status", label: "状态", type: "select", default: "paid", options: reimbursementStatusOptions() },
     { name: "note", label: "备注", type: "textarea", full: true },
   ];
@@ -1248,7 +1248,7 @@ function schoolGetFieldsV24(type) {
     { name: "expense_category", label: "支出分类", type: "select", default: "other", options: expenseCategoryOptions() },
     { name: "description", label: "说明", full: true },
     { name: "currency", label: "币种", type: "select", default: "JPY", options: currencyOptions() },
-    { name: "amount", label: "金额", type: "number", default: 0, required: true },
+    { name: "amount", label: "金额", type: "number", default: "", required: true },
     { name: "exchange_rate", label: "汇率", type: "number" },
     { name: "payment_method", label: "支付方式", type: "select", options: paymentMethodOptions() },
     { name: "status", label: "状态", type: "select", default: "paid", options: expenseStatusOptions() },
@@ -1267,7 +1267,7 @@ function schoolGetFieldsV24(type) {
     { name: "student_id", label: "学生", type: "select", options: studentOptions(), className: "tuition-student-row" },
     { name: "description", label: "说明", full: true },
     { name: "currency", label: "币种", type: "select", default: "CNY", options: currencyOptions() },
-    { name: "amount", label: "金额", type: "number", default: 0, required: true },
+    { name: "amount", label: "金额", type: "number", default: "", required: true },
     { name: "exchange_rate", label: "汇率", type: "number" },
     { name: "payment_method", label: "收款方式", type: "select", options: paymentMethodOptions() },
     { name: "status", label: "状态", type: "select", default: "received", options: incomeStatusOptions() },
@@ -3930,4 +3930,50 @@ if (renderAllBeforeLessonExcelV73) {
     bindLessonExcelActions();
   };
 }
+
+
+
+
+// === v7.4 reimbursement selection reset fix ===
+function resetReimbursementSelectionV74() {
+  const checkAll = document.getElementById("pendingReimbursementCheckAll");
+  if (checkAll) checkAll.checked = false;
+
+  document.querySelectorAll(".reimbursement-expense-check").forEach(el => {
+    el.checked = false;
+  });
+
+  if (typeof updateSelectedReimbursementTotal === "function") {
+    updateSelectedReimbursementTotal();
+  } else if (typeof setOptionalText === "function") {
+    setOptionalText("selectedReimbursementAmount", "0");
+  }
+}
+
+const renderReimbursementsBeforeV74 = typeof renderReimbursements === "function" ? renderReimbursements : null;
+if (renderReimbursementsBeforeV74) {
+  renderReimbursements = function() {
+    renderReimbursementsBeforeV74();
+    const checkAll = document.getElementById("pendingReimbursementCheckAll");
+    if (checkAll) checkAll.checked = false;
+    if (typeof updateSelectedReimbursementTotal === "function") {
+      updateSelectedReimbursementTotal();
+    }
+  };
+}
+
+function bindReimbursementFilterResetV74() {
+  ["reimbursementMonthFilter", "reimbursementEntityFilter", "reimbursementStatusFilter", "reimbursementAccountFilter"].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || el.dataset.boundResetV74 === "true") return;
+    el.dataset.boundResetV74 = "true";
+    el.addEventListener("change", () => {
+      setTimeout(resetReimbursementSelectionV74, 0);
+    });
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(bindReimbursementFilterResetV74, 500);
+});
 

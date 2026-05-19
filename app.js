@@ -9127,3 +9127,278 @@ if (renderAllBeforeV857) {
   };
 }
 
+
+
+// === v8.5.8 planned week display only; keep original lesson_date ===
+function toIsoDateV858(value) {
+  if (!value) return "";
+  const text = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  if (/^\d{4}\/\d{2}\/\d{2}$/.test(text)) return text.replaceAll("/", "-");
+  const d = new Date(text);
+  if (Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function mondayOfDateV858(value) {
+  const iso = toIsoDateV858(value);
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const day = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  const yy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
+function dateCellDisplayV858(item) {
+  const lessonDate = toIsoDateV858(item?.lesson_date);
+  if (item?.lesson_type === "planned") {
+    const monday = mondayOfDateV858(lessonDate);
+    return {
+      main: monday ? `${monday}周` : "",
+      sub: lessonDate || monday || item?.year_month || "",
+    };
+  }
+  return {
+    main: lessonDate || lessonPairDateText(item) || "",
+    sub: lessonDate || item?.year_month || "",
+  };
+}
+
+// v8.5.7 changed planned lesson_date to Monday on save.
+// Override it: week label is display-only; the actual selected class date must stay in lesson_date.
+const normalizeLessonPayloadBeforeV858 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
+normalizeLessonPayload = function(payload, type) {
+  const originalLessonDate = payload?.lesson_date;
+  if (normalizeLessonPayloadBeforeV858) payload = normalizeLessonPayloadBeforeV858(payload, type);
+
+  if (type === "lesson" && payload?.lesson_type === "planned") {
+    if (originalLessonDate) {
+      const iso = toIsoDateV858(originalLessonDate);
+      if (iso) {
+        payload.lesson_date = iso;
+        payload.year_month = iso.slice(0, 7);
+      }
+    }
+    payload.planned_lesson_id = null;
+  }
+
+  return payload;
+};
+
+function lessonPairCellsV858(item, side) {
+  if (!item) {
+    return `<td colspan="8" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
+  }
+
+  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
+  const timeText = lessonPairTimeText(item) || "时间未定";
+  const content = esc(short(item.lesson_content || item.note || "", 22));
+  const d = dateCellDisplayV858(item);
+
+  return `
+    <td class="col-check"><label class="lesson-check-only"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /></label></td>
+    <td class="col-date"><div>${esc(d.main)}</div><span>${esc(d.sub)}</span></td>
+    <td class="col-student">${lessonPairStudentText(item)}</td>
+    <td class="col-teacher">${lessonPairTeacherText(item)}</td>
+    <td class="col-subject"><strong>${lessonPairSubjectText(item)}</strong><span>${timeText} / ${money(item.duration_hours)}H</span></td>
+    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable ? badge("计费") : badge("不计费", "gray")}</td>
+    <td class="col-content"><div class="lesson-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${content}</div></td>
+    <td class="col-actions">${typeof lessonActionButtonsV8310 === "function" ? lessonActionButtonsV8310(item) : ""}</td>
+  `;
+}
+
+function settlementLessonCellsV858(item, side) {
+  if (!item) {
+    return `<td colspan="7" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
+  }
+
+  const fee = feeOfLessonV83(item);
+  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
+  const timeText = [item.start_time, item.end_time].filter(Boolean).join("-");
+  const studentName = item.student?.display_name || item.student?.name || "";
+  const teacherName = item.teacher?.display_name || item.teacher?.name || "";
+  const subjectName = item.subject?.name || "";
+  const d = dateCellDisplayV858(item);
+
+  return `
+    <td class="col-date"><div>${esc(d.main)}</div><span>${esc(d.sub)}</span></td>
+    <td class="col-student">${esc(studentName)}</td>
+    <td class="col-teacher">${esc(teacherName)}</td>
+    <td class="col-subject">
+      <strong>${esc(subjectName)}</strong>
+      <span>${esc(timeText || "时间未定")} / ${money(item.duration_hours)}H</span>
+      <span>${formatJpyV83(fee)}</span>
+    </td>
+    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable !== false ? badge("计费") : badge("不计费", "gray")}</td>
+    <td class="col-content"><div class="settlement-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${esc(short(item.lesson_content || item.note || "", 28))}</div></td>
+    <td class="col-actions">${typeof settlementActionButtonsV8310 === "function" ? settlementActionButtonsV8310(item) : ""}</td>
+  `;
+}
+
+function renderLessonRowsV858(rows) {
+  const plannedRows = rows.filter(x => x.lesson_type === "planned");
+  const actualRows = rows.filter(x => x.lesson_type === "actual");
+
+  const actualByPlan = new Map();
+  const unlinkedActual = [];
+
+  actualRows.forEach(actual => {
+    const planId = String(actual.planned_lesson_id || "").trim();
+    if (planId) {
+      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
+      actualByPlan.get(planId).push(actual);
+    } else {
+      unlinkedActual.push(actual);
+    }
+  });
+
+  const dateSort = typeof compareDateTimeAscV854 === "function"
+    ? compareDateTimeAscV854
+    : ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
+
+  actualByPlan.forEach(list => list.sort(dateSort));
+  unlinkedActual.sort(dateSort);
+
+  const planSort = typeof comparePlannedRowsByCourseDateV855 === "function"
+    ? comparePlannedRowsByCourseDateV855
+    : (typeof compareLessonsV78 === "function" ? compareLessonsV78 : dateSort);
+
+  const html = [];
+  let lastMonth = "";
+
+  function addMonthRow(ym) {
+    if (ym !== lastMonth) {
+      lastMonth = ym;
+      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
+      html.push(`<tr class="lesson-sub-head-body v8310">
+        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+      </tr>`);
+    }
+  }
+
+  plannedRows.slice().sort(planSort).forEach(plan => {
+    const ym = plan.year_month || "未归属月份";
+    addMonthRow(ym);
+    const actuals = (actualByPlan.get(String(plan.id || "").trim()) || []).slice().sort(dateSort);
+
+    if (!actuals.length) {
+      html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV858(plan, "planned")}${lessonPairCellsV858(null, "actual")}</tr>`);
+      return;
+    }
+
+    actuals.forEach((actual, index) => {
+      const left = index === 0
+        ? lessonPairCellsV858(plan, "planned")
+        : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
+      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonPairCellsV858(actual, "actual")}</tr>`);
+    });
+  });
+
+  unlinkedActual.forEach(actual => {
+    addMonthRow(actual.year_month || "未归属月份");
+    html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV858(null, "planned")}${lessonPairCellsV858(actual, "actual")}</tr>`);
+  });
+
+  return html.join("");
+}
+
+function renderLessonsV858() {
+  const tbody = document.getElementById("lessonsTable");
+  if (!tbody) return;
+  updateLessonFilters();
+  const rows = filterLessons().slice();
+  renderLessonStats(rows);
+  tbody.innerHTML = renderLessonRowsV858(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
+  if (typeof bindLessonButtonsV856 === "function") bindLessonButtonsV856();
+  if (typeof bindActualButtonsV851 === "function") bindActualButtonsV851();
+  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
+}
+
+renderLessons = renderLessonsV858;
+lessonPairCells = lessonPairCellsV858;
+
+function renderSettlementPairedLessonsV858(planned, actual) {
+  const tbody = document.getElementById("settlementLessonsTable");
+  if (!tbody) return;
+
+  const actualByPlan = new Map();
+  const unlinkedActual = [];
+
+  actual.forEach(row => {
+    const planId = String(row.planned_lesson_id || "").trim();
+    if (planId) {
+      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
+      actualByPlan.get(planId).push(row);
+    } else {
+      unlinkedActual.push(row);
+    }
+  });
+
+  const dateSort = typeof compareDateTimeAscV854 === "function"
+    ? compareDateTimeAscV854
+    : ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
+  const planSort = typeof comparePlannedRowsByCourseDateV855 === "function"
+    ? comparePlannedRowsByCourseDateV855
+    : (typeof compareLessonsV78 === "function" ? compareLessonsV78 : dateSort);
+
+  const html = [];
+  html.push(`<tr class="lesson-sub-head-body settlement-v8310">
+    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+  </tr>`);
+
+  planned.slice().sort(planSort).forEach(plan => {
+    const actuals = (actualByPlan.get(String(plan.id || "").trim()) || []).slice().sort(dateSort);
+    if (!actuals.length) {
+      html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV858(plan, "planned")}${settlementLessonCellsV858(null, "actual")}</tr>`);
+      return;
+    }
+
+    actuals.forEach((act, index) => {
+      const left = index === 0
+        ? settlementLessonCellsV858(plan, "planned")
+        : `<td colspan="7" class="lesson-empty-side">同一预定课时</td>`;
+      html.push(`<tr class="lesson-pair-row settlement-v8310">${left}${settlementLessonCellsV858(act, "actual")}</tr>`);
+    });
+  });
+
+  unlinkedActual.slice().sort(dateSort).forEach(act => {
+    html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV858(null, "planned")}${settlementLessonCellsV858(act, "actual")}</tr>`);
+  });
+
+  tbody.innerHTML = html.length > 1 ? html.join("") : `<tr><td colspan="14" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
+}
+
+if (typeof renderSettlementPairedLessonsV834 === "function") renderSettlementPairedLessonsV834 = renderSettlementPairedLessonsV858;
+if (typeof renderSettlementPairedLessonsV8310 === "function") renderSettlementPairedLessonsV8310 = renderSettlementPairedLessonsV858;
+if (typeof renderSettlementPairedLessonsV852 === "function") renderSettlementPairedLessonsV852 = renderSettlementPairedLessonsV858;
+if (typeof renderSettlementPairedLessonsV853 === "function") renderSettlementPairedLessonsV853 = renderSettlementPairedLessonsV858;
+if (typeof renderSettlementPairedLessonsV854 === "function") renderSettlementPairedLessonsV854 = renderSettlementPairedLessonsV858;
+if (typeof renderSettlementPairedLessonsV855 === "function") renderSettlementPairedLessonsV855 = renderSettlementPairedLessonsV858;
+if (typeof renderSettlementPairedLessonsV857 === "function") renderSettlementPairedLessonsV857 = renderSettlementPairedLessonsV858;
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    if (typeof renderLessons === "function") renderLessons();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  }, 1000);
+});
+
+const renderAllBeforeV858 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV858) {
+  renderAll = function() {
+    renderAllBeforeV858();
+    if (typeof renderLessons === "function") renderLessons();
+    if (typeof renderStudentSettlement === "function") renderStudentSettlement();
+  };
+}
+

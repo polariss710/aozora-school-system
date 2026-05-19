@@ -1061,9 +1061,6 @@ function getFields(type) {
     { name: "lesson_type", label: "课时类型", type: "select", default: "actual", options: lessonTypeOptions(), required: true },
     { name: "lesson_date", label: "上课日期", type: "date", default: todayStr(), required: true },
     { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
-    { name: "settlement_month", label: "学生结算月份", type: "month", default: currentYearMonth() },
-    { name: "payment_currency", label: "实际付款币种", type: "select", default: "CNY", options: [{ value: "CNY", label: "人民币" }, { value: "JPY", label: "日元" }] },
-    { name: "include_in_student_settlement", label: "计入学生月度结算", type: "checkbox", default: true },
     { name: "student_id", label: "学生", type: "select", options: studentOptions(), required: true },
     { name: "teacher_id", label: "老师", type: "select", options: teacherOptions(), required: true },
     { name: "subject_id", label: "科目", type: "select", options: lessonSubjectOptions(), required: true },
@@ -7669,4 +7666,123 @@ if (renderAllBeforeV85) {
     ensureSettlementEquivalentRowsV85();
   };
 }
+
+
+
+// === v8.5.1 lesson payload whitelist + actual generation fix ===
+const LESSON_ALLOWED_FIELDS_V851 = [
+  "lesson_type",
+  "planned_lesson_id",
+  "lesson_date",
+  "year_month",
+  "student_id",
+  "teacher_id",
+  "subject_id",
+  "business_entity_id",
+  "start_time",
+  "end_time",
+  "duration_hours",
+  "unit_price",
+  "lesson_fee",
+  "status",
+  "is_billable",
+  "lesson_content",
+  "note",
+];
+
+function sanitizeLessonPayloadV851(payload) {
+  const cleaned = {};
+  LESSON_ALLOWED_FIELDS_V851.forEach(key => {
+    if (Object.prototype.hasOwnProperty.call(payload, key)) cleaned[key] = payload[key];
+  });
+
+  ["planned_lesson_id", "student_id", "teacher_id", "subject_id", "business_entity_id"].forEach(key => {
+    if (cleaned[key] === "") cleaned[key] = null;
+  });
+
+  if (cleaned.lesson_date && !cleaned.year_month) {
+    cleaned.year_month = String(cleaned.lesson_date).slice(0, 7);
+  }
+
+  if (cleaned.lesson_type === "planned") {
+    cleaned.planned_lesson_id = null;
+  }
+
+  if (cleaned.lesson_type === "actual" && !cleaned.planned_lesson_id && state.pendingActualPlanId) {
+    cleaned.planned_lesson_id = state.pendingActualPlanId;
+  }
+
+  return cleaned;
+}
+
+const normalizeLessonPayloadBeforeV851 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
+normalizeLessonPayload = function(payload, type) {
+  if (normalizeLessonPayloadBeforeV851) {
+    payload = normalizeLessonPayloadBeforeV851(payload, type);
+  }
+  if (type !== "lesson") return payload;
+  const cleaned = sanitizeLessonPayloadV851(payload);
+  Object.keys(payload).forEach(key => delete payload[key]);
+  Object.assign(payload, cleaned);
+  return payload;
+};
+
+function makeActualFromPlannedV851(id) {
+  const plan = state.lessonRecords.find(x => x.id === id);
+  if (!plan) return;
+
+  const prefill = {
+    lesson_type: "actual",
+    planned_lesson_id: plan.id,
+    lesson_date: plan.lesson_date || todayStr(),
+    year_month: plan.year_month || currentYearMonth(),
+    student_id: plan.student_id || "",
+    teacher_id: plan.teacher_id || "",
+    subject_id: plan.subject_id || "",
+    business_entity_id: plan.business_entity_id || "",
+    start_time: plan.start_time || "",
+    end_time: plan.end_time || "",
+    duration_hours: plan.duration_hours || 0,
+    unit_price: plan.unit_price || 0,
+    lesson_fee: plan.lesson_fee || (Number(plan.unit_price || 0) * Number(plan.duration_hours || 0)) || 0,
+    status: "completed",
+    is_billable: plan.is_billable !== false,
+    lesson_content: "",
+    note: "",
+  };
+
+  state.pendingActualPlanId = plan.id;
+  openCreateModal("lesson", prefill);
+
+  const form = document.getElementById("modalForm");
+  let hidden = form?.querySelector('input[name="planned_lesson_id"]');
+  if (!hidden && form) {
+    hidden = document.createElement("input");
+    hidden.type = "hidden";
+    hidden.name = "planned_lesson_id";
+    form.appendChild(hidden);
+  }
+  if (hidden) hidden.value = plan.id;
+
+  const title = document.getElementById("modalTitle");
+  if (title) title.textContent = "从预定生成实际课时";
+}
+
+makeActualFromPlanned = makeActualFromPlannedV851;
+
+function bindActualButtonsV851() {
+  document.querySelectorAll("[data-create-actual]").forEach(btn => {
+    btn.onclick = () => makeActualFromPlannedV851(btn.dataset.createActual);
+  });
+}
+
+const bindLessonPairButtonsBeforeV851 = typeof bindLessonPairButtonsV59 === "function" ? bindLessonPairButtonsV59 : null;
+bindLessonPairButtonsV59 = function() {
+  if (bindLessonPairButtonsBeforeV851) bindLessonPairButtonsBeforeV851();
+  bindActualButtonsV851();
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(bindActualButtonsV851, 1000);
+});
 

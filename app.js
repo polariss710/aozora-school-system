@@ -10217,3 +10217,243 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+
+
+// === v8.6.3 split summary cleanup ===
+function currencyAmountTextV863(amounts) {
+  const parts = [];
+  if (Number(amounts.JPY || 0) !== 0) parts.push(`JPY ${money(amounts.JPY)}`);
+  if (Number(amounts.CNY || 0) !== 0) parts.push(`CNY ${money(amounts.CNY)}`);
+  return parts.length ? parts.join(" / ") : "0";
+}
+
+function emptyCurrencyAmountsV863() {
+  return { JPY: 0, CNY: 0 };
+}
+
+function addCurrencyAmountV863(bucket, currency, amount) {
+  const cur = currency || "JPY";
+  if (!Object.prototype.hasOwnProperty.call(bucket, cur)) bucket[cur] = 0;
+  bucket[cur] += Number(amount || 0);
+}
+
+function rowBusinessGroupV863(row) {
+  if (typeof businessEntityGroupV861 === "function") return businessEntityGroupV861(row);
+  const name = row.business_entity?.name || "";
+  const code = row.business_entity?.code || "";
+  const text = `${name} ${code}`.toLowerCase();
+  if (text.includes("个人") || text.includes("personal") || text.includes("private")) return "personal";
+  if (text.includes("青空") || text.includes("aosora") || text.includes("company") || text.includes("法人")) return "aosora";
+  return "other";
+}
+
+function calcSplitFinanceByGroupV863(ym) {
+  const groups = {
+    aosora: { key: "aosora", label: "青空塾", income: emptyCurrencyAmountsV863(), expense: emptyCurrencyAmountsV863(), balance: emptyCurrencyAmountsV863(), incomeCount: 0, expenseCount: 0, accounts: {} },
+    personal: { key: "personal", label: "个人名义", income: emptyCurrencyAmountsV863(), expense: emptyCurrencyAmountsV863(), balance: emptyCurrencyAmountsV863(), incomeCount: 0, expenseCount: 0, accounts: {} },
+    other: { key: "other", label: "未分类", income: emptyCurrencyAmountsV863(), expense: emptyCurrencyAmountsV863(), balance: emptyCurrencyAmountsV863(), incomeCount: 0, expenseCount: 0, accounts: {} },
+  };
+
+  (state.incomeRecords || []).filter(row => (row.year_month || "") === ym).forEach(row => {
+    const group = rowBusinessGroupV863(row);
+    const currency = row.currency || row.payment_currency || "JPY";
+    addCurrencyAmountV863(groups[group].income, currency, row.amount);
+    groups[group].incomeCount += 1;
+  });
+
+  (state.expenseRecords || []).filter(row => (row.year_month || "") === ym).forEach(row => {
+    const group = rowBusinessGroupV863(row);
+    const currency = row.currency || "JPY";
+    addCurrencyAmountV863(groups[group].expense, currency, row.amount);
+    groups[group].expenseCount += 1;
+  });
+
+  Object.values(groups).forEach(group => {
+    ["JPY", "CNY"].forEach(cur => {
+      group.balance[cur] = Number(group.income[cur] || 0) - Number(group.expense[cur] || 0);
+    });
+    group.totalCount = group.incomeCount + group.expenseCount;
+  });
+
+  (state.accounts || []).filter(a => a.status !== "inactive").forEach(acc => {
+    const group = rowBusinessGroupV863({ business_entity_id: acc.business_entity_id, business_entity: acc.business_entity });
+    const currency = acc.currency || "JPY";
+    if (!groups[group].accounts[currency]) groups[group].accounts[currency] = [];
+    groups[group].accounts[currency].push(acc);
+  });
+
+  // 不显示“未分类”空模块：只有有收入/支出/账户时才显示
+  return Object.values(groups).filter(group => {
+    const hasMoney =
+      Number(group.income.JPY || 0) || Number(group.income.CNY || 0) ||
+      Number(group.expense.JPY || 0) || Number(group.expense.CNY || 0) ||
+      Object.values(group.accounts).some(list => list.length);
+    if (group.key === "other") return hasMoney;
+    return true;
+  });
+}
+
+function splitFinanceSummaryHtmlV863(ym, options = {}) {
+  const groups = calcSplitFinanceByGroupV863(ym);
+  const title = options.title || "收支分组统计";
+  const showAccounts = options.showAccounts !== false;
+
+  return `
+    <section class="split-finance-summary-v862" id="${escAttr(options.id || "splitFinanceSummaryV863")}">
+      <div class="section-title-row">
+        <div>
+          <h3>${esc(title)}</h3>
+          <p class="muted-small">${esc(expenseMonthLabel(ym))}：按青空塾 / 个人名义独立统计</p>
+        </div>
+      </div>
+      <div class="split-finance-groups-v862">
+        ${groups.map(group => `
+          <div class="split-finance-group-v862 ${group.key}">
+            <div class="split-finance-group-title-v862">
+              <span>${esc(group.label)}</span>
+              ${group.key === "personal" ? `<em>后续仅最高权限可见</em>` : ""}
+            </div>
+            <div class="split-finance-cards-v862">
+              <div class="split-finance-mini-card-v862">
+                <span>本月收入</span>
+                <strong>${currencyAmountTextV863(group.income)}</strong>
+              </div>
+              <div class="split-finance-mini-card-v862">
+                <span>本月支出</span>
+                <strong>${currencyAmountTextV863(group.expense)}</strong>
+              </div>
+              <div class="split-finance-mini-card-v862">
+                <span>本月结余</span>
+                <strong>${currencyAmountTextV863(group.balance)}</strong>
+              </div>
+              <div class="split-finance-mini-card-v862 record-count">
+                <span>记录数</span>
+                <strong>${group.totalCount}</strong>
+                <small>收入 ${group.incomeCount} / 支出 ${group.expenseCount}</small>
+              </div>
+            </div>
+            ${showAccounts ? `
+              <div class="split-account-block-v862">
+                <div class="split-account-title-v862">账户余额</div>
+                ${Object.keys(group.accounts).length ? Object.entries(group.accounts).map(([currency, accounts]) => `
+                  <div class="split-account-currency-v862">${esc(currency)}</div>
+                  ${accounts.map(acc => `
+                    <div class="split-account-row-v862">
+                      <span>${esc(acc.name || "")}</span>
+                      <strong>${esc(currency)} ${money(acc.current_balance || 0)}</strong>
+                    </div>
+                  `).join("")}
+                `).join("") : `<div class="split-account-empty-v862">暂无账户</div>`}
+              </div>
+            ` : ""}
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function hideSummaryTotalCardsV863(root) {
+  if (!root) return;
+  const labels = ["本月收入", "本月支出", "本月结余", "筛选收入", "筛选支出", "筛选结余", "记录数"];
+  root.querySelectorAll(".stat-card, .summary-card, .metric-card, .card").forEach(card => {
+    const text = card.textContent || "";
+    if (labels.some(label => text.includes(label))) {
+      // 只隐藏旧的汇总卡片；v8.6.3 自己的新分组卡片不隐藏
+      if (!card.closest(".split-finance-summary-v862")) {
+        card.classList.add("hide-total-summary-v863");
+      }
+    }
+  });
+}
+
+function hideBusinessFiltersV863(root) {
+  if (!root) return;
+  root.querySelectorAll("select").forEach(select => {
+    const text = select.textContent || "";
+    if (text.includes("全部业务归属") || text.includes("青空") || text.includes("个人")) {
+      const wrapper = select.closest(".field, .filter-item, .toolbar-control, .filter-control") || select;
+      wrapper.classList.add("hide-business-filter-v862");
+    }
+  });
+}
+
+function renderSplitFinanceSummaryV863() {
+  const ym =
+    document.getElementById("financeMonthFilter")?.value ||
+    document.getElementById("summaryMonthFilter")?.value ||
+    document.getElementById("dashboardMonthFilter")?.value ||
+    currentYearMonth();
+
+  const dashboardPage =
+    document.getElementById("page-dashboard") ||
+    document.getElementById("page-home") ||
+    document.querySelector("[data-page='dashboard']");
+
+  if (dashboardPage) {
+    dashboardPage.querySelector("#businessSplitStatsV861")?.remove();
+    dashboardPage.querySelector("#dashboardSplitFinanceV862")?.remove();
+
+    let holder = dashboardPage.querySelector("#dashboardSplitFinanceV863");
+    const html = splitFinanceSummaryHtmlV863(ym, { id: "dashboardSplitFinanceV863", title: "首页收支分组统计", showAccounts: false });
+    if (holder) {
+      holder.outerHTML = html;
+    } else {
+      const anchor = dashboardPage.querySelector(".stats-grid, .dashboard-grid, .cards-grid, .section-card");
+      if (anchor) anchor.insertAdjacentHTML("afterend", html);
+      else dashboardPage.insertAdjacentHTML("beforeend", html);
+    }
+
+    hideSummaryTotalCardsV863(dashboardPage);
+  }
+
+  const summaryPage =
+    document.getElementById("page-finance-summary") ||
+    document.getElementById("page-summary") ||
+    document.getElementById("page-finance") ||
+    document.querySelector("[data-page='finance-summary']");
+
+  if (summaryPage) {
+    summaryPage.querySelector("#businessSplitStatsV861")?.remove();
+    summaryPage.querySelector("#summarySplitFinanceV862")?.remove();
+
+    let holder = summaryPage.querySelector("#summarySplitFinanceV863");
+    const html = splitFinanceSummaryHtmlV863(ym, { id: "summarySplitFinanceV863", title: "收支汇总分组统计", showAccounts: true });
+    if (holder) {
+      holder.outerHTML = html;
+    } else {
+      const anchor = summaryPage.querySelector(".stats-grid, .summary-grid, .cards-grid, .section-card");
+      if (anchor) anchor.insertAdjacentHTML("afterend", html);
+      else summaryPage.insertAdjacentHTML("beforeend", html);
+    }
+
+    hideSummaryTotalCardsV863(summaryPage);
+    hideBusinessFiltersV863(summaryPage);
+  }
+}
+
+const renderStatsBeforeV863 = typeof renderStats === "function" ? renderStats : null;
+if (renderStatsBeforeV863) {
+  renderStats = function() {
+    renderStatsBeforeV863();
+    renderSplitFinanceSummaryV863();
+  };
+}
+
+const renderAllBeforeV863 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV863) {
+  renderAll = function() {
+    renderAllBeforeV863();
+    renderSplitFinanceSummaryV863();
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(renderSplitFinanceSummaryV863, 1000);
+  document.addEventListener("change", (e) => {
+    if (String(e.target?.id || "").includes("MonthFilter")) {
+      renderSplitFinanceSummaryV863();
+    }
+  });
+});
+

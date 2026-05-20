@@ -113,6 +113,20 @@
 
 
 
+
+
+### v8.8.2
+- 新增报销-支出关联表 `school_reimbursement_expenses`。
+- 修复报销记录和支出记录之间没有稳定关联的问题。
+- 生成报销时，会同时写入报销-支出关联表。
+- 删除报销时，会清除对应关联。
+- 待报销支出列表会排除已经关联到有效报销记录的支出。
+- 支出记录页面根据关联表显示“已报销”。
+- 保留旧字段/旧逻辑兼容判断。
+- 新增调试函数 `debugReimbursementLinksV882()`，可在 Console 查看报销关联和已报销支出 ID。
+- 新增 `school_v8_8_2_reimbursement_links.sql`，需要先执行。
+- 主界面版本号完整显示为 v8.8.2。
+
 ### v8.8.1
 - 修复支出重新报销后，支出记录状态仍不显示“已报销”的问题。
 - 原因：
@@ -158,19 +172,6 @@
   - 同时补充 GRANT 权限
 - 本版只修 RLS 权限，不改业务逻辑。
 - 主界面版本号完整显示为 v8.7.5。
-
-### v8.7.4
-- 修复结算锁定时报错：
-  - new row violates row-level security policy for table "school_student_monthly_settlements"
-- 原因：
-  - v8.7 新增的结算锁定表开启了 RLS，但没有给当前登录用户配置读写策略。
-- 新增 `school_v8_7_4_rls_fix.sql`：
-  - 允许 authenticated 用户读取结算锁定记录
-  - 允许 authenticated 用户新增结算锁定记录
-  - 允许 authenticated 用户更新结算锁定记录
-  - 允许 authenticated 用户删除测试结算锁定记录
-- 本版只修 RLS 策略，不改业务逻辑。
-- 主界面版本号完整显示为 v8.7.4。
 
 ### 更早版本
 - 旧版详细更新记录已从 README 中省略。

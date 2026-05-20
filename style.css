@@ -2242,3 +2242,9 @@ button:disabled {
   margin-left: 6px;
   white-space: nowrap;
 }
+
+/* === v8.8.2 reimbursement-expense link badge === */
+.expense-reimbursed-badge-v882 {
+  margin-left: 6px;
+  white-space: nowrap;
+}

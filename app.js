@@ -12046,3 +12046,195 @@ function debugReimbursedExpenseIdsV881() {
   return ids;
 }
 
+
+
+// === v8.8.2 reimbursement-expense link table ===
+tables.reimbursementExpenses = "school_reimbursement_expenses";
+state.reimbursementExpenseLinks = state.reimbursementExpenseLinks || [];
+
+async function loadReimbursementExpenseLinksV882() {
+  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
+  const { data, error } = await client
+    .from(tables.reimbursementExpenses)
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.warn("Reimbursement link table load failed.", error);
+    state.reimbursementExpenseLinks = [];
+    return;
+  }
+  state.reimbursementExpenseLinks = data || [];
+}
+
+const loadAllBeforeV882 = typeof loadAll === "function" ? loadAll : null;
+if (loadAllBeforeV882) {
+  loadAll = async function() {
+    await loadAllBeforeV882();
+    await loadReimbursementExpenseLinksV882();
+  };
+}
+
+function activeReimbursementLinksV882() {
+  const activeReimbursementIds = new Set(
+    (state.reimbursements || [])
+      .filter(r => !/cancel|delete|void|取消|删除|作废/.test(String(r.status || "").toLowerCase()))
+      .map(r => String(r.id))
+  );
+
+  return (state.reimbursementExpenseLinks || []).filter(link =>
+    activeReimbursementIds.has(String(link.reimbursement_id))
+  );
+}
+
+function reimbursedExpenseIdsV882() {
+  return new Set(activeReimbursementLinksV882().map(x => String(x.expense_id)));
+}
+
+const pendingReimbursementExpensesBeforeV882 = typeof pendingReimbursementExpenses === "function" ? pendingReimbursementExpenses : null;
+if (pendingReimbursementExpensesBeforeV882) {
+  pendingReimbursementExpenses = function() {
+    const linked = reimbursedExpenseIdsV882();
+    return pendingReimbursementExpensesBeforeV882().filter(x => !linked.has(String(x.id)));
+  };
+}
+
+async function saveReimbursementExpenseLinksV882(reimbursement) {
+  const ids = (state.pendingReimbursementExpenseIds || []).slice();
+  if (!reimbursement?.id || !ids.length) return;
+
+  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
+
+  // 删除当前报销记录旧关联，重新写入
+  await client
+    .from(tables.reimbursementExpenses)
+    .delete()
+    .eq("reimbursement_id", reimbursement.id);
+
+  const rows = ids.map(expenseId => {
+    const expense = (state.expenseRecords || []).find(x => String(x.id) === String(expenseId));
+    return {
+      reimbursement_id: reimbursement.id,
+      expense_id: expenseId,
+      amount: Number(expense?.amount || 0),
+    };
+  });
+
+  const { error } = await client
+    .from(tables.reimbursementExpenses)
+    .insert(rows);
+
+  if (error) {
+    console.warn("Failed to save reimbursement-expense links", error);
+    showMessage(`报销关联保存失败：${error.message}`, "error");
+  }
+}
+
+const saveReimbursementItemsBeforeV882 = typeof saveReimbursementItems === "function" ? saveReimbursementItems : null;
+saveReimbursementItems = async function(reimbursement) {
+  const idsBackup = (state.pendingReimbursementExpenseIds || []).slice();
+
+  if (saveReimbursementItemsBeforeV882) {
+    await saveReimbursementItemsBeforeV882(reimbursement);
+  }
+
+  // 旧函数会清空 pendingReimbursementExpenseIds，所以这里用备份恢复写入新关联表
+  const oldIds = state.pendingReimbursementExpenseIds;
+  state.pendingReimbursementExpenseIds = idsBackup;
+  await saveReimbursementExpenseLinksV882(reimbursement);
+  state.pendingReimbursementExpenseIds = oldIds && oldIds.length ? oldIds : [];
+};
+
+function collectReimbursedExpenseIdsV882() {
+  const ids = new Set();
+  reimbursedExpenseIdsV882().forEach(id => ids.add(String(id)));
+
+  // 兼容旧数据/旧字段
+  if (typeof collectReimbursedExpenseIdsV881 === "function") {
+    collectReimbursedExpenseIdsV881().forEach(id => ids.add(String(id)));
+  }
+
+  return ids;
+}
+
+function isExpenseReimbursedV882(item) {
+  if (!item) return false;
+  return collectReimbursedExpenseIdsV882().has(String(item.id));
+}
+
+function applyReimbursedLabelsV882() {
+  const ids = collectReimbursedExpenseIdsV882();
+
+  document.querySelectorAll("tr").forEach(tr => {
+    const editBtn = tr.querySelector("[data-edit][data-type='expense']");
+    const delBtn = tr.querySelector("[data-delete][data-type='expense']");
+    const id = editBtn?.dataset?.edit || delBtn?.dataset?.delete;
+    if (!id || !ids.has(String(id))) return;
+
+    if (tr.querySelector(".expense-reimbursed-badge-v88, .expense-reimbursed-badge-v881, .expense-reimbursed-badge-v882")) return;
+
+    const statusCell =
+      Array.from(tr.children).find(td => /已支付|未支付|待确认|paid|pending|报销/i.test(td.textContent || "")) ||
+      tr.children[Math.max(0, tr.children.length - 2)];
+
+    if (statusCell) {
+      statusCell.insertAdjacentHTML("beforeend", `<span class="badge green expense-reimbursed-badge-v882">已报销</span>`);
+    }
+  });
+}
+
+isExpenseReimbursedV88 = isExpenseReimbursedV882;
+isExpenseReimbursedV881 = isExpenseReimbursedV882;
+applyReimbursedLabelsV88 = applyReimbursedLabelsV882;
+applyReimbursedLabelsV881 = applyReimbursedLabelsV882;
+collectReimbursedExpenseIdsV881 = collectReimbursedExpenseIdsV882;
+
+// 删除报销时，关联表有 ON DELETE CASCADE；这里额外先删一次，确保刷新前状态准确。
+const deleteRecordBeforeV882 = typeof deleteRecord === "function" ? deleteRecord : null;
+if (deleteRecordBeforeV882) {
+  deleteRecord = async function(type, id) {
+    if (type === "reimbursement") {
+      const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
+      await client.from(tables.reimbursementExpenses).delete().eq("reimbursement_id", id);
+    }
+    return deleteRecordBeforeV882(type, id);
+  };
+}
+
+const renderAllBeforeV882 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV882) {
+  renderAll = function() {
+    renderAllBeforeV882();
+    setTimeout(applyReimbursedLabelsV882, 0);
+  };
+}
+
+const renderExpensesBeforeV882 = typeof renderExpensesTable === "function" ? renderExpensesTable : null;
+if (renderExpensesBeforeV882) {
+  renderExpensesTable = function() {
+    renderExpensesBeforeV882();
+    setTimeout(applyReimbursedLabelsV882, 0);
+  };
+}
+
+const renderReimbursementsBeforeV882 = typeof renderReimbursements === "function" ? renderReimbursements : null;
+if (renderReimbursementsBeforeV882) {
+  renderReimbursements = function() {
+    renderReimbursementsBeforeV882();
+    setTimeout(applyReimbursedLabelsV882, 0);
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(applyReimbursedLabelsV882, 1000);
+});
+
+function debugReimbursementLinksV882() {
+  console.log("reimbursement links", state.reimbursementExpenseLinks || []);
+  console.log("reimbursed expense ids", Array.from(collectReimbursedExpenseIdsV882()));
+  return {
+    links: state.reimbursementExpenseLinks || [],
+    ids: Array.from(collectReimbursedExpenseIdsV882()),
+  };
+}
+

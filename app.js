@@ -1122,9 +1122,6 @@ function getFields(type) {
   if (type === "expense") return [
     { name: "expense_date", label: "支出日期", type: "date", default: todayStr(), required: true },
     { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
-    { name: "settlement_month", label: "学生结算月份", type: "month", default: currentYearMonth() },
-    { name: "payment_currency", label: "实际付款币种", type: "select", default: "CNY", options: [{ value: "CNY", label: "人民币" }, { value: "JPY", label: "日元" }] },
-    { name: "include_in_student_settlement", label: "计入学生月度结算", type: "checkbox", default: true },
     { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
     { name: "account_id", label: "支付账户", type: "select", options: accountOptions(), required: true },
     { name: "expense_category", label: "支出分类", type: "select", default: "other", options: expenseCategoryOptions() },
@@ -1143,9 +1140,6 @@ function getFields(type) {
   if (type === "reimbursement") return [
     { name: "reimbursement_date", label: "报销日期", type: "date", default: todayStr(), required: true },
     { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
-    { name: "settlement_month", label: "学生结算月份", type: "month", default: currentYearMonth() },
-    { name: "payment_currency", label: "实际付款币种", type: "select", default: "CNY", options: [{ value: "CNY", label: "人民币" }, { value: "JPY", label: "日元" }] },
-    { name: "include_in_student_settlement", label: "计入学生月度结算", type: "checkbox", default: true },
     { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
     { name: "from_account_id", label: "公司出款账户", type: "select", options: companyAccountOptions(), required: true },
     { name: "to_account_id", label: "报销对象账户", type: "select", options: advanceAccountOptions(), required: true },
@@ -10455,5 +10449,110 @@ document.addEventListener("DOMContentLoaded", () => {
       renderSplitFinanceSummaryV863();
     }
   });
+});
+
+
+
+// === v8.6.4 expense/reimbursement payload whitelist fix ===
+const EXPENSE_ALLOWED_FIELDS_V864 = [
+  "expense_date",
+  "year_month",
+  "business_entity_id",
+  "account_id",
+  "expense_category",
+  "student_id",
+  "description",
+  "currency",
+  "amount",
+  "exchange_rate",
+  "payment_method",
+  "status",
+  "is_business_expense",
+  "tax_category",
+  "receipt_status",
+  "note",
+];
+
+const REIMBURSEMENT_ALLOWED_FIELDS_V864 = [
+  "reimbursement_date",
+  "year_month",
+  "business_entity_id",
+  "company_account_id",
+  "advance_account_id",
+  "currency",
+  "amount",
+  "status",
+  "note",
+];
+
+function filterPayloadByKeysV864(payload, allowed) {
+  const cleaned = {};
+  allowed.forEach(key => {
+    if (Object.prototype.hasOwnProperty.call(payload, key)) cleaned[key] = payload[key];
+  });
+  return cleaned;
+}
+
+function sanitizeExpensePayloadV864(payload) {
+  const cleaned = filterPayloadByKeysV864(payload, EXPENSE_ALLOWED_FIELDS_V864);
+  ["business_entity_id", "student_id", "account_id"].forEach(key => {
+    if (cleaned[key] === "") cleaned[key] = null;
+  });
+  if (cleaned.expense_date && !cleaned.year_month) {
+    cleaned.year_month = String(cleaned.expense_date).slice(0, 7);
+  }
+  return cleaned;
+}
+
+function sanitizeReimbursementPayloadV864(payload) {
+  const cleaned = filterPayloadByKeysV864(payload, REIMBURSEMENT_ALLOWED_FIELDS_V864);
+  ["business_entity_id", "company_account_id", "advance_account_id"].forEach(key => {
+    if (cleaned[key] === "") cleaned[key] = null;
+  });
+  if (cleaned.reimbursement_date && !cleaned.year_month) {
+    cleaned.year_month = String(cleaned.reimbursement_date).slice(0, 7);
+  }
+  return cleaned;
+}
+
+const normalizePayloadBeforeV864 = typeof normalizePayload === "function" ? normalizePayload : null;
+if (normalizePayloadBeforeV864) {
+  normalizePayload = function(payload, type) {
+    payload = normalizePayloadBeforeV864(payload, type);
+    if (type === "expense") return sanitizeExpensePayloadV864(payload);
+    if (type === "reimbursement") return sanitizeReimbursementPayloadV864(payload);
+    return payload;
+  };
+}
+
+const normalizeExpensePayloadBeforeV864 = typeof normalizeExpensePayload === "function" ? normalizeExpensePayload : null;
+normalizeExpensePayload = function(payload, type) {
+  if (normalizeExpensePayloadBeforeV864) payload = normalizeExpensePayloadBeforeV864(payload, type);
+  return type === "expense" ? sanitizeExpensePayloadV864(payload) : payload;
+};
+
+function removeIncomeOnlyFieldsFromNonIncomeFormsV864() {
+  const form = document.getElementById("modalForm");
+  if (!form || !["expense", "reimbursement"].includes(state.editing?.type)) return;
+  [
+    "settlement_month",
+    "payment_currency",
+    "include_in_student_settlement",
+    "include_in_studuent_settlement",
+  ].forEach(name => {
+    form.querySelectorAll(`[name="${name}"]`).forEach(el => el.remove());
+  });
+}
+
+const buildFormBeforeV864 = typeof buildForm === "function" ? buildForm : null;
+if (buildFormBeforeV864) {
+  buildForm = function(type, data = {}) {
+    buildFormBeforeV864(type, data);
+    if (["expense", "reimbursement"].includes(type)) removeIncomeOnlyFieldsFromNonIncomeFormsV864();
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(removeIncomeOnlyFieldsFromNonIncomeFormsV864, 500);
 });
 

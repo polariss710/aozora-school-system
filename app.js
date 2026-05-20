@@ -11707,3 +11707,179 @@ function settlementRlsHelpV875(message) {
   if (!/row-level security|RLS|policy/i.test(text)) return message;
   return `${message}\n\n当前系统可能使用的是 anon role。请执行 school_v8_7_5_rls_anon_fix.sql 后刷新页面再试。`;
 }
+
+
+// === v8.7.6 settlement adjustment input UX fix ===
+function settlementModeV876() {
+  return document.getElementById("settlementAdjustModeV87")?.value || "carry";
+}
+
+function normalizeSettlementAdjustmentInputV876() {
+  const mode = settlementModeV876();
+  const input = document.getElementById("settlementAdjustmentAmountV87");
+  if (!input) return;
+
+  if (mode === "carry") {
+    input.value = "0";
+    input.placeholder = "0";
+  } else if (mode === "clear") {
+    const base = typeof computeSettlementSnapshotV87 === "function" ? computeSettlementSnapshotV87(0, "") : null;
+    if (base) input.value = String(-Math.round(Number(base.system_difference_cny || 0)));
+    input.placeholder = "自动抹平";
+  } else if (mode === "custom") {
+    if (input.value === "0") input.value = "";
+    input.placeholder = "请输入调整金额";
+  }
+}
+
+const updateSettlementLockPreviewBeforeV876 = typeof updateSettlementLockPreviewV87 === "function" ? updateSettlementLockPreviewV87 : null;
+if (updateSettlementLockPreviewBeforeV876) {
+  updateSettlementLockPreviewV87 = function() {
+    normalizeSettlementAdjustmentInputV876();
+    updateSettlementLockPreviewBeforeV876();
+    const input = document.getElementById("settlementAdjustmentAmountV87");
+    if (input && settlementModeV876() === "custom" && input.value === "0") input.value = "";
+  };
+}
+
+function bindSettlementAdjustmentInputV876() {
+  const mode = document.getElementById("settlementAdjustModeV87");
+  const input = document.getElementById("settlementAdjustmentAmountV87");
+  if (!mode || !input || input.dataset.boundV876 === "true") return;
+
+  input.dataset.boundV876 = "true";
+  mode.addEventListener("change", normalizeSettlementAdjustmentInputV876);
+  input.addEventListener("focus", () => {
+    if (settlementModeV876() === "custom" && input.value === "0") input.value = "";
+  });
+  normalizeSettlementAdjustmentInputV876();
+}
+
+const ensureSettlementPanelBeforeV876 = typeof ensureSettlementPanelV87 === "function" ? ensureSettlementPanelV87 : null;
+if (ensureSettlementPanelBeforeV876) {
+  ensureSettlementPanelV87 = function() {
+    ensureSettlementPanelBeforeV876();
+    bindSettlementAdjustmentInputV876();
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    bindSettlementAdjustmentInputV876();
+    normalizeSettlementAdjustmentInputV876();
+  }, 1000);
+});
+
+const renderAllBeforeV876 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV876) {
+  renderAll = function() {
+    renderAllBeforeV876();
+    bindSettlementAdjustmentInputV876();
+  };
+}
+
+
+// === v8.8 completed lesson import + reimbursed expense label ===
+function tx88(v){return String(v||"").trim().replace(/\s+/g,"");}
+function num88(v){if(typeof v==="number")return v; const n=Number(String(v||"").replace(/[,，円￥¥]/g,"").trim()); return Number.isFinite(n)?n:0;}
+function dt88(v,baseYear){
+  if(!v&&v!==0)return "";
+  if(v instanceof Date&&!Number.isNaN(v.getTime()))return formatDateYmd(v);
+  if(typeof v==="number"){const d=new Date(Math.round((v-25569)*86400*1000)); if(!Number.isNaN(d.getTime()))return formatDateYmd(d);}
+  let s=String(v).trim().replace(/周|週|星期|礼拜/g,"").replace(/[年月]/g,"-").replace(/日/g,"").replace(/\//g,"-");
+  if(/^\d{4}-\d{1,2}-\d{1,2}$/.test(s)){const [y,m,d]=s.split("-").map(Number); return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;}
+  if(/^\d{1,2}[-.]\d{1,2}$/.test(s)){const [m,d]=s.replace(".","-").split("-").map(Number); const y=Number(baseYear||new Date().getFullYear()); return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;}
+  return "";
+}
+function timeRange88(v){const m=String(v||"").match(/(\d{1,2}:\d{2})\s*[-~〜～]\s*(\d{1,2}:\d{2})/); return m?{start:m[1],end:m[2]}:{start:"",end:""};}
+function headerMap88(h){
+  const m={};
+  (h||[]).forEach((c,i)=>{const k=tx88(c); if(!k)return;
+    if(/担当|老师|教師|先生/.test(k)&&m.teacher===undefined)m.teacher=i;
+    if(/科目|课程|講座/.test(k)&&m.subject===undefined)m.subject=i;
+    if((/预定.*日期|予定.*日|^日期$|^周$|^週$/.test(k))&&m.plannedDate===undefined)m.plannedDate=i;
+    if(/实际.*日期|実際.*日|实际上课日期|上课日/.test(k)&&m.actualDate===undefined)m.actualDate=i;
+    if(/时间帯|时间段|時間帯|时段/.test(k)&&m.timeRange===undefined)m.timeRange=i;
+    if(/开始|開始/.test(k)&&m.start===undefined)m.start=i;
+    if(/结束|終了/.test(k)&&m.end===undefined)m.end=i;
+    if(/时长|時間数|课时|授業時間/.test(k)&&m.duration===undefined)m.duration=i;
+    if(/单价|単価/.test(k)&&m.unitPrice===undefined)m.unitPrice=i;
+    if(/应收|课时费|授業料|金額|金额/.test(k)&&m.lessonFee===undefined)m.lessonFee=i;
+    if(/内容|授業内容/.test(k)){ if(/预定|予定/.test(k)&&m.plannedContent===undefined)m.plannedContent=i; else if(/实际|実際/.test(k)&&m.actualContent===undefined)m.actualContent=i; else if(m.content===undefined)m.content=i;}
+    if(/状态|ステータス/.test(k)&&m.status===undefined)m.status=i;
+    if(/备注|備考|メモ/.test(k)&&m.note===undefined)m.note=i;
+  });
+  return m;
+}
+function findHeader88(rows){for(let i=0;i<Math.min(rows.length,25);i++){const t=(rows[i]||[]).map(tx88).join("|"); if(/科目/.test(t)&&(/日期|予定|预定|上课|実際|实际/.test(t))&&(/时长|時間|单价|课时费|金额/.test(t)))return i;} return -1;}
+function status88(v){const t=tx88(v); if(/休|取消|キャンセル|请假|欠席/.test(t))return"cancelled"; if(/预|予定|未/.test(t))return"planned"; return"completed";}
+
+function ensureCompletedImportButtonV88(){
+  const page=document.getElementById("page-lessons")||document.querySelector("[data-page='lessons']");
+  if(!page||document.getElementById("lessonImportCompletedExcelBtnV88"))return;
+  const anchor=document.getElementById("lessonImportExcelBtn")?.parentElement||page.querySelector(".section-title-row")||page;
+  anchor.insertAdjacentHTML("beforeend",`<button class="secondary-btn" id="lessonImportCompletedExcelBtnV88">导入完整课时</button><input type="file" id="lessonImportCompletedExcelInputV88" accept=".xlsx,.xls" style="display:none" />`);
+  document.getElementById("lessonImportCompletedExcelBtnV88").onclick=()=>{if(!document.getElementById("lessonStudentFilter")?.value){showMessage("请先选择学生，再导入完整课时记录。","error");return;} document.getElementById("lessonImportCompletedExcelInputV88")?.click();};
+  document.getElementById("lessonImportCompletedExcelInputV88").onchange=async e=>{const f=e.target.files?.[0]; if(f) await importCompletedLessonExcelV88(f); e.target.value="";};
+}
+async function importCompletedLessonExcelV88(file){
+  if(!lessonExcelRequireXLSX())return;
+  const studentId=document.getElementById("lessonStudentFilter")?.value||""; if(!studentId){showMessage("请先选择学生。","error");return;}
+  const student=(state.students||[]).find(x=>x.id===studentId);
+  const studentName=document.getElementById("lessonStudentFilter")?.selectedOptions?.[0]?.textContent||student?.display_name||student?.name||"";
+  const businessEntityId=student?.business_entity_id||state.businessEntities?.[0]?.id||null;
+  const batchId=typeof newImportBatchIdV871==="function"?newImportBatchIdV871():`completed_import_${Date.now()}`;
+  const importedAt=new Date().toISOString();
+  const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:true});
+  const sheetName=wb.SheetNames[0], sheet=wb.Sheets[sheetName];
+  const rows=XLSX.utils.sheet_to_json(sheet,{header:1,raw:true,defval:""});
+  const hi=findHeader88(rows); if(hi<0){showMessage("没有找到完整课时模板表头。","error");return;}
+  const col=headerMap88(rows[hi]), records=[]; let curT="",curS="",skipped=0;
+  const baseYear=Number(document.getElementById("lessonMonthFilter")?.value?.slice(0,4)||new Date().getFullYear());
+  for(let r=hi+1;r<rows.length;r++){
+    const row=rows[r]||[], line=row.map(x=>String(x||"").trim()).join("");
+    if(!line||/合计|总计|總計|小计|小計/.test(line))continue;
+    const tc=col.teacher!==undefined?String(row[col.teacher]||"").trim():"", sc=col.subject!==undefined?String(row[col.subject]||"").trim():"";
+    if(tc)curT=tc; if(sc)curS=sc;
+    const plannedDate=dt88(col.plannedDate!==undefined?row[col.plannedDate]:row[col.actualDate],baseYear);
+    const actualDate=dt88(col.actualDate!==undefined?row[col.actualDate]:plannedDate,baseYear)||plannedDate;
+    const duration=num88(col.duration!==undefined?row[col.duration]:"");
+    const subjectId=subjectIdFromExcelName(curS)||document.getElementById("lessonSubjectFilter")?.value||"";
+    const teacherId=teacherIdFromExcelName(curT)||document.getElementById("lessonTeacherFilter")?.value||"";
+    if(!plannedDate||!duration||!subjectId||!teacherId){skipped++; continue;}
+    const tr=timeRange88(col.timeRange!==undefined?row[col.timeRange]:"");
+    const start=col.start!==undefined?String(row[col.start]||""):tr.start, end=col.end!==undefined?String(row[col.end]||""):tr.end;
+    const unit=num88(col.unitPrice!==undefined?row[col.unitPrice]:"");
+    const fee=num88(col.lessonFee!==undefined?row[col.lessonFee]:"")||(unit&&duration?unit*duration:0);
+    const plannedContent=String((col.plannedContent!==undefined?row[col.plannedContent]:row[col.content])||"");
+    const actualContent=String((col.actualContent!==undefined?row[col.actualContent]:row[col.content])||"");
+    const note=String(col.note!==undefined?row[col.note]||"":"");
+    const plannedId=crypto.randomUUID?crypto.randomUUID():`p_${Date.now()}_${r}`;
+    const common={student_id:studentId,teacher_id:teacherId,subject_id:subjectId,business_entity_id:businessEntityId,start_time:start||"",end_time:end||"",duration_hours:duration,unit_price:unit||0,lesson_fee:fee||0,is_billable:true,note:note||`完整课时导入：${sheetName}`,import_batch_id:batchId,import_source:file.name||sheetName,imported_at:importedAt};
+    records.push({id:plannedId,lesson_type:"planned",lesson_date:plannedDate,year_month:plannedDate.slice(0,7),lesson_content:plannedContent,status:"planned",...common});
+    records.push({lesson_type:"actual",planned_lesson_id:plannedId,lesson_date:actualDate,year_month:actualDate.slice(0,7),lesson_content:actualContent,status:status88(col.status!==undefined?row[col.status]:"已上"),...common});
+  }
+  if(!records.length){showMessage("没有读取到可导入的完整课时记录。","error");return;}
+  const pc=records.filter(x=>x.lesson_type==="planned").length, ac=records.filter(x=>x.lesson_type==="actual").length;
+  const total=records.filter(x=>x.lesson_type==="actual").reduce((s,x)=>s+Number(x.lesson_fee||0),0);
+  if(!confirm(`即将导入完整课时记录：\n\n学生：${studentName}\n文件：${file.name}\n预定课时：${pc} 条\n实际课时：${ac} 条\n实际课时费合计：${total.toLocaleString()} JPY\n跳过行数：${skipped}\n\n确认导入吗？`))return;
+  const client=(typeof db!=="undefined"&&db?.from)?db:supabase;
+  const {error}=await client.from(tables.lessons).insert(records);
+  if(error){showMessage(`导入失败：${error.message}`,"error");return;}
+  if(typeof saveLastImportBatchV871==="function")saveLastImportBatchV871({batchId,studentId,studentName,fileName:file.name,count:records.length,importedAt});
+  await loadAll(); renderAll(); showMessage(`已导入完整课时记录：预定 ${pc} 条 / 实际 ${ac} 条。`,"ok");
+}
+function isExpenseReimbursedV88(item){const t=`${item.status||""} ${item.reimbursement_status||""}`.toLowerCase(); return Boolean(item.reimbursement_id||item.reimbursed_at||item.reimbursement_record_id||t.includes("reimbursed")||t.includes("已报销"));}
+function applyReimbursedLabelsV88(){
+  document.querySelectorAll("tr").forEach(tr=>{
+    const id=tr.querySelector("[data-edit][data-type='expense']")?.dataset?.edit||tr.querySelector("[data-delete][data-type='expense']")?.dataset?.delete;
+    if(!id)return; const item=(state.expenseRecords||[]).find(x=>String(x.id)===String(id));
+    if(!item||!isExpenseReimbursedV88(item)||tr.querySelector(".expense-reimbursed-badge-v88"))return;
+    const cell=Array.from(tr.children).find(td=>/已支付|未支付|待确认|paid|pending/i.test(td.textContent||""))||tr.children[tr.children.length-2];
+    if(cell)cell.insertAdjacentHTML("beforeend",`<span class="badge green expense-reimbursed-badge-v88">已报销</span>`);
+  });
+}
+document.addEventListener("DOMContentLoaded",()=>setTimeout(()=>{ensureCompletedImportButtonV88();applyReimbursedLabelsV88();},1000));
+const renderAllBeforeV88=typeof renderAll==="function"?renderAll:null;
+if(renderAllBeforeV88){renderAll=function(){renderAllBeforeV88();ensureCompletedImportButtonV88();applyReimbursedLabelsV88();};}
+

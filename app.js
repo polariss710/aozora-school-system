@@ -12373,3 +12373,255 @@ function debugReimbursementLinksV883() {
   return { links: state.reimbursementExpenseLinks || [], ids };
 }
 
+
+
+// === v8.8.4 completed lesson import fix / default month / drop dialog ===
+function ensureLessonMonthDefaultV884() {
+  const input = document.getElementById("lessonMonthFilter");
+  if (input && !input.value) {
+    input.value = currentYearMonth();
+  }
+}
+
+function uuidV884(prefix = "id") {
+  if (window.crypto?.randomUUID) return crypto.randomUUID();
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function openCompletedImportDialogV884() {
+  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  if (!studentId) {
+    showMessage("请先选择学生，再导入完整课时记录。", "error");
+    return;
+  }
+
+  let modal = document.getElementById("completedImportDialogV884");
+  if (!modal) {
+    document.body.insertAdjacentHTML("beforeend", `
+      <div class="import-dialog-mask-v884" id="completedImportDialogV884">
+        <div class="import-dialog-v884">
+          <div class="import-dialog-head-v884">
+            <div>
+              <h3>导入完整课时</h3>
+              <p>可拖入 Excel 文件，也可以点击选择文件。</p>
+            </div>
+            <button class="icon-btn" id="closeCompletedImportDialogV884">×</button>
+          </div>
+          <div class="import-drop-v884" id="completedImportDropV884">
+            <div class="import-drop-title-v884">把完整课时 Excel 拖到这里</div>
+            <div class="muted-small">支持 .xlsx / .xls。请先在课时管理筛选中选择学生。</div>
+            <button class="primary-btn" id="chooseCompletedImportFileV884">选择文件</button>
+            <input type="file" id="completedImportFileInputV884" accept=".xlsx,.xls" style="display:none" />
+          </div>
+        </div>
+      </div>
+    `);
+
+    modal = document.getElementById("completedImportDialogV884");
+    const close = () => modal.classList.remove("show");
+    document.getElementById("closeCompletedImportDialogV884")?.addEventListener("click", close);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) close();
+    });
+
+    const input = document.getElementById("completedImportFileInputV884");
+    document.getElementById("chooseCompletedImportFileV884")?.addEventListener("click", () => input?.click());
+    input?.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      close();
+      await importCompletedLessonExcelV884(file);
+      e.target.value = "";
+    });
+
+    const drop = document.getElementById("completedImportDropV884");
+    ["dragenter", "dragover"].forEach(evt => {
+      drop.addEventListener(evt, (e) => {
+        e.preventDefault();
+        drop.classList.add("dragging");
+      });
+    });
+    ["dragleave", "drop"].forEach(evt => {
+      drop.addEventListener(evt, (e) => {
+        e.preventDefault();
+        drop.classList.remove("dragging");
+      });
+    });
+    drop.addEventListener("drop", async (e) => {
+      const file = e.dataTransfer?.files?.[0];
+      if (!file) return;
+      close();
+      await importCompletedLessonExcelV884(file);
+    });
+  }
+
+  modal.classList.add("show");
+}
+
+function ensureCompletedImportButtonV884() {
+  const page = document.getElementById("page-lessons") || document.querySelector("[data-page='lessons']");
+  if (!page) return;
+
+  const oldBtn = document.getElementById("lessonImportCompletedExcelBtnV88");
+  if (oldBtn) {
+    oldBtn.onclick = openCompletedImportDialogV884;
+    oldBtn.textContent = "导入完整课时";
+    return;
+  }
+
+  const anchor = document.getElementById("lessonImportExcelBtn")?.parentElement || page.querySelector(".section-title-row") || page;
+  anchor.insertAdjacentHTML("beforeend", `<button class="secondary-btn" id="lessonImportCompletedExcelBtnV88">导入完整课时</button>`);
+  document.getElementById("lessonImportCompletedExcelBtnV88").onclick = openCompletedImportDialogV884;
+}
+
+async function importCompletedLessonExcelV884(file) {
+  if (!lessonExcelRequireXLSX()) return;
+
+  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  if (!studentId) {
+    showMessage("请先选择学生。", "error");
+    return;
+  }
+
+  const student = (state.students || []).find(x => x.id === studentId);
+  const studentName = document.getElementById("lessonStudentFilter")?.selectedOptions?.[0]?.textContent || student?.display_name || student?.name || "";
+  const businessEntityId = student?.business_entity_id || state.businessEntities?.[0]?.id || null;
+  const batchId = typeof newImportBatchIdV871 === "function" ? newImportBatchIdV871() : `completed_import_${Date.now()}`;
+  const importedAt = new Date().toISOString();
+
+  const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+  const sheetName = wb.SheetNames[0];
+  const sheet = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
+
+  const hi = findHeader88(rows);
+  if (hi < 0) {
+    showMessage("没有找到完整课时模板表头。请确认包含科目、日期、时长、单价等列。", "error");
+    return;
+  }
+
+  const col = headerMap88(rows[hi]);
+  const records = [];
+  let curT = "";
+  let curS = "";
+  let skipped = 0;
+  const baseYear = Number(document.getElementById("lessonMonthFilter")?.value?.slice(0, 4) || new Date().getFullYear());
+
+  for (let r = hi + 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const line = row.map(x => String(x || "").trim()).join("");
+    if (!line || /合计|总计|總計|小计|小計/.test(line)) continue;
+
+    const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
+    const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
+    if (teacherCell) curT = teacherCell;
+    if (subjectCell) curS = subjectCell;
+
+    const plannedDate = dt88(col.plannedDate !== undefined ? row[col.plannedDate] : row[col.actualDate], baseYear);
+    const actualDate = dt88(col.actualDate !== undefined ? row[col.actualDate] : plannedDate, baseYear) || plannedDate;
+    const duration = num88(col.duration !== undefined ? row[col.duration] : "");
+    const subjectId = subjectIdFromExcelName(curS) || document.getElementById("lessonSubjectFilter")?.value || "";
+    const teacherId = teacherIdFromExcelName(curT) || document.getElementById("lessonTeacherFilter")?.value || "";
+
+    if (!plannedDate || !duration || !subjectId || !teacherId) {
+      skipped++;
+      continue;
+    }
+
+    const tr = timeRange88(col.timeRange !== undefined ? row[col.timeRange] : "");
+    const start = col.start !== undefined ? String(row[col.start] || "") : tr.start;
+    const end = col.end !== undefined ? String(row[col.end] || "") : tr.end;
+    const unit = num88(col.unitPrice !== undefined ? row[col.unitPrice] : "");
+    const fee = num88(col.lessonFee !== undefined ? row[col.lessonFee] : "") || (unit && duration ? unit * duration : 0);
+    const plannedContent = String((col.plannedContent !== undefined ? row[col.plannedContent] : row[col.content]) || "");
+    const actualContent = String((col.actualContent !== undefined ? row[col.actualContent] : row[col.content]) || "");
+    const note = String(col.note !== undefined ? row[col.note] || "" : "");
+    const plannedId = uuidV884("planned");
+    const actualId = uuidV884("actual");
+
+    const common = {
+      student_id: studentId,
+      teacher_id: teacherId,
+      subject_id: subjectId,
+      business_entity_id: businessEntityId,
+      start_time: start || "",
+      end_time: end || "",
+      duration_hours: duration,
+      unit_price: unit || 0,
+      lesson_fee: fee || 0,
+      is_billable: true,
+      note: note || `完整课时导入：${sheetName}`,
+      import_batch_id: batchId,
+      import_source: file.name || sheetName,
+      imported_at: importedAt,
+    };
+
+    records.push({
+      id: plannedId,
+      lesson_type: "planned",
+      lesson_date: plannedDate,
+      year_month: plannedDate.slice(0, 7),
+      lesson_content: plannedContent,
+      status: "planned",
+      planned_lesson_id: null,
+      ...common,
+    });
+
+    records.push({
+      id: actualId,
+      lesson_type: "actual",
+      planned_lesson_id: plannedId,
+      lesson_date: actualDate,
+      year_month: actualDate.slice(0, 7),
+      lesson_content: actualContent,
+      status: status88(col.status !== undefined ? row[col.status] : "已上"),
+      ...common,
+    });
+  }
+
+  if (!records.length) {
+    showMessage("没有读取到可导入的完整课时记录。", "error");
+    return;
+  }
+
+  const plannedCount = records.filter(x => x.lesson_type === "planned").length;
+  const actualCount = records.filter(x => x.lesson_type === "actual").length;
+  const total = records.filter(x => x.lesson_type === "actual").reduce((s, x) => s + Number(x.lesson_fee || 0), 0);
+
+  const ok = confirm(`即将导入完整课时记录：\n\n学生：${studentName}\n文件：${file.name}\n预定课时：${plannedCount} 条\n实际课时：${actualCount} 条\n实际课时费合计：${total.toLocaleString()} JPY\n跳过行数：${skipped}\n\n确认导入吗？`);
+  if (!ok) return;
+
+  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
+  const { error } = await client.from(tables.lessons).insert(records);
+  if (error) {
+    showMessage(`导入失败：${error.message}`, "error");
+    return;
+  }
+
+  if (typeof saveLastImportBatchV871 === "function") {
+    saveLastImportBatchV871({ batchId, studentId, studentName, fileName: file.name, count: records.length, importedAt });
+  }
+
+  await loadAll();
+  renderAll();
+  showMessage(`已导入完整课时记录：预定 ${plannedCount} 条 / 实际 ${actualCount} 条。`, "ok");
+}
+
+importCompletedLessonExcelV88 = importCompletedLessonExcelV884;
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    ensureLessonMonthDefaultV884();
+    ensureCompletedImportButtonV884();
+  }, 800);
+});
+
+const renderAllBeforeV884 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV884) {
+  renderAll = function() {
+    renderAllBeforeV884();
+    ensureLessonMonthDefaultV884();
+    ensureCompletedImportButtonV884();
+  };
+}
+

@@ -13242,3 +13242,376 @@ document.addEventListener("DOMContentLoaded", () => {
   }, 1000);
 });
 
+
+
+// === v8.8.7 lesson time display / actual minutes / stats cleanup ===
+function parseClockMinutesV887(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const m = text.match(/(\d{1,2})[:：](\d{1,2})/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(min)) return null;
+  return h * 60 + min;
+}
+
+function minutesBetweenV887(start, end) {
+  const s = parseClockMinutesV887(start);
+  const e = parseClockMinutesV887(end);
+  if (s === null || e === null) return null;
+  let diff = e - s;
+  if (diff < 0) diff += 24 * 60;
+  return diff > 0 ? diff : null;
+}
+
+function hoursFromMinutesExactV887(minutes) {
+  if (!minutes) return 0;
+  return Math.round((minutes / 60) * 100) / 100;
+}
+
+function floorHoursBy15MinV887(totalMinutes) {
+  if (!totalMinutes) return 0;
+  return Math.floor(totalMinutes / 15) * 0.25;
+}
+
+// Used later by teacher wage module: group by teacher + subject + year_month.
+function summarizeTeacherSubjectMinutesV887(rows) {
+  const map = new Map();
+  (rows || []).filter(x => x.lesson_type === "actual").forEach(row => {
+    const key = [row.teacher_id || "", row.subject_id || "", row.year_month || ""].join("|");
+    const minutes = Number(row.actual_minutes || minutesBetweenV887(row.start_time, row.end_time) || 0);
+    if (!map.has(key)) {
+      map.set(key, {
+        teacher_id: row.teacher_id || "",
+        subject_id: row.subject_id || "",
+        year_month: row.year_month || "",
+        total_minutes: 0,
+        rounded_hours: 0,
+      });
+    }
+    map.get(key).total_minutes += minutes;
+  });
+  map.forEach(value => {
+    value.rounded_hours = floorHoursBy15MinV887(value.total_minutes);
+  });
+  return Array.from(map.values());
+}
+
+function actualTimeTextV887(item) {
+  if (!item || item.lesson_type !== "actual") return "";
+  const start = String(item.start_time || "").trim();
+  const end = String(item.end_time || "").trim();
+  if (!start && !end) return "";
+  const minutes = Number(item.actual_minutes || minutesBetweenV887(start, end) || 0);
+  const hourText = minutes ? ` / ${hoursFromMinutesExactV887(minutes)}H` : "";
+  return `${start || "--:--"}-${end || "--:--"}${hourText}`;
+}
+
+function patchActualTimeDisplayV887() {
+  document.querySelectorAll("tr.lesson-pair-row").forEach(tr => {
+    const actualEditBtn = Array.from(tr.querySelectorAll("[data-edit][data-type='lesson']")).find(btn => {
+      const item = (state.lessonRecords || []).find(x => String(x.id) === String(btn.dataset.edit));
+      return item?.lesson_type === "actual";
+    });
+    const actualId = actualEditBtn?.dataset?.edit;
+    const item = (state.lessonRecords || []).find(x => String(x.id) === String(actualId));
+    if (!item || tr.querySelector(".actual-time-v887")) return;
+
+    const cells = tr.querySelectorAll("td");
+    const dateCell = cells[9]; // actual side date column
+    const text = actualTimeTextV887(item);
+    if (dateCell && text) {
+      dateCell.insertAdjacentHTML("beforeend", `<div class="actual-time-v887">${esc(text)}</div>`);
+    }
+  });
+}
+
+function hideCancelHolidayStatV887() {
+  document.querySelectorAll(".stat-card, .summary-card, .card, .metric-card").forEach(card => {
+    const text = card.textContent || "";
+    if (/取消\/放假数量|取消放假数量|取消|放假/.test(text) && /数量/.test(text)) {
+      card.style.display = "none";
+    }
+  });
+}
+
+function updateMakeupStatLabelV887() {
+  document.querySelectorAll(".stat-card, .summary-card, .card, .metric-card").forEach(card => {
+    const label = card.querySelector(".label, .stat-label, small, span") || card.firstElementChild;
+    if (!label) return;
+    if (/已上课数量/.test(card.textContent || "")) return;
+  });
+}
+
+// Robustly disable import/add buttons when no student selected.
+function lessonStudentSelectedV887() {
+  return Boolean(document.getElementById("lessonStudentFilter")?.value || "");
+}
+
+function updateLessonButtonsDisabledV887() {
+  const disabled = !lessonStudentSelectedV887();
+  [
+    "lessonImportCompletedExcelBtnV88",
+    "lessonImportExcelBtn",
+    "addLessonBtn",
+    "newLessonBtn",
+    "createLessonBtn",
+  ].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.disabled = disabled;
+    btn.classList.toggle("disabled", disabled);
+    if (disabled) btn.title = "请先选择学生";
+    else btn.removeAttribute("title");
+  });
+}
+
+document.addEventListener("click", (e) => {
+  const btn = e.target?.closest?.("#lessonImportCompletedExcelBtnV88,#lessonImportExcelBtn,#addLessonBtn,#newLessonBtn,#createLessonBtn");
+  if (!btn) return;
+  if (!lessonStudentSelectedV887()) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    updateLessonButtonsDisabledV887();
+    return;
+  }
+}, true);
+
+document.addEventListener("change", (e) => {
+  if (e.target?.id === "lessonStudentFilter") updateLessonButtonsDisabledV887();
+});
+
+// Header support:
+// - old template: 时间
+// - new template: 开始时间 / 结束时间
+// - actual duration column can be absent
+const headerMapBeforeV887 = typeof headerMap88 === "function" ? headerMap88 : null;
+if (headerMapBeforeV887) {
+  headerMap88 = function(header) {
+    const map = headerMapBeforeV887(header);
+    (header || []).forEach((cell, idx) => {
+      const key = tx88(cell);
+      if (/^开始时间$|^開始時間$|^实际开始时间$|^実際開始時間$/.test(key)) map.start = idx;
+      if (/^结束时间$|^終了時間$|^实际结束时间$|^実際終了時間$/.test(key)) map.end = idx;
+      if (/^时间$|^時間$|^上课时间$|^授课时间$/.test(key)) map.timeRange = idx;
+    });
+    return map;
+  };
+}
+
+function buildCompletedImportRecordsV887(file, rows, sheetName, col, context) {
+  const {
+    studentId,
+    studentName,
+    businessEntityId,
+    batchId,
+    importedAt,
+    baseYear,
+  } = context;
+
+  const records = [];
+  let curT = "";
+  let curS = "";
+  let skipped = 0;
+  let actualSkipped = 0;
+
+  for (let r = context.headerIndex + 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const line = row.map(x => String(x || "").trim()).join("");
+    if (!line || /合计|总计|總計|小计|小計/.test(line)) continue;
+
+    const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
+    const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
+    if (teacherCell) curT = teacherCell;
+    if (subjectCell) curS = subjectCell;
+
+    const plannedDate = dt88(col.plannedDate !== undefined ? row[col.plannedDate] : row[col.actualDate], baseYear);
+    const rawActualDate = col.actualDate !== undefined ? row[col.actualDate] : "";
+    const actualDate = dt88(rawActualDate, baseYear);
+
+    const duration = num88(col.duration !== undefined ? row[col.duration] : "");
+    const subjectId = subjectIdFromExcelName(curS) || document.getElementById("lessonSubjectFilter")?.value || "";
+    const teacherId = teacherIdFromExcelName(curT) || document.getElementById("lessonTeacherFilter")?.value || "";
+
+    if (!plannedDate || !duration || !subjectId || !teacherId) {
+      skipped++;
+      continue;
+    }
+
+    const tr = timeRange88(col.timeRange !== undefined ? row[col.timeRange] : "");
+    const start = col.start !== undefined ? String(row[col.start] || "") : tr.start;
+    const end = col.end !== undefined ? String(row[col.end] || "") : tr.end;
+    const actualMinutes = minutesBetweenV887(start, end);
+    const actualDuration = actualMinutes ? hoursFromMinutesExactV887(actualMinutes) : duration;
+
+    const unit = num88(col.unitPrice !== undefined ? row[col.unitPrice] : "");
+    const plannedFee = num88(col.lessonFee !== undefined ? row[col.lessonFee] : "") || (unit && duration ? unit * duration : 0);
+    const actualFee = unit && actualDuration ? Math.round(unit * actualDuration) : plannedFee;
+
+    const plannedContent = String((col.plannedContent !== undefined ? row[col.plannedContent] : row[col.content]) || "");
+    const actualContent = String((col.actualContent !== undefined ? row[col.actualContent] : row[col.content]) || "");
+    const count = normalizeLessonCountV886(col.count !== undefined ? row[col.count] : null);
+    const normalNote = String(col.note !== undefined ? row[col.note] || "" : "");
+    const salaryNote = String(col.salaryNote !== undefined ? row[col.salaryNote] || "" : "");
+    const status = normalizeLessonStatusTextV885(col.status !== undefined ? row[col.status] : "");
+
+    const plannedId = uuidV884("planned");
+    const actualId = uuidV884("actual");
+    const plannedYm = plannedDate.slice(0, 7);
+    const baseNote = `完整课时导入：${sheetName}`;
+    const mergedNote = buildCompletedLessonNoteV885(baseNote, "", normalNote, salaryNote);
+
+    const common = {
+      student_id: studentId,
+      teacher_id: teacherId,
+      subject_id: subjectId,
+      business_entity_id: businessEntityId,
+      start_time: start || "",
+      end_time: end || "",
+      unit_price: unit || 0,
+      lesson_count: count,
+      is_billable: true,
+      note: mergedNote,
+      import_batch_id: batchId,
+      import_source: file.name || sheetName,
+      imported_at: importedAt,
+    };
+
+    records.push({
+      id: plannedId,
+      lesson_type: "planned",
+      lesson_date: plannedDate,
+      year_month: plannedYm,
+      lesson_content: plannedContent,
+      status: status || "completed",
+      planned_lesson_id: null,
+      duration_hours: duration,
+      lesson_fee: plannedFee || 0,
+      actual_minutes: null,
+      ...common,
+    });
+
+    if (isActualGeneratedFromStatusV885(status, actualDate)) {
+      records.push({
+        id: actualId,
+        lesson_type: "actual",
+        planned_lesson_id: plannedId,
+        lesson_date: actualDate,
+        year_month: plannedYm,
+        lesson_content: actualContent,
+        status: status || "completed",
+        duration_hours: actualDuration || duration,
+        lesson_fee: actualFee || 0,
+        actual_minutes: actualMinutes,
+        ...common,
+      });
+    } else {
+      actualSkipped++;
+    }
+  }
+
+  return { records, skipped, actualSkipped };
+}
+
+async function importCompletedLessonExcelV887(file) {
+  if (!lessonExcelRequireXLSX()) return;
+
+  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  if (!studentId) {
+    showMessage("请先选择学生。", "error");
+    return;
+  }
+
+  const student = (state.students || []).find(x => x.id === studentId);
+  const studentName = document.getElementById("lessonStudentFilter")?.selectedOptions?.[0]?.textContent || student?.display_name || student?.name || "";
+  const businessEntityId = student?.business_entity_id || state.businessEntities?.[0]?.id || null;
+  const batchId = typeof newImportBatchIdV871 === "function" ? newImportBatchIdV871() : `completed_import_${Date.now()}`;
+  const importedAt = new Date().toISOString();
+
+  const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+  const sheetName = wb.SheetNames[0];
+  const sheet = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
+
+  const hi = findHeader88(rows);
+  if (hi < 0) {
+    showMessage("没有找到完整课时模板表头。请确认包含科目、日期、回数、时长、单价等列。", "error");
+    return;
+  }
+
+  const col = headerMap88(rows[hi]);
+  const baseYear = Number(document.getElementById("lessonMonthFilter")?.value?.slice(0, 4) || new Date().getFullYear());
+
+  const { records, skipped, actualSkipped } = buildCompletedImportRecordsV887(file, rows, sheetName, col, {
+    studentId,
+    studentName,
+    businessEntityId,
+    batchId,
+    importedAt,
+    baseYear,
+    headerIndex: hi,
+  });
+
+  if (!records.length) {
+    showMessage("没有读取到可导入的完整课时记录。", "error");
+    return;
+  }
+
+  const plannedCount = records.filter(x => x.lesson_type === "planned").length;
+  const actualCount = records.filter(x => x.lesson_type === "actual").length;
+  const total = records.filter(x => x.lesson_type === "actual").reduce((s, x) => s + Number(x.lesson_fee || 0), 0);
+
+  const ok = confirm(`即将导入完整课时记录：\n\n学生：${studentName}\n文件：${file.name}\n预定课时：${plannedCount} 条\n实际课时：${actualCount} 条\n实际课时费合计：${total.toLocaleString()} JPY\n跳过行数：${skipped}\n未生成实际课时：${actualSkipped} 条\n\n确认导入吗？`);
+  if (!ok) return;
+
+  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
+  const { error } = await client.from(tables.lessons).insert(records);
+  if (error) {
+    showMessage(`导入失败：${error.message}`, "error");
+    return;
+  }
+
+  if (typeof saveLastImportBatchV871 === "function") {
+    saveLastImportBatchV871({ batchId, studentId, studentName, fileName: file.name, count: records.length, importedAt });
+  }
+
+  await loadAll();
+  renderAll();
+  showMessage(`已导入完整课时记录：预定 ${plannedCount} 条 / 实际 ${actualCount} 条。`, "ok");
+}
+
+importCompletedLessonExcelV88 = importCompletedLessonExcelV887;
+importCompletedLessonExcelV884 = importCompletedLessonExcelV887;
+importCompletedLessonExcelV885 = importCompletedLessonExcelV887;
+importCompletedLessonExcelV886 = importCompletedLessonExcelV887;
+
+const renderAllBeforeV887 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV887) {
+  renderAll = function() {
+    renderAllBeforeV887();
+    hideCancelHolidayStatV887();
+    patchActualTimeDisplayV887();
+    updateLessonButtonsDisabledV887();
+  };
+}
+
+const renderLessonsBeforeV887 = typeof renderLessons === "function" ? renderLessons : null;
+if (renderLessonsBeforeV887) {
+  renderLessons = function() {
+    renderLessonsBeforeV887();
+    hideCancelHolidayStatV887();
+    patchActualTimeDisplayV887();
+    updateLessonButtonsDisabledV887();
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    hideCancelHolidayStatV887();
+    patchActualTimeDisplayV887();
+    updateLessonButtonsDisabledV887();
+  }, 1000);
+});
+

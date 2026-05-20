@@ -2056,3 +2056,119 @@ button:disabled {
   font-size: 12px;
   color: #9a3412;
 }
+
+/* === v8.6.2 split finance summary === */
+.split-finance-summary-v862 {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: var(--shadow-sm, 0 10px 24px rgba(15, 23, 42, 0.06));
+}
+
+.split-finance-groups-v862 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.split-finance-group-v862 {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.split-finance-group-v862.aosora {
+  background: #eff6ff;
+}
+
+.split-finance-group-v862.personal {
+  background: #fff7ed;
+}
+
+.split-finance-group-title-v862 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 900;
+  margin-bottom: 12px;
+}
+
+.split-finance-group-title-v862 em {
+  font-style: normal;
+  font-size: 12px;
+  color: #9a3412;
+}
+
+.split-finance-cards-v862 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.split-finance-mini-card-v862 {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+}
+
+.split-finance-mini-card-v862 span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.split-finance-mini-card-v862 strong {
+  display: block;
+  font-size: 22px;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+.split-account-block-v862 {
+  margin-top: 14px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.7);
+  padding-top: 12px;
+}
+
+.split-account-title-v862 {
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.split-account-currency-v862 {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--muted);
+}
+
+.split-account-row-v862 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px dashed rgba(148, 163, 184, 0.35);
+}
+
+.split-account-empty-v862 {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.hide-business-filter-v862 {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .split-finance-groups-v862 {
+    grid-template-columns: 1fr;
+  }
+}

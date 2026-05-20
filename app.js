@@ -12238,3 +12238,138 @@ function debugReimbursementLinksV882() {
   };
 }
 
+
+
+// === v8.8.3 reimbursement recursion fix ===
+function collectLegacyReimbursedExpenseIdsV883() {
+  const ids = new Set();
+  const add = (v) => {
+    if (v !== null && v !== undefined && String(v).trim()) ids.add(String(v).trim());
+  };
+
+  (state.expenseRecords || []).forEach(exp => {
+    const rs = String(exp.reimbursement_status || "").toLowerCase();
+    if (
+      exp.reimbursement_id ||
+      exp.reimbursed_at ||
+      exp.reimbursement_record_id ||
+      rs === "paid" ||
+      rs.includes("reimbursed") ||
+      rs.includes("已报销")
+    ) {
+      add(exp.id);
+    }
+  });
+
+  (state.reimbursements || []).forEach(reim => {
+    const s = String(reim.status || "").toLowerCase();
+    if (/cancel|delete|void|取消|删除|作废/.test(s)) return;
+
+    (reim.items || []).forEach(item => add(item.expense_id || item.expense_record_id));
+
+    ["expense_ids", "expenseIds", "expenses", "selected_expense_ids", "reimbursed_expense_ids"].forEach(key => {
+      const val = reim[key];
+      if (Array.isArray(val)) {
+        val.forEach(x => typeof x === "object" ? add(x.id || x.expense_id) : add(x));
+      } else if (typeof val === "string") {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) parsed.forEach(x => typeof x === "object" ? add(x.id || x.expense_id) : add(x));
+        } catch {
+          val.split(",").forEach(add);
+        }
+      }
+    });
+  });
+
+  return ids;
+}
+
+function collectReimbursedExpenseIdsV883() {
+  const ids = new Set();
+  const activeReimIds = new Set(
+    (state.reimbursements || [])
+      .filter(r => !/cancel|delete|void|取消|删除|作废/.test(String(r.status || "").toLowerCase()))
+      .map(r => String(r.id))
+  );
+
+  (state.reimbursementExpenseLinks || []).forEach(link => {
+    if (activeReimIds.has(String(link.reimbursement_id)) && link.expense_id) {
+      ids.add(String(link.expense_id));
+    }
+  });
+
+  collectLegacyReimbursedExpenseIdsV883().forEach(id => ids.add(String(id)));
+  return ids;
+}
+
+function isExpenseReimbursedV883(item) {
+  return !!item && collectReimbursedExpenseIdsV883().has(String(item.id));
+}
+
+function applyReimbursedLabelsV883() {
+  const ids = collectReimbursedExpenseIdsV883();
+
+  document.querySelectorAll("tr").forEach(tr => {
+    const editBtn = tr.querySelector("[data-edit][data-type='expense']");
+    const delBtn = tr.querySelector("[data-delete][data-type='expense']");
+    const id = editBtn?.dataset?.edit || delBtn?.dataset?.delete;
+    if (!id || !ids.has(String(id))) return;
+
+    if (tr.querySelector(".expense-reimbursed-badge-v88, .expense-reimbursed-badge-v881, .expense-reimbursed-badge-v882, .expense-reimbursed-badge-v883")) return;
+
+    const statusCell =
+      Array.from(tr.children).find(td => /已支付|未支付|待确认|paid|pending|报销/i.test(td.textContent || "")) ||
+      tr.children[Math.max(0, tr.children.length - 2)];
+
+    if (statusCell) {
+      statusCell.insertAdjacentHTML("beforeend", `<span class="badge green expense-reimbursed-badge-v883">已报销</span>`);
+    }
+  });
+}
+
+collectReimbursedExpenseIdsV881 = collectReimbursedExpenseIdsV883;
+collectReimbursedExpenseIdsV882 = collectReimbursedExpenseIdsV883;
+isExpenseReimbursedV88 = isExpenseReimbursedV883;
+isExpenseReimbursedV881 = isExpenseReimbursedV883;
+isExpenseReimbursedV882 = isExpenseReimbursedV883;
+applyReimbursedLabelsV88 = applyReimbursedLabelsV883;
+applyReimbursedLabelsV881 = applyReimbursedLabelsV883;
+applyReimbursedLabelsV882 = applyReimbursedLabelsV883;
+
+const renderAllBeforeV883 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV883) {
+  renderAll = function() {
+    renderAllBeforeV883();
+    setTimeout(applyReimbursedLabelsV883, 0);
+  };
+}
+
+const renderExpensesBeforeV883 = typeof renderExpensesTable === "function" ? renderExpensesTable : null;
+if (renderExpensesBeforeV883) {
+  renderExpensesTable = function() {
+    renderExpensesBeforeV883();
+    setTimeout(applyReimbursedLabelsV883, 0);
+  };
+}
+
+const renderReimbursementsBeforeV883 = typeof renderReimbursements === "function" ? renderReimbursements : null;
+if (renderReimbursementsBeforeV883) {
+  renderReimbursements = function() {
+    renderReimbursementsBeforeV883();
+    setTimeout(applyReimbursedLabelsV883, 0);
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(applyReimbursedLabelsV883, 1000);
+});
+
+function debugReimbursementLinksV883() {
+  const ids = Array.from(collectReimbursedExpenseIdsV883());
+  console.log("reimbursement links", state.reimbursementExpenseLinks || []);
+  console.log("legacy ids", Array.from(collectLegacyReimbursedExpenseIdsV883()));
+  console.log("reimbursed expense ids", ids);
+  return { links: state.reimbursementExpenseLinks || [], ids };
+}
+

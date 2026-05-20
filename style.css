@@ -1975,3 +1975,20 @@ button:disabled {
 #page-income .month-group-row td {
   font-weight: 800;
 }
+
+/* === v8.6 stable styling layer === */
+#page-lessons .lesson-pair-row.v8310 td,
+#page-student-settlement .lesson-pair-row.settlement-v8310 td {
+  vertical-align: middle !important;
+}
+#page-lessons .lesson-content-text,
+#page-student-settlement .settlement-content-text {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+#page-lessons .lesson-action-col,
+#page-student-settlement .settlement-action-col {
+  display: grid !important;
+  gap: 4px !important;
+}

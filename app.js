@@ -12625,3 +12625,309 @@ if (renderAllBeforeV884) {
   };
 }
 
+
+
+// === v8.8.5 lesson status options + completed import business rules ===
+// 课时状态统一：已上课 / 待补课 / 已补课
+function lessonStatusOptionsV885() {
+  return [
+    { value: "completed", label: "已上课" },
+    { value: "pending_makeup", label: "待补课" },
+    { value: "makeup_completed", label: "已补课" },
+  ];
+}
+
+function lessonStatusLabelV885(status) {
+  const map = {
+    completed: "已上课",
+    pending_makeup: "待补课",
+    makeup_completed: "已补课",
+    planned: "预定",
+    cancelled: "取消",
+  };
+  return map[status] || status || "";
+}
+
+function normalizeLessonStatusTextV885(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (/待补|未补/.test(text)) return "pending_makeup";
+  if (/已补|補完|补课完成/.test(text)) return "makeup_completed";
+  if (/已上|上课|已上课|済|completed/.test(text)) return "completed";
+  return "";
+}
+
+// Override existing status options where possible.
+if (typeof lessonStatusOptions === "function") {
+  lessonStatusOptions = lessonStatusOptionsV885;
+}
+
+if (typeof lessonStatusLabel === "function") {
+  lessonStatusLabel = function(status) {
+    return lessonStatusLabelV885(status);
+  };
+}
+
+// If generic field builder returns lesson status options inline, patch buildForm result after open.
+function patchLessonStatusSelectV885() {
+  const form = document.getElementById("modalForm");
+  if (!form || state.editing?.type !== "lesson") return;
+  const select = form.querySelector('[name="status"]');
+  if (!select) return;
+
+  const current = select.value;
+  select.innerHTML = lessonStatusOptionsV885().map(opt => `<option value="${escAttr(opt.value)}">${esc(opt.label)}</option>`).join("");
+
+  if (["completed", "pending_makeup", "makeup_completed"].includes(current)) {
+    select.value = current;
+  } else if (current === "planned") {
+    // 新增/编辑预定课时时也使用“待补课/已上课/已补课”三选一；默认已上课更符合实际课时。
+    select.value = "completed";
+  } else {
+    select.value = current || "completed";
+  }
+}
+
+const openCreateModalBeforeV885 = typeof openCreateModal === "function" ? openCreateModal : null;
+if (openCreateModalBeforeV885) {
+  openCreateModal = function(type, prefill = {}) {
+    if (type === "lesson") {
+      if (prefill.lesson_type === "planned" && !prefill.status) prefill.status = "completed";
+      if (prefill.lesson_type === "actual" && !prefill.status) prefill.status = "completed";
+    }
+    openCreateModalBeforeV885(type, prefill);
+    setTimeout(patchLessonStatusSelectV885, 0);
+  };
+}
+
+const openEditModalBeforeV885 = typeof openEditModal === "function" ? openEditModal : null;
+if (openEditModalBeforeV885) {
+  openEditModal = function(type, id) {
+    openEditModalBeforeV885(type, id);
+    if (type === "lesson") setTimeout(patchLessonStatusSelectV885, 0);
+  };
+}
+
+function buildCompletedLessonNoteV885(baseNote, count, normalNote, salaryNote) {
+  const parts = [];
+  if (count !== "" && count !== null && count !== undefined) parts.push(`回数：${count}`);
+  if (normalNote) parts.push(`备注：${normalNote}`);
+  if (salaryNote) parts.push(`工资结算备注：${salaryNote}`);
+  if (baseNote) parts.push(baseNote);
+  return parts.join(" / ");
+}
+
+function isActualGeneratedFromStatusV885(status, actualDate) {
+  if (!actualDate) return false;
+  if (status === "pending_makeup") return false;
+  if (!status) return true;
+  return status === "completed" || status === "makeup_completed";
+}
+
+// Header map override: support 回数 and 工资结算备注
+const headerMapBeforeV885 = typeof headerMap88 === "function" ? headerMap88 : null;
+if (headerMapBeforeV885) {
+  headerMap88 = function(header) {
+    const map = headerMapBeforeV885(header);
+    (header || []).forEach((cell, idx) => {
+      const key = tx88(cell);
+      if (/回数|回次|课次|回/.test(key) && map.count === undefined) map.count = idx;
+      if (/工资.*结算.*备注|工资结算备注|給料.*備考|工资备注/.test(key) && map.salaryNote === undefined) map.salaryNote = idx;
+    });
+    return map;
+  };
+}
+
+// v8.8.5 completed import rules:
+// - always create planned row when planned date exists
+// - create actual row only when actual date exists AND status is 已上课/已补课 or blank
+// - 待补课 never creates actual row
+// - actual year_month follows planned year_month
+// - count / normal note / salary note saved into note
+async function importCompletedLessonExcelV885(file) {
+  if (!lessonExcelRequireXLSX()) return;
+
+  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  if (!studentId) {
+    showMessage("请先选择学生。", "error");
+    return;
+  }
+
+  const student = (state.students || []).find(x => x.id === studentId);
+  const studentName = document.getElementById("lessonStudentFilter")?.selectedOptions?.[0]?.textContent || student?.display_name || student?.name || "";
+  const businessEntityId = student?.business_entity_id || state.businessEntities?.[0]?.id || null;
+  const batchId = typeof newImportBatchIdV871 === "function" ? newImportBatchIdV871() : `completed_import_${Date.now()}`;
+  const importedAt = new Date().toISOString();
+
+  const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+  const sheetName = wb.SheetNames[0];
+  const sheet = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
+
+  const hi = findHeader88(rows);
+  if (hi < 0) {
+    showMessage("没有找到完整课时模板表头。请确认包含科目、日期、回数、时长、单价等列。", "error");
+    return;
+  }
+
+  const col = headerMap88(rows[hi]);
+  const records = [];
+  let curT = "";
+  let curS = "";
+  let skipped = 0;
+  let actualSkipped = 0;
+  const baseYear = Number(document.getElementById("lessonMonthFilter")?.value?.slice(0, 4) || new Date().getFullYear());
+
+  for (let r = hi + 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const line = row.map(x => String(x || "").trim()).join("");
+    if (!line || /合计|总计|總計|小计|小計/.test(line)) continue;
+
+    const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
+    const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
+    if (teacherCell) curT = teacherCell;
+    if (subjectCell) curS = subjectCell;
+
+    const plannedDate = dt88(col.plannedDate !== undefined ? row[col.plannedDate] : row[col.actualDate], baseYear);
+    const rawActualDate = col.actualDate !== undefined ? row[col.actualDate] : "";
+    const actualDate = dt88(rawActualDate, baseYear);
+
+    const duration = num88(col.duration !== undefined ? row[col.duration] : "");
+    const actualDuration = num88(col.actualDuration !== undefined ? row[col.actualDuration] : (col.duration !== undefined ? row[col.duration] : ""));
+
+    const subjectId = subjectIdFromExcelName(curS) || document.getElementById("lessonSubjectFilter")?.value || "";
+    const teacherId = teacherIdFromExcelName(curT) || document.getElementById("lessonTeacherFilter")?.value || "";
+
+    if (!plannedDate || !duration || !subjectId || !teacherId) {
+      skipped++;
+      continue;
+    }
+
+    const tr = timeRange88(col.timeRange !== undefined ? row[col.timeRange] : "");
+    const start = col.start !== undefined ? String(row[col.start] || "") : tr.start;
+    const end = col.end !== undefined ? String(row[col.end] || "") : tr.end;
+    const unit = num88(col.unitPrice !== undefined ? row[col.unitPrice] : "");
+    const fee = num88(col.lessonFee !== undefined ? row[col.lessonFee] : "") || (unit && duration ? unit * duration : 0);
+
+    const plannedContent = String((col.plannedContent !== undefined ? row[col.plannedContent] : row[col.content]) || "");
+    const actualContent = String((col.actualContent !== undefined ? row[col.actualContent] : row[col.content]) || "");
+    const count = col.count !== undefined ? row[col.count] : "";
+    const normalNote = String(col.note !== undefined ? row[col.note] || "" : "");
+    const salaryNote = String(col.salaryNote !== undefined ? row[col.salaryNote] || "" : "");
+    const status = normalizeLessonStatusTextV885(col.status !== undefined ? row[col.status] : "");
+
+    const plannedId = uuidV884("planned");
+    const actualId = uuidV884("actual");
+    const plannedYm = plannedDate.slice(0, 7);
+    const baseNote = `完整课时导入：${sheetName}`;
+    const mergedNote = buildCompletedLessonNoteV885(baseNote, count, normalNote, salaryNote);
+
+    const common = {
+      student_id: studentId,
+      teacher_id: teacherId,
+      subject_id: subjectId,
+      business_entity_id: businessEntityId,
+      start_time: start || "",
+      end_time: end || "",
+      duration_hours: duration,
+      unit_price: unit || 0,
+      lesson_fee: fee || 0,
+      is_billable: true,
+      note: mergedNote,
+      import_batch_id: batchId,
+      import_source: file.name || sheetName,
+      imported_at: importedAt,
+    };
+
+    records.push({
+      id: plannedId,
+      lesson_type: "planned",
+      lesson_date: plannedDate,
+      year_month: plannedYm,
+      lesson_content: plannedContent,
+      status: status || "completed",
+      planned_lesson_id: null,
+      ...common,
+    });
+
+    if (isActualGeneratedFromStatusV885(status, actualDate)) {
+      records.push({
+        id: actualId,
+        lesson_type: "actual",
+        planned_lesson_id: plannedId,
+        lesson_date: actualDate,
+        year_month: plannedYm,
+        lesson_content: actualContent,
+        status: status || "completed",
+        duration_hours: actualDuration || duration,
+        lesson_fee: unit && (actualDuration || duration) ? unit * (actualDuration || duration) : fee,
+        ...common,
+      });
+    } else {
+      actualSkipped++;
+    }
+  }
+
+  if (!records.length) {
+    showMessage("没有读取到可导入的完整课时记录。", "error");
+    return;
+  }
+
+  const plannedCount = records.filter(x => x.lesson_type === "planned").length;
+  const actualCount = records.filter(x => x.lesson_type === "actual").length;
+  const total = records.filter(x => x.lesson_type === "actual").reduce((s, x) => s + Number(x.lesson_fee || 0), 0);
+
+  const ok = confirm(`即将导入完整课时记录：\n\n学生：${studentName}\n文件：${file.name}\n预定课时：${plannedCount} 条\n实际课时：${actualCount} 条\n实际课时费合计：${total.toLocaleString()} JPY\n跳过行数：${skipped}\n未生成实际课时：${actualSkipped} 条\n\n确认导入吗？`);
+  if (!ok) return;
+
+  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
+  const { error } = await client.from(tables.lessons).insert(records);
+  if (error) {
+    showMessage(`导入失败：${error.message}`, "error");
+    return;
+  }
+
+  if (typeof saveLastImportBatchV871 === "function") {
+    saveLastImportBatchV871({ batchId, studentId, studentName, fileName: file.name, count: records.length, importedAt });
+  }
+
+  await loadAll();
+  renderAll();
+  showMessage(`已导入完整课时记录：预定 ${plannedCount} 条 / 实际 ${actualCount} 条。`, "ok");
+}
+
+importCompletedLessonExcelV88 = importCompletedLessonExcelV885;
+importCompletedLessonExcelV884 = importCompletedLessonExcelV885;
+
+// Patch status badges text if rendered from raw values.
+function patchLessonStatusTextV885() {
+  document.querySelectorAll("td, span, .badge").forEach(el => {
+    const t = (el.textContent || "").trim();
+    if (t === "已上" || t === "completed") el.textContent = "已上课";
+    if (t === "待补" || t === "pending_makeup") el.textContent = "待补课";
+    if (t === "已补" || t === "makeup_completed") el.textContent = "已补课";
+  });
+}
+
+const renderLessonsBeforeV885 = typeof renderLessons === "function" ? renderLessons : null;
+if (renderLessonsBeforeV885) {
+  renderLessons = function() {
+    renderLessonsBeforeV885();
+    setTimeout(patchLessonStatusTextV885, 0);
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    patchLessonStatusTextV885();
+  }, 1000);
+});
+
+const renderAllBeforeV885 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV885) {
+  renderAll = function() {
+    renderAllBeforeV885();
+    patchLessonStatusTextV885();
+  };
+}
+

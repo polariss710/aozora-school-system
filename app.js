@@ -11699,3 +11699,11 @@ if (lockSettlementBeforeV874) {
   };
 }
 
+
+
+// === v8.7.5 RLS role hint ===
+function settlementRlsHelpV875(message) {
+  const text = String(message || "");
+  if (!/row-level security|RLS|policy/i.test(text)) return message;
+  return `${message}\n\n当前系统可能使用的是 anon role。请执行 school_v8_7_5_rls_anon_fix.sql 后刷新页面再试。`;
+}

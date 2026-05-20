@@ -107,6 +107,23 @@
 
 
 
+
+
+### v8.7.5
+- 再次修复结算锁定 RLS 报错。
+- 原因：
+  - v8.7.4 只给 authenticated 用户配置了结算锁定表权限。
+  - 当前前端直连 Supabase 的运行角色可能是 anon。
+  - 所以即使执行了 v8.7.4 SQL，insert 仍然会被 RLS 拦截。
+- 新增 `school_v8_7_5_rls_anon_fix.sql`：
+  - 允许 anon / authenticated 读取结算锁定记录
+  - 允许 anon / authenticated 新增结算锁定记录
+  - 允许 anon / authenticated 更新结算锁定记录
+  - 允许 anon / authenticated 删除测试结算锁定记录
+  - 同时补充 GRANT 权限
+- 本版只修 RLS 权限，不改业务逻辑。
+- 主界面版本号完整显示为 v8.7.5。
+
 ### v8.7.4
 - 修复结算锁定时报错：
   - new row violates row-level security policy for table "school_student_monthly_settlements"
@@ -158,20 +175,6 @@
 - 撤回时按 import_batch_id 删除本批次导入的课时记录。
 - 新增 `school_v8_7_1_migration.sql`，需要先执行。
 - 主界面版本号完整显示为 v8.7.1。
-
-### v8.7
-- 新增学生月度结算确认 / 锁定功能。
-- 新增结算锁定表 `school_student_monthly_settlements`。
-- 月度结算页面增加“结算确认 / 锁定”区域。
-- 支持三种差额处理方式：
-  - 结转到下月
-  - 抹平差额
-  - 手动调整
-- 系统计算差额：实际应收人民币 - 已收折算人民币 - 上月结转。
-- 调整后结转：系统计算差额 + 调整金额。
-- 支持保存预定课时费、实际课时费、已收金额、系统差额、调整金额、调整原因、下月结转金额和锁定时间。
-- 新增 `school_v8_7_migration.sql`，需要先执行。
-- 主界面版本号完整显示为 v8.7。
 
 ### 更早版本
 - 旧版详细更新记录已从 README 中省略。

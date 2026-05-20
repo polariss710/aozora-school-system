@@ -11194,3 +11194,314 @@ if (renderAllBeforeV871) {
   };
 }
 
+
+
+// === v8.7.2 strict lesson row link fix + duplicate planned warning ===
+function planIdTextV872(value) {
+  return String(value || "").trim();
+}
+
+function setPendingActualPlanV872(planId) {
+  const id = planIdTextV872(planId);
+  state.pendingActualPlanId = id;
+  state.pendingActualPlanIdV872 = id;
+  if (id) sessionStorage.setItem("pendingActualPlanIdV872", id);
+}
+
+function getPendingActualPlanV872() {
+  return planIdTextV872(
+    state.pendingActualPlanIdV872 ||
+    state.pendingActualPlanId ||
+    sessionStorage.getItem("pendingActualPlanIdV872") ||
+    sessionStorage.getItem("pendingActualPlanIdV871")
+  );
+}
+
+function clearPendingActualPlanV872() {
+  state.pendingActualPlanId = "";
+  state.pendingActualPlanIdV872 = "";
+  sessionStorage.removeItem("pendingActualPlanIdV872");
+  sessionStorage.removeItem("pendingActualPlanIdV871");
+}
+
+function ensureActualHiddenPlanFieldV872(planId) {
+  const form = document.getElementById("modalForm");
+  if (!form) return;
+  let hidden = form.querySelector('input[name="planned_lesson_id"]');
+  if (!hidden) {
+    hidden = document.createElement("input");
+    hidden.type = "hidden";
+    hidden.name = "planned_lesson_id";
+    form.appendChild(hidden);
+  }
+  hidden.value = planIdTextV872(planId);
+}
+
+function makeActualFromPlannedV872(id) {
+  const plan = state.lessonRecords.find(x => String(x.id) === String(id));
+  if (!plan) return;
+
+  setPendingActualPlanV872(plan.id);
+
+  const prefill = {
+    lesson_type: "actual",
+    planned_lesson_id: plan.id,
+    lesson_date: plan.lesson_date || todayStr(),
+    year_month: plan.year_month || currentYearMonth(),
+    student_id: plan.student_id || "",
+    teacher_id: plan.teacher_id || "",
+    subject_id: plan.subject_id || "",
+    business_entity_id: plan.business_entity_id || "",
+    start_time: plan.start_time || "",
+    end_time: plan.end_time || "",
+    duration_hours: plan.duration_hours || 0,
+    unit_price: plan.unit_price || 0,
+    lesson_fee: Number(plan.lesson_fee || (Number(plan.unit_price || 0) * Number(plan.duration_hours || 0)) || 0),
+    status: "completed",
+    is_billable: plan.is_billable !== false,
+    lesson_content: "",
+    note: "",
+  };
+
+  openCreateModal("lesson", prefill);
+  ensureActualHiddenPlanFieldV872(plan.id);
+
+  const title = document.getElementById("modalTitle");
+  if (title) title.textContent = "从预定生成实际课时";
+  if (typeof attachLessonAutoCalcV86 === "function") attachLessonAutoCalcV86();
+}
+
+makeActualFromPlanned = makeActualFromPlannedV872;
+makeActualFromPlannedV871 = makeActualFromPlannedV872;
+
+document.addEventListener("click", (e) => {
+  const btn = e.target?.closest?.("[data-create-actual]");
+  if (!btn) return;
+  const planId = btn.dataset.createActual;
+  if (!planId) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+
+  makeActualFromPlannedV872(planId);
+}, true);
+
+document.addEventListener("submit", (e) => {
+  const form = e.target;
+  if (!form || form.id !== "modalForm") return;
+  if (state.editing?.type !== "lesson") return;
+
+  const fd = new FormData(form);
+  const lessonType = fd.get("lesson_type");
+  if (lessonType !== "actual") return;
+
+  const hiddenPlan = planIdTextV872(form.querySelector('input[name="planned_lesson_id"]')?.value);
+  const pending = hiddenPlan || getPendingActualPlanV872();
+  if (pending) {
+    setPendingActualPlanV872(pending);
+    ensureActualHiddenPlanFieldV872(pending);
+  }
+}, true);
+
+const normalizeLessonPayloadBeforeV872 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
+normalizeLessonPayload = function(payload, type) {
+  if (normalizeLessonPayloadBeforeV872) payload = normalizeLessonPayloadBeforeV872(payload, type);
+
+  if (type === "lesson" && payload?.lesson_type === "actual" && !state.editing?.id) {
+    const pending = getPendingActualPlanV872();
+    if (pending) payload.planned_lesson_id = pending;
+  }
+
+  if (type === "lesson" && payload?.lesson_type === "planned") {
+    payload.planned_lesson_id = null;
+  }
+
+  return payload;
+};
+
+const repairLessonPlannedLinkAfterSaveBeforeV872 = typeof repairLessonPlannedLinkAfterSave === "function" ? repairLessonPlannedLinkAfterSave : null;
+repairLessonPlannedLinkAfterSave = async function(type, payload, saved) {
+  if (repairLessonPlannedLinkAfterSaveBeforeV872) {
+    await repairLessonPlannedLinkAfterSaveBeforeV872(type, payload, saved);
+  }
+
+  if (type !== "lesson" || payload?.lesson_type !== "actual" || !saved?.id) return;
+  const planId = planIdTextV872(payload.planned_lesson_id || getPendingActualPlanV872());
+  if (!planId) return;
+
+  const client = (typeof db !== "undefined" && db?.from) ? db : ((typeof supabase !== "undefined" && supabase?.from) ? supabase : null);
+  if (!client) return;
+
+  if (String(saved.planned_lesson_id || "") !== planId) {
+    const { error } = await client.from(tables.lessons).update({ planned_lesson_id: planId }).eq("id", saved.id);
+    if (error) console.warn("v8.7.2 planned_lesson_id repair failed", error);
+  }
+};
+
+function plannedDuplicateKeyV872(item) {
+  return [
+    item.student_id || "",
+    item.lesson_date || "",
+    item.teacher_id || "",
+    item.subject_id || "",
+    item.start_time || "",
+    item.end_time || "",
+  ].join("|");
+}
+
+function plannedDuplicateCountMapV872(rows) {
+  const map = new Map();
+  rows.filter(x => x.lesson_type === "planned").forEach(item => {
+    const key = plannedDuplicateKeyV872(item);
+    map.set(key, (map.get(key) || 0) + 1);
+  });
+  return map;
+}
+
+function isDuplicatePlannedV872(item, countMap) {
+  return item?.lesson_type === "planned" && (countMap.get(plannedDuplicateKeyV872(item)) || 0) > 1;
+}
+
+function appendDuplicateWarningToPlannedCellsV872(html, item, countMap) {
+  if (!isDuplicatePlannedV872(item, countMap)) return html;
+  const warning = `<div class="duplicate-planned-warning-v872">重复预定：请确认日期或时间</div>`;
+  return html.replace('</td>\n    <td class="col-student">', `${warning}</td>\n    <td class="col-student">`);
+}
+
+function buildLessonPairsStrictV872(rows) {
+  const planned = rows.filter(x => x.lesson_type === "planned").slice();
+  const actual = rows.filter(x => x.lesson_type === "actual");
+  const actualByPlan = new Map();
+  const unlinkedActual = [];
+
+  const plannedSort =
+    typeof comparePlannedLessonsV86 === "function"
+      ? comparePlannedLessonsV86
+      : (typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
+
+  const dateSort =
+    typeof compareDateTimeV86 === "function"
+      ? compareDateTimeV86
+      : (typeof compareDateTimeAscV854 === "function" ? compareDateTimeAscV854 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
+
+  planned.sort((a, b) => {
+    const r = plannedSort(a, b);
+    if (r !== 0) return r;
+    return String(a.created_at || a.id || "").localeCompare(String(b.created_at || b.id || ""));
+  });
+
+  actual.forEach(row => {
+    const planId = planIdTextV872(row.planned_lesson_id);
+    if (planId) {
+      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
+      actualByPlan.get(planId).push(row);
+    } else {
+      unlinkedActual.push(row);
+    }
+  });
+
+  actualByPlan.forEach(list => list.sort(dateSort));
+  unlinkedActual.sort(dateSort);
+  return { planned, actualByPlan, unlinkedActual, dateSort, countMap: plannedDuplicateCountMapV872(rows) };
+}
+
+function renderLessonRowsStrictV872(rows) {
+  const { planned, actualByPlan, unlinkedActual, dateSort, countMap } = buildLessonPairsStrictV872(rows);
+  const html = [];
+  let lastMonth = "";
+
+  const cell = typeof lessonCellV86 === "function" ? lessonCellV86 : (typeof lessonPairCellsV858 === "function" ? lessonPairCellsV858 : lessonPairCells);
+
+  function addMonthRow(ym) {
+    if (ym !== lastMonth) {
+      lastMonth = ym;
+      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
+      html.push(`<tr class="lesson-sub-head-body v8310">
+        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+      </tr>`);
+    }
+  }
+
+  planned.forEach(plan => {
+    addMonthRow(plan.year_month || "未归属月份");
+    const actuals = (actualByPlan.get(planIdTextV872(plan.id)) || []).slice().sort(dateSort);
+    const plannedCell = appendDuplicateWarningToPlannedCellsV872(cell(plan, "planned"), plan, countMap);
+
+    if (!actuals.length) {
+      html.push(`<tr class="lesson-pair-row v8310 ${isDuplicatePlannedV872(plan, countMap) ? "duplicate-planned-row-v872" : ""}">${plannedCell}${cell(null, "actual")}</tr>`);
+      return;
+    }
+
+    actuals.forEach((actual, index) => {
+      const left = index === 0 ? plannedCell : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
+      html.push(`<tr class="lesson-pair-row v8310 ${isDuplicatePlannedV872(plan, countMap) ? "duplicate-planned-row-v872" : ""}">${left}${cell(actual, "actual")}</tr>`);
+    });
+  });
+
+  unlinkedActual.forEach(actual => {
+    addMonthRow(actual.year_month || "未归属月份");
+    html.push(`<tr class="lesson-pair-row v8310">${cell(null, "planned")}${cell(actual, "actual")}</tr>`);
+  });
+
+  return html.join("");
+}
+
+function renderLessonsStrictV872() {
+  const tbody = document.getElementById("lessonsTable");
+  if (!tbody) return;
+  updateLessonFilters();
+  const rows = filterLessons().slice();
+  renderLessonStats(rows);
+  tbody.innerHTML = renderLessonRowsStrictV872(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
+  bindLessonButtonsStrictV872();
+  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
+  if (typeof bindLessonExcelActionsV871 === "function") bindLessonExcelActionsV871();
+}
+
+function bindLessonButtonsStrictV872() {
+  document.querySelectorAll("[data-create-actual]").forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      makeActualFromPlannedV872(btn.dataset.createActual);
+    };
+  });
+  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
+    btn.onclick = () => {
+      if (typeof copyLessonRecordV86 === "function") copyLessonRecordV86(btn.dataset.copyLesson);
+      else if (typeof copyLessonRecordV59 === "function") copyLessonRecordV59(btn.dataset.copyLesson);
+    };
+  });
+}
+
+renderLessonRowsV86 = renderLessonRowsStrictV872;
+renderLessonRowsV855 = renderLessonRowsStrictV872;
+renderLessonRowsV858 = renderLessonRowsStrictV872;
+renderLessons = renderLessonsStrictV872;
+bindLessonPairButtonsV59 = bindLessonButtonsStrictV872;
+
+const closeModalBeforeV872 = typeof closeModal === "function" ? closeModal : null;
+if (closeModalBeforeV872) {
+  closeModal = function() {
+    closeModalBeforeV872();
+    setTimeout(clearPendingActualPlanV872, 1500);
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    renderLessonsStrictV872();
+    bindLessonButtonsStrictV872();
+  }, 1000);
+});
+
+const renderAllBeforeV872 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV872) {
+  renderAll = function() {
+    renderAllBeforeV872();
+    renderLessonsStrictV872();
+  };
+}
+

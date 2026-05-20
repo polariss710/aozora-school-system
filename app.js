@@ -12931,3 +12931,314 @@ if (renderAllBeforeV885) {
   };
 }
 
+
+
+// === v8.8.6 lesson_count field ===
+// lesson_count becomes the formal field for 回数.
+// It is used in completed lesson import, duplicate warning, display, and modal payload.
+
+function normalizeLessonCountV886(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(String(value).replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+function lessonCountTextV886(item) {
+  const count = normalizeLessonCountV886(item?.lesson_count);
+  return count === null ? "" : `第${count}回`;
+}
+
+function patchLessonCountFieldV886() {
+  const form = document.getElementById("modalForm");
+  if (!form || state.editing?.type !== "lesson") return;
+  if (form.querySelector('[name="lesson_count"]')) return;
+
+  const statusField = form.querySelector('[name="status"]')?.closest("label, .form-field, .field");
+  const html = `
+    <label class="form-field lesson-count-field-v886">
+      <span>回数</span>
+      <input name="lesson_count" type="number" step="1" placeholder="例：1" />
+    </label>
+  `;
+
+  if (statusField) statusField.insertAdjacentHTML("beforebegin", html);
+  else form.insertAdjacentHTML("beforeend", html);
+
+  const input = form.querySelector('[name="lesson_count"]');
+  const current = state.editing?.id ? findLocal("lesson", state.editing.id)?.lesson_count : state.editing?.data?.lesson_count;
+  if (input && current !== undefined && current !== null) input.value = current;
+}
+
+// Ensure saveForm includes lesson_count even if schoolGetFieldsV24 doesn't know this new field.
+const normalizeLessonPayloadBeforeV886 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
+normalizeLessonPayload = function(payload, type) {
+  if (normalizeLessonPayloadBeforeV886) payload = normalizeLessonPayloadBeforeV886(payload, type);
+
+  if (type === "lesson") {
+    const form = document.getElementById("modalForm");
+    const raw = form?.querySelector('[name="lesson_count"]')?.value;
+    const count = normalizeLessonCountV886(raw ?? payload.lesson_count);
+    payload.lesson_count = count;
+  }
+
+  return payload;
+};
+
+// Add lesson_count to completed import common payload.
+const importCompletedLessonExcelBeforeV886 = typeof importCompletedLessonExcelV885 === "function" ? importCompletedLessonExcelV885 : null;
+
+async function importCompletedLessonExcelV886(file) {
+  if (!lessonExcelRequireXLSX()) return;
+
+  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  if (!studentId) {
+    showMessage("请先选择学生。", "error");
+    return;
+  }
+
+  const student = (state.students || []).find(x => x.id === studentId);
+  const studentName = document.getElementById("lessonStudentFilter")?.selectedOptions?.[0]?.textContent || student?.display_name || student?.name || "";
+  const businessEntityId = student?.business_entity_id || state.businessEntities?.[0]?.id || null;
+  const batchId = typeof newImportBatchIdV871 === "function" ? newImportBatchIdV871() : `completed_import_${Date.now()}`;
+  const importedAt = new Date().toISOString();
+
+  const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+  const sheetName = wb.SheetNames[0];
+  const sheet = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
+
+  const hi = findHeader88(rows);
+  if (hi < 0) {
+    showMessage("没有找到完整课时模板表头。请确认包含科目、日期、回数、时长、单价等列。", "error");
+    return;
+  }
+
+  const col = headerMap88(rows[hi]);
+  const records = [];
+  let curT = "";
+  let curS = "";
+  let skipped = 0;
+  let actualSkipped = 0;
+  const baseYear = Number(document.getElementById("lessonMonthFilter")?.value?.slice(0, 4) || new Date().getFullYear());
+
+  for (let r = hi + 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const line = row.map(x => String(x || "").trim()).join("");
+    if (!line || /合计|总计|總計|小计|小計/.test(line)) continue;
+
+    const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
+    const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
+    if (teacherCell) curT = teacherCell;
+    if (subjectCell) curS = subjectCell;
+
+    const plannedDate = dt88(col.plannedDate !== undefined ? row[col.plannedDate] : row[col.actualDate], baseYear);
+    const rawActualDate = col.actualDate !== undefined ? row[col.actualDate] : "";
+    const actualDate = dt88(rawActualDate, baseYear);
+
+    const duration = num88(col.duration !== undefined ? row[col.duration] : "");
+    const actualDuration = num88(col.actualDuration !== undefined ? row[col.actualDuration] : (col.duration !== undefined ? row[col.duration] : ""));
+
+    const subjectId = subjectIdFromExcelName(curS) || document.getElementById("lessonSubjectFilter")?.value || "";
+    const teacherId = teacherIdFromExcelName(curT) || document.getElementById("lessonTeacherFilter")?.value || "";
+
+    if (!plannedDate || !duration || !subjectId || !teacherId) {
+      skipped++;
+      continue;
+    }
+
+    const tr = timeRange88(col.timeRange !== undefined ? row[col.timeRange] : "");
+    const start = col.start !== undefined ? String(row[col.start] || "") : tr.start;
+    const end = col.end !== undefined ? String(row[col.end] || "") : tr.end;
+    const unit = num88(col.unitPrice !== undefined ? row[col.unitPrice] : "");
+    const fee = num88(col.lessonFee !== undefined ? row[col.lessonFee] : "") || (unit && duration ? unit * duration : 0);
+
+    const plannedContent = String((col.plannedContent !== undefined ? row[col.plannedContent] : row[col.content]) || "");
+    const actualContent = String((col.actualContent !== undefined ? row[col.actualContent] : row[col.content]) || "");
+    const count = normalizeLessonCountV886(col.count !== undefined ? row[col.count] : null);
+    const normalNote = String(col.note !== undefined ? row[col.note] || "" : "");
+    const salaryNote = String(col.salaryNote !== undefined ? row[col.salaryNote] || "" : "");
+    const status = normalizeLessonStatusTextV885(col.status !== undefined ? row[col.status] : "");
+
+    const plannedId = uuidV884("planned");
+    const actualId = uuidV884("actual");
+    const plannedYm = plannedDate.slice(0, 7);
+    const baseNote = `完整课时导入：${sheetName}`;
+    const mergedNote = buildCompletedLessonNoteV885(baseNote, "", normalNote, salaryNote);
+
+    const common = {
+      student_id: studentId,
+      teacher_id: teacherId,
+      subject_id: subjectId,
+      business_entity_id: businessEntityId,
+      start_time: start || "",
+      end_time: end || "",
+      duration_hours: duration,
+      unit_price: unit || 0,
+      lesson_fee: fee || 0,
+      lesson_count: count,
+      is_billable: true,
+      note: mergedNote,
+      import_batch_id: batchId,
+      import_source: file.name || sheetName,
+      imported_at: importedAt,
+    };
+
+    records.push({
+      id: plannedId,
+      lesson_type: "planned",
+      lesson_date: plannedDate,
+      year_month: plannedYm,
+      lesson_content: plannedContent,
+      status: status || "completed",
+      planned_lesson_id: null,
+      ...common,
+    });
+
+    if (isActualGeneratedFromStatusV885(status, actualDate)) {
+      records.push({
+        id: actualId,
+        lesson_type: "actual",
+        planned_lesson_id: plannedId,
+        lesson_date: actualDate,
+        year_month: plannedYm,
+        lesson_content: actualContent,
+        status: status || "completed",
+        duration_hours: actualDuration || duration,
+        lesson_fee: unit && (actualDuration || duration) ? unit * (actualDuration || duration) : fee,
+        ...common,
+      });
+    } else {
+      actualSkipped++;
+    }
+  }
+
+  if (!records.length) {
+    showMessage("没有读取到可导入的完整课时记录。", "error");
+    return;
+  }
+
+  const plannedCount = records.filter(x => x.lesson_type === "planned").length;
+  const actualCount = records.filter(x => x.lesson_type === "actual").length;
+  const total = records.filter(x => x.lesson_type === "actual").reduce((s, x) => s + Number(x.lesson_fee || 0), 0);
+
+  const ok = confirm(`即将导入完整课时记录：\n\n学生：${studentName}\n文件：${file.name}\n预定课时：${plannedCount} 条\n实际课时：${actualCount} 条\n实际课时费合计：${total.toLocaleString()} JPY\n跳过行数：${skipped}\n未生成实际课时：${actualSkipped} 条\n\n确认导入吗？`);
+  if (!ok) return;
+
+  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
+  const { error } = await client.from(tables.lessons).insert(records);
+  if (error) {
+    showMessage(`导入失败：${error.message}`, "error");
+    return;
+  }
+
+  if (typeof saveLastImportBatchV871 === "function") {
+    saveLastImportBatchV871({ batchId, studentId, studentName, fileName: file.name, count: records.length, importedAt });
+  }
+
+  await loadAll();
+  renderAll();
+  showMessage(`已导入完整课时记录：预定 ${plannedCount} 条 / 实际 ${actualCount} 条。`, "ok");
+}
+
+importCompletedLessonExcelV88 = importCompletedLessonExcelV886;
+importCompletedLessonExcelV884 = importCompletedLessonExcelV886;
+importCompletedLessonExcelV885 = importCompletedLessonExcelV886;
+
+// Duplicate check includes lesson_count.
+// If both rows have count and count differs, they are not duplicates.
+function plannedDuplicateKeyV886(item) {
+  return [
+    item.student_id || "",
+    item.lesson_date || "",
+    item.teacher_id || "",
+    item.subject_id || "",
+    item.start_time || "",
+    item.end_time || "",
+    normalizeLessonCountV886(item.lesson_count) ?? "",
+  ].join("|");
+}
+
+plannedDuplicateKeyV872 = plannedDuplicateKeyV886;
+
+function plannedDuplicateCountMapV886(rows) {
+  const map = new Map();
+  rows.filter(x => x.lesson_type === "planned").forEach(item => {
+    const key = plannedDuplicateKeyV886(item);
+    map.set(key, (map.get(key) || 0) + 1);
+  });
+  return map;
+}
+
+plannedDuplicateCountMapV872 = plannedDuplicateCountMapV886;
+
+// Display count inside date cell when possible.
+function patchLessonCountDisplayV886() {
+  document.querySelectorAll("tr.lesson-pair-row").forEach(tr => {
+    const cells = tr.querySelectorAll("td");
+    [1, 9].forEach(idx => {
+      const td = cells[idx];
+      if (!td || td.querySelector(".lesson-count-v886")) return;
+
+      const rowId =
+        tr.querySelector("[data-edit][data-type='lesson']")?.dataset?.edit ||
+        tr.querySelector("[data-delete][data-type='lesson']")?.dataset?.delete;
+      const item = (state.lessonRecords || []).find(x => String(x.id) === String(rowId));
+      const text = lessonCountTextV886(item);
+      if (text) td.insertAdjacentHTML("beforeend", `<div class="lesson-count-v886">${esc(text)}</div>`);
+    });
+  });
+}
+
+// Full import button disabled when no student selected.
+function updateLessonImportButtonsV886() {
+  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  const disabled = !studentId;
+  ["lessonImportCompletedExcelBtnV88", "lessonImportExcelBtn", "addLessonBtn"].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.disabled = disabled;
+    btn.classList.toggle("disabled", disabled);
+    if (disabled) btn.title = "请先选择学生";
+    else btn.removeAttribute("title");
+  });
+}
+
+const ensureCompletedImportButtonBeforeV886 = typeof ensureCompletedImportButtonV884 === "function" ? ensureCompletedImportButtonV884 : (typeof ensureCompletedImportButtonV88 === "function" ? ensureCompletedImportButtonV88 : null);
+if (ensureCompletedImportButtonBeforeV886) {
+  ensureCompletedImportButtonV884 = function() {
+    ensureCompletedImportButtonBeforeV886();
+    updateLessonImportButtonsV886();
+  };
+  ensureCompletedImportButtonV88 = ensureCompletedImportButtonV884;
+}
+
+document.addEventListener("change", (e) => {
+  if (e.target?.id === "lessonStudentFilter") updateLessonImportButtonsV886();
+});
+
+const renderLessonsBeforeV886 = typeof renderLessons === "function" ? renderLessons : null;
+if (renderLessonsBeforeV886) {
+  renderLessons = function() {
+    renderLessonsBeforeV886();
+    patchLessonCountDisplayV886();
+    patchLessonCountFieldV886();
+    updateLessonImportButtonsV886();
+  };
+}
+
+const renderAllBeforeV886 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV886) {
+  renderAll = function() {
+    renderAllBeforeV886();
+    patchLessonCountDisplayV886();
+    updateLessonImportButtonsV886();
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    patchLessonCountDisplayV886();
+    updateLessonImportButtonsV886();
+  }, 1000);
+});
+

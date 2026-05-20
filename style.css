@@ -2313,3 +2313,17 @@ button:disabled {
   font-size: 18px;
   font-weight: 900;
 }
+
+/* === v8.8.6 lesson count === */
+.lesson-count-v886 {
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #475569;
+}
+
+button.disabled,
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

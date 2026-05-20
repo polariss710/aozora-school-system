@@ -9815,3 +9815,158 @@ if (renderAllBeforeV86) {
   };
 }
 
+
+
+// === v8.6.1 business entity split statistics ===
+function businessEntityNameV861(id) {
+  const item = (state.businessEntities || []).find(x => x.id === id);
+  return item?.name || "";
+}
+
+function businessEntityCodeV861(id) {
+  const item = (state.businessEntities || []).find(x => x.id === id);
+  return item?.code || "";
+}
+
+function businessEntityGroupV861(row) {
+  const name = row.business_entity?.name || businessEntityNameV861(row.business_entity_id) || "";
+  const code = row.business_entity?.code || businessEntityCodeV861(row.business_entity_id) || "";
+  const text = `${name} ${code}`.toLowerCase();
+
+  if (text.includes("个人") || text.includes("personal") || text.includes("private")) {
+    return "personal";
+  }
+  if (text.includes("青空") || text.includes("aosora") || text.includes("company") || text.includes("法人")) {
+    return "aosora";
+  }
+
+  // Fallback: unknown is shown separately to avoid mixing private/company money.
+  return "other";
+}
+
+function groupLabelV861(group) {
+  if (group === "personal") return "个人名义";
+  if (group === "aosora") return "青空塾";
+  return "未分类";
+}
+
+function monthFilterValueV861() {
+  return document.getElementById("financeMonthFilter")?.value
+    || document.getElementById("dashboardMonthFilter")?.value
+    || currentYearMonth();
+}
+
+function financeRowsForMonthV861(rows, ym) {
+  return (rows || []).filter(x => (x.year_month || "") === ym);
+}
+
+function sumFinanceByGroupV861(rows, group) {
+  return rows
+    .filter(x => businessEntityGroupV861(x) === group)
+    .reduce((sum, x) => sum + Number(x.amount || 0), 0);
+}
+
+function calcBusinessSplitStatsV861(ym) {
+  const incomes = financeRowsForMonthV861(state.incomeRecords || [], ym);
+  const expenses = financeRowsForMonthV861(state.expenseRecords || [], ym);
+
+  return ["aosora", "personal", "other"].map(group => {
+    const income = sumFinanceByGroupV861(incomes, group);
+    const expense = sumFinanceByGroupV861(expenses, group);
+    return {
+      group,
+      label: groupLabelV861(group),
+      income,
+      expense,
+      net: income - expense,
+    };
+  }).filter(x => x.income || x.expense || x.group !== "other");
+}
+
+function splitStatsHtmlV861(ym) {
+  const stats = calcBusinessSplitStatsV861(ym);
+
+  return `
+    <section class="business-split-card" id="businessSplitStatsV861">
+      <div class="section-title-row">
+        <div>
+          <h3>业务归属统计</h3>
+          <p class="muted-small">${esc(expenseMonthLabel(ym))}：青空塾 / 个人名义 分开统计</p>
+        </div>
+      </div>
+      <div class="business-split-grid">
+        ${stats.map(item => `
+          <div class="business-split-item ${item.group}">
+            <div class="business-split-title">${esc(item.label)}</div>
+            <div class="business-split-row"><span>收入</span><strong>${formatCny(item.income)}</strong></div>
+            <div class="business-split-row"><span>支出</span><strong>${formatCny(item.expense)}</strong></div>
+            <div class="business-split-row total"><span>净额</span><strong>${formatCny(item.net)}</strong></div>
+            ${item.group === "personal" ? `<div class="privacy-note">后续仅最高权限可见</div>` : ""}
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderBusinessSplitStatsV861() {
+  const ym = monthFilterValueV861();
+
+  // Dashboard: insert after the top stat grid/card area.
+  const dashboardPage = document.getElementById("page-dashboard") || document.querySelector("[data-page='dashboard']");
+  if (dashboardPage) {
+    let holder = dashboardPage.querySelector("#businessSplitStatsV861");
+    if (!holder) {
+      const anchor = dashboardPage.querySelector(".stats-grid, .dashboard-grid, .cards-grid, .section-card");
+      if (anchor) {
+        anchor.insertAdjacentHTML("afterend", splitStatsHtmlV861(ym));
+      } else {
+        dashboardPage.insertAdjacentHTML("beforeend", splitStatsHtmlV861(ym));
+      }
+    } else {
+      holder.outerHTML = splitStatsHtmlV861(ym);
+    }
+  }
+
+  // Finance summary: insert near summary cards if the page exists.
+  const financePage = document.getElementById("page-finance-summary") || document.getElementById("page-summary") || document.querySelector("[data-page='finance-summary']");
+  if (financePage) {
+    let holder = financePage.querySelector("#businessSplitStatsV861");
+    if (!holder) {
+      const anchor = financePage.querySelector(".stats-grid, .summary-grid, .cards-grid, .section-card");
+      if (anchor) {
+        anchor.insertAdjacentHTML("afterend", splitStatsHtmlV861(ym));
+      } else {
+        financePage.insertAdjacentHTML("beforeend", splitStatsHtmlV861(ym));
+      }
+    } else {
+      holder.outerHTML = splitStatsHtmlV861(ym);
+    }
+  }
+}
+
+const renderStatsBeforeV861 = typeof renderStats === "function" ? renderStats : null;
+if (renderStatsBeforeV861) {
+  renderStats = function() {
+    renderStatsBeforeV861();
+    renderBusinessSplitStatsV861();
+  };
+}
+
+const renderAllBeforeV861 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV861) {
+  renderAll = function() {
+    renderAllBeforeV861();
+    renderBusinessSplitStatsV861();
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(renderBusinessSplitStatsV861, 1000);
+  document.addEventListener("change", (e) => {
+    if (e.target?.id === "financeMonthFilter" || e.target?.id === "dashboardMonthFilter") {
+      renderBusinessSplitStatsV861();
+    }
+  });
+});
+

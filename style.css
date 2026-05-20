@@ -2226,3 +2226,11 @@ button:disabled {
   font-weight: 800;
   white-space: nowrap;
 }
+
+/* === v8.7.3 duplicate row stable order hint === */
+.duplicate-planned-order-hint-v873 {
+  margin-top: 3px;
+  font-size: 10px;
+  color: #9a3412;
+  line-height: 1.2;
+}

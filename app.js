@@ -11505,3 +11505,177 @@ if (renderAllBeforeV872) {
   };
 }
 
+
+
+// === v8.7.3 stable duplicate planned row order ===
+function duplicateContentKeyV873(item) {
+  return String(item?.lesson_content || item?.note || "").trim().toLocaleLowerCase("ja-JP");
+}
+
+function naturalCompareV873(a, b) {
+  return String(a || "").localeCompare(String(b || ""), "ja-JP", {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+function basePlannedSortV873(a, b) {
+  const sort =
+    typeof comparePlannedLessonsV86 === "function"
+      ? comparePlannedLessonsV86
+      : (typeof compareLessonsV78 === "function"
+        ? compareLessonsV78
+        : ((x, y) => String(x.lesson_date || "").localeCompare(String(y.lesson_date || ""))));
+  return sort(a, b);
+}
+
+function stableDuplicatePlannedSortV873(a, b) {
+  const base = basePlannedSortV873(a, b);
+  if (base !== 0) return base;
+
+  const duplicateKeyA = typeof plannedDuplicateKeyV872 === "function" ? plannedDuplicateKeyV872(a) : "";
+  const duplicateKeyB = typeof plannedDuplicateKeyV872 === "function" ? plannedDuplicateKeyV872(b) : "";
+
+  if (duplicateKeyA && duplicateKeyA === duplicateKeyB) {
+    const content = naturalCompareV873(duplicateContentKeyV873(a), duplicateContentKeyV873(b));
+    if (content !== 0) return content;
+  }
+
+  const created = String(a.created_at || "").localeCompare(String(b.created_at || ""));
+  if (created !== 0) return created;
+
+  return String(a.id || "").localeCompare(String(b.id || ""));
+}
+
+function buildLessonPairsStrictV873(rows) {
+  const planned = rows.filter(x => x.lesson_type === "planned").slice();
+  const actual = rows.filter(x => x.lesson_type === "actual");
+  const actualByPlan = new Map();
+  const unlinkedActual = [];
+
+  const dateSort =
+    typeof compareDateTimeV86 === "function"
+      ? compareDateTimeV86
+      : (typeof compareDateTimeAscV854 === "function"
+        ? compareDateTimeAscV854
+        : ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""))));
+
+  planned.sort(stableDuplicatePlannedSortV873);
+
+  actual.forEach(row => {
+    const planId = typeof planIdTextV872 === "function"
+      ? planIdTextV872(row.planned_lesson_id)
+      : String(row.planned_lesson_id || "").trim();
+
+    if (planId) {
+      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
+      actualByPlan.get(planId).push(row);
+    } else {
+      unlinkedActual.push(row);
+    }
+  });
+
+  actualByPlan.forEach(list => list.sort(dateSort));
+  unlinkedActual.sort(dateSort);
+
+  return {
+    planned,
+    actualByPlan,
+    unlinkedActual,
+    dateSort,
+    countMap: typeof plannedDuplicateCountMapV872 === "function" ? plannedDuplicateCountMapV872(rows) : new Map(),
+  };
+}
+
+function appendDuplicateWarningToPlannedCellsV873(html, item, countMap) {
+  const isDup = typeof isDuplicatePlannedV872 === "function" && isDuplicatePlannedV872(item, countMap);
+  if (!isDup) return html;
+
+  const warning = `<div class="duplicate-planned-warning-v872">重复预定：请确认日期或时间</div>`;
+  const hint = `<div class="duplicate-planned-order-hint-v873">同条件重复时，按上课内容稳定排序</div>`;
+  return html.replace('</td>\n    <td class="col-student">', `${warning}${hint}</td>\n    <td class="col-student">`);
+}
+
+function renderLessonRowsStrictV873(rows) {
+  const { planned, actualByPlan, unlinkedActual, dateSort, countMap } = buildLessonPairsStrictV873(rows);
+  const html = [];
+  let lastMonth = "";
+
+  const cell = typeof lessonCellV86 === "function"
+    ? lessonCellV86
+    : (typeof lessonPairCellsV858 === "function" ? lessonPairCellsV858 : lessonPairCells);
+
+  function addMonthRow(ym) {
+    if (ym !== lastMonth) {
+      lastMonth = ym;
+      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
+      html.push(`<tr class="lesson-sub-head-body v8310">
+        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+      </tr>`);
+    }
+  }
+
+  planned.forEach(plan => {
+    addMonthRow(plan.year_month || "未归属月份");
+    const planId = typeof planIdTextV872 === "function" ? planIdTextV872(plan.id) : String(plan.id || "").trim();
+    const actuals = (actualByPlan.get(planId) || []).slice().sort(dateSort);
+    const isDup = typeof isDuplicatePlannedV872 === "function" && isDuplicatePlannedV872(plan, countMap);
+    const plannedCell = appendDuplicateWarningToPlannedCellsV873(cell(plan, "planned"), plan, countMap);
+
+    if (!actuals.length) {
+      html.push(`<tr class="lesson-pair-row v8310 ${isDup ? "duplicate-planned-row-v872" : ""}">${plannedCell}${cell(null, "actual")}</tr>`);
+      return;
+    }
+
+    actuals.forEach((actual, index) => {
+      const left = index === 0 ? plannedCell : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
+      html.push(`<tr class="lesson-pair-row v8310 ${isDup ? "duplicate-planned-row-v872" : ""}">${left}${cell(actual, "actual")}</tr>`);
+    });
+  });
+
+  unlinkedActual.forEach(actual => {
+    addMonthRow(actual.year_month || "未归属月份");
+    html.push(`<tr class="lesson-pair-row v8310">${cell(null, "planned")}${cell(actual, "actual")}</tr>`);
+  });
+
+  return html.join("");
+}
+
+function renderLessonsStrictV873() {
+  const tbody = document.getElementById("lessonsTable");
+  if (!tbody) return;
+  updateLessonFilters();
+  const rows = filterLessons().slice();
+  renderLessonStats(rows);
+  tbody.innerHTML = renderLessonRowsStrictV873(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
+
+  if (typeof bindLessonButtonsStrictV872 === "function") bindLessonButtonsStrictV872();
+  else if (typeof bindLessonPairButtonsV59 === "function") bindLessonPairButtonsV59();
+
+  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
+  if (typeof bindLessonExcelActionsV871 === "function") bindLessonExcelActionsV871();
+}
+
+buildLessonPairsStrictV872 = buildLessonPairsStrictV873;
+renderLessonRowsStrictV872 = renderLessonRowsStrictV873;
+renderLessonsStrictV872 = renderLessonsStrictV873;
+renderLessonRowsV86 = renderLessonRowsStrictV873;
+renderLessonRowsV855 = renderLessonRowsStrictV873;
+renderLessonRowsV858 = renderLessonRowsStrictV873;
+renderLessons = renderLessonsStrictV873;
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    renderLessonsStrictV873();
+  }, 1000);
+});
+
+const renderAllBeforeV873 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV873) {
+  renderAll = function() {
+    renderAllBeforeV873();
+    renderLessonsStrictV873();
+  };
+}
+

@@ -11679,3 +11679,23 @@ if (renderAllBeforeV873) {
   };
 }
 
+
+
+// === v8.7.4 settlement RLS guidance ===
+function settlementRlsHelpV874(message) {
+  const text = String(message || "");
+  if (!/row-level security|RLS|policy/i.test(text)) return message;
+  return `${message}\n\n请先在 Supabase SQL Editor 执行 school_v8_7_4_rls_fix.sql，然后刷新页面再试。`;
+}
+
+const lockSettlementBeforeV874 = typeof lockSettlementV87 === "function" ? lockSettlementV87 : null;
+if (lockSettlementBeforeV874) {
+  lockSettlementV87 = async function() {
+    try {
+      await lockSettlementBeforeV874();
+    } catch (error) {
+      alert(`锁定结算失败：${settlementRlsHelpV874(error.message || error)}`);
+    }
+  };
+}
+

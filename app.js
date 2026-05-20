@@ -10753,3 +10753,444 @@ if (renderAllBeforeV87) {
   renderAll = function() { renderAllBeforeV87(); ensureSettlementPanelV87(); };
 }
 
+
+
+// === v8.7.1 fixes: db client, stable actual link, import batch undo ===
+function dbClientV871() {
+  return (typeof db !== "undefined" && db?.from) ? db : ((typeof supabase !== "undefined" && supabase?.from) ? supabase : null);
+}
+
+// Fix v8.7 error: supabase.from is not a function. Use existing db client.
+async function fetchSettlementLockHistoryV871() {
+  const { month, studentId } = selectedSettlementContextV87 ? selectedSettlementContextV87() : { month: "", studentId: "" };
+  const history = document.getElementById("settlementLockHistoryV87");
+  if (!history || !studentId) return;
+  const client = dbClientV871();
+  if (!client) {
+    history.innerHTML = `<div class="error-text">读取结算锁定状态失败：数据库客户端未初始化</div>`;
+    return;
+  }
+  try {
+    const { data, error } = await client
+      .from(SETTLEMENTS_TABLE_V87)
+      .select("*")
+      .eq("student_id", studentId)
+      .eq("year_month", month)
+      .maybeSingle();
+
+    if (error && error.code !== "PGRST116") throw error;
+
+    if (!data) {
+      history.innerHTML = `<div class="muted-small">当前月份尚未锁定。</div>`;
+      return;
+    }
+
+    history.innerHTML = `
+      <div class="locked-settlement-v87">
+        <strong>已锁定：</strong>
+        <span>${esc(data.year_month)}</span>
+        <span>${esc(settlementStatusLabelV87(data.carryover_amount_cny))}</span>
+        <span>结转 ${signedCnyV87(data.carryover_amount_cny)}</span>
+        <span>调整 ${signedCnyV87(data.adjustment_amount_cny)}</span>
+        <span>${data.locked_at ? esc(new Date(data.locked_at).toLocaleString()) : ""}</span>
+      </div>
+    `;
+  } catch (error) {
+    history.innerHTML = `<div class="error-text">读取结算锁定状态失败：${esc(error.message || error)}</div>`;
+  }
+}
+
+async function lockSettlementV871() {
+  const adj = adjustmentFromPanelV87();
+  const snapshot = computeSettlementSnapshotV87(adj.adjustment, adj.reason);
+  if (!snapshot) {
+    alert("请先选择学生和月份。");
+    return;
+  }
+  const ok = confirm(`确认锁定 ${snapshot.year_month} 的结算吗？\n状态：${settlementStatusLabelV87(snapshot.carryover_amount_cny)}\n结转：${signedCnyV87(snapshot.carryover_amount_cny)}`);
+  if (!ok) return;
+
+  const client = dbClientV871();
+  if (!client) {
+    alert("锁定结算失败：数据库客户端未初始化");
+    return;
+  }
+
+  const payload = { ...snapshot };
+  delete payload.student;
+
+  try {
+    const { error } = await client
+      .from(SETTLEMENTS_TABLE_V87)
+      .upsert(payload, { onConflict: "student_id,year_month" });
+    if (error) throw error;
+    alert("结算已锁定。");
+    await fetchSettlementLockHistoryV871();
+  } catch (error) {
+    alert(`锁定结算失败：${error.message || error}`);
+  }
+}
+
+// Override v8.7 functions if present.
+fetchSettlementLockHistoryV87 = fetchSettlementLockHistoryV871;
+lockSettlementV87 = lockSettlementV871;
+
+// Force generated actual lesson to persist the clicked planned row ID.
+function rememberPendingActualPlanV871(planId) {
+  state.pendingActualPlanId = planId || "";
+  if (planId) sessionStorage.setItem("pendingActualPlanIdV871", planId);
+}
+
+function consumePendingActualPlanV871() {
+  return state.pendingActualPlanId || sessionStorage.getItem("pendingActualPlanIdV871") || "";
+}
+
+const normalizeLessonPayloadBeforeV871 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
+normalizeLessonPayload = function(payload, type) {
+  if (normalizeLessonPayloadBeforeV871) payload = normalizeLessonPayloadBeforeV871(payload, type);
+
+  if (type === "lesson" && payload?.lesson_type === "actual") {
+    const pending = consumePendingActualPlanV871();
+    if (pending && !payload.planned_lesson_id) payload.planned_lesson_id = pending;
+  }
+
+  if (type === "lesson" && payload?.lesson_type === "planned") {
+    payload.planned_lesson_id = null;
+  }
+
+  return payload;
+};
+
+function makeActualFromPlannedV871(id) {
+  const plan = state.lessonRecords.find(x => x.id === id);
+  if (!plan) return;
+
+  rememberPendingActualPlanV871(plan.id);
+
+  const prefill = {
+    lesson_type: "actual",
+    planned_lesson_id: plan.id,
+    lesson_date: plan.lesson_date || todayStr(),
+    year_month: plan.year_month || currentYearMonth(),
+    student_id: plan.student_id || "",
+    teacher_id: plan.teacher_id || "",
+    subject_id: plan.subject_id || "",
+    business_entity_id: plan.business_entity_id || "",
+    start_time: plan.start_time || "",
+    end_time: plan.end_time || "",
+    duration_hours: plan.duration_hours || 0,
+    unit_price: plan.unit_price || 0,
+    lesson_fee: Number(plan.lesson_fee || (Number(plan.unit_price || 0) * Number(plan.duration_hours || 0)) || 0),
+    status: "completed",
+    is_billable: plan.is_billable !== false,
+    lesson_content: "",
+    note: "",
+  };
+
+  openCreateModal("lesson", prefill);
+
+  const form = document.getElementById("modalForm");
+  let hidden = form?.querySelector('input[name="planned_lesson_id"]');
+  if (!hidden && form) {
+    hidden = document.createElement("input");
+    hidden.type = "hidden";
+    hidden.name = "planned_lesson_id";
+    form.appendChild(hidden);
+  }
+  if (hidden) hidden.value = plan.id;
+
+  const title = document.getElementById("modalTitle");
+  if (title) title.textContent = "从预定生成实际课时";
+
+  if (typeof attachLessonAutoCalcV86 === "function") attachLessonAutoCalcV86();
+}
+makeActualFromPlanned = makeActualFromPlannedV871;
+
+// Add import fields into lesson whitelist if previous code has whitelist sanitizer.
+const normalizePayloadBeforeImportBatchV871 = typeof normalizePayload === "function" ? normalizePayload : null;
+if (normalizePayloadBeforeImportBatchV871) {
+  normalizePayload = function(payload, type) {
+    payload = normalizePayloadBeforeImportBatchV871(payload, type);
+    return payload;
+  };
+}
+
+function newImportBatchIdV871() {
+  return `lesson_import_${new Date().toISOString().replace(/[-:.TZ]/g, "")}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function selectedImportStudentNameV871() {
+  const select = document.getElementById("lessonStudentFilter");
+  return select?.selectedOptions?.[0]?.textContent?.trim() || "";
+}
+
+function ensureImportUndoPanelV871() {
+  const page = document.getElementById("page-lessons") || document.querySelector("[data-page='lessons']");
+  if (!page || page.querySelector("#lessonImportUndoPanelV871")) return;
+
+  const toolbar =
+    document.getElementById("lessonImportExcelBtn")?.closest(".toolbar, .actions, .page-actions, .section-title-row") ||
+    page.querySelector(".section-title-row") ||
+    page;
+
+  toolbar.insertAdjacentHTML("beforeend", `
+    <button class="secondary-btn" id="undoLastLessonImportV871" style="display:none;">撤回本次导入</button>
+  `);
+
+  document.getElementById("undoLastLessonImportV871")?.addEventListener("click", undoLastLessonImportV871);
+}
+
+function saveLastImportBatchV871(info) {
+  localStorage.setItem("lastLessonImportBatchV871", JSON.stringify(info));
+  updateUndoImportButtonV871();
+}
+
+function lastImportBatchV871() {
+  try { return JSON.parse(localStorage.getItem("lastLessonImportBatchV871") || "null"); }
+  catch { return null; }
+}
+
+function updateUndoImportButtonV871() {
+  const btn = document.getElementById("undoLastLessonImportV871");
+  if (!btn) return;
+  const info = lastImportBatchV871();
+  if (info?.batchId) {
+    btn.style.display = "";
+    btn.textContent = `撤回本次导入（${info.count || 0}条）`;
+  } else {
+    btn.style.display = "none";
+  }
+}
+
+async function undoLastLessonImportV871() {
+  const info = lastImportBatchV871();
+  if (!info?.batchId) {
+    showMessage("没有可撤回的导入批次。", "error");
+    return;
+  }
+
+  const ok = confirm(`确认撤回本次导入吗？\n学生：${info.studentName || ""}\n文件：${info.fileName || ""}\n记录数：${info.count || 0}\n\n撤回后会删除该批次导入的课时记录。`);
+  if (!ok) return;
+
+  const client = dbClientV871();
+  if (!client) {
+    showMessage("撤回失败：数据库客户端未初始化。", "error");
+    return;
+  }
+
+  const { error } = await client
+    .from(tables.lessons)
+    .delete()
+    .eq("import_batch_id", info.batchId);
+
+  if (error) {
+    showMessage(`撤回失败：${error.message}`, "error");
+    return;
+  }
+
+  localStorage.removeItem("lastLessonImportBatchV871");
+  await loadAll();
+  renderAll();
+  updateUndoImportButtonV871();
+  showMessage(`已撤回本次导入：${info.count || 0} 条。`, "ok");
+}
+
+async function importLessonExcelFileV871(file) {
+  if (!lessonExcelRequireXLSX()) return;
+
+  const ctx = selectedLessonImportContext();
+  if (!ctx.studentId) {
+    showMessage("导入前请先在课时管理筛选中选择学生。", "error");
+    return;
+  }
+
+  const studentName = selectedImportStudentNameV871();
+  const businessEntityId = state.students.find(x => x.id === ctx.studentId)?.business_entity_id || state.businessEntities[0]?.id || "";
+  const fallbackTeacherId = ctx.teacherId || "";
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
+
+  const headerIndex = findLessonImportHeaderRow(rows);
+  if (headerIndex < 0) {
+    showMessage("没有找到包含「科目 / 日期 / 时长」的预定课时表头。", "error");
+    return;
+  }
+
+  const col = buildLessonImportColumnMap(rows[headerIndex]);
+  const records = [];
+  let currentTeacherText = "";
+  let currentSubjectText = "";
+  let skipped = 0;
+  const batchId = newImportBatchIdV871();
+  const importedAt = new Date().toISOString();
+
+  for (let r = headerIndex + 1; r < rows.length; r++) {
+    const row = rows[r];
+    const lineText = row.map(x => String(x || "").trim()).join("");
+    if (!lineText) continue;
+    if (/合计|小计|總計|总计/.test(lineText)) continue;
+
+    const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
+    const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
+    if (teacherCell) currentTeacherText = teacherCell;
+    if (subjectCell) currentSubjectText = subjectCell;
+
+    const dateValue = col.date !== undefined ? row[col.date] : "";
+    const durationRaw = col.duration !== undefined ? row[col.duration] : "";
+    const weekStart = parseLessonExcelWeekStart(dateValue, ctx.baseYear);
+    const duration = numericExcelValue(durationRaw);
+
+    if (!weekStart || !duration) {
+      skipped++;
+      continue;
+    }
+
+    const subjectId = subjectIdFromExcelName(currentSubjectText) || ctx.subjectId;
+    const teacherId = teacherIdFromExcelName(currentTeacherText) || fallbackTeacherId;
+
+    if (!subjectId || !teacherId) {
+      skipped++;
+      continue;
+    }
+
+    const unitPrice = col.unitPrice !== undefined ? numericExcelValue(row[col.unitPrice]) : 0;
+    const lessonFee = col.lessonFee !== undefined ? numericExcelValue(row[col.lessonFee]) : (unitPrice && duration ? unitPrice * duration : 0);
+    const yearMonth = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, "0")}`;
+
+    records.push({
+      lesson_type: "planned",
+      lesson_date: formatDateYmd(weekStart),
+      year_month: yearMonth,
+      student_id: ctx.studentId,
+      teacher_id: teacherId,
+      subject_id: subjectId,
+      business_entity_id: businessEntityId || null,
+      start_time: col.start !== undefined ? String(row[col.start] || "") : "",
+      end_time: col.end !== undefined ? String(row[col.end] || "") : "",
+      duration_hours: duration,
+      unit_price: unitPrice || 0,
+      lesson_fee: lessonFee || 0,
+      lesson_content: col.content !== undefined ? String(row[col.content] || "") : "",
+      status: "planned",
+      is_billable: true,
+      note: `Excel导入：${sheetName} / ${weekLabelFromDate(weekStart)}${col.count !== undefined && row[col.count] ? " / 回数:" + row[col.count] : ""}`,
+      import_batch_id: batchId,
+      import_source: file.name || sheetName,
+      imported_at: importedAt,
+    });
+  }
+
+  if (!records.length) {
+    showMessage("没有读取到可导入的课时记录。请确认已选择学生，且模板中有日期、时长、科目和担当老师。", "error");
+    return;
+  }
+
+  const totalFee = records.reduce((sum, x) => sum + Number(x.lesson_fee || 0), 0);
+  const ok = confirm(`即将导入课时：\n\n学生：${studentName}\n文件：${file.name}\n读取记录：${records.length} 条\n预定课时费合计：${totalFee.toLocaleString()} JPY\n跳过行数：${skipped}\n\n确认导入吗？`);
+  if (!ok) return;
+
+  const client = dbClientV871();
+  if (!client) {
+    showMessage("导入失败：数据库客户端未初始化。", "error");
+    return;
+  }
+
+  const { error } = await client.from(tables.lessons).insert(records);
+  if (error) {
+    showMessage(`导入失败：${error.message}`, "error");
+    return;
+  }
+
+  saveLastImportBatchV871({
+    batchId,
+    studentId: ctx.studentId,
+    studentName,
+    fileName: file.name,
+    count: records.length,
+    importedAt,
+  });
+
+  await loadAll();
+  renderAll();
+  showMessage(`已导入 ${records.length} 条预定课时。可点击“撤回本次导入”删除本批次。`, "ok");
+}
+
+importLessonExcelFile = importLessonExcelFileV871;
+
+function bindLessonExcelActionsV871() {
+  ensureImportUndoPanelV871();
+
+  const importBtn = document.getElementById("lessonImportExcelBtn");
+  const importInput = document.getElementById("lessonImportExcelInput");
+  const exportBtn = document.getElementById("lessonExportExcelBtn");
+
+  if (importBtn) {
+    importBtn.onclick = () => {
+      const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+      if (!studentId) {
+        showMessage("请先在课时管理筛选中选择学生，再导入 Excel。", "error");
+        return;
+      }
+      importInput?.click();
+    };
+  }
+
+  if (importInput) {
+    importInput.onchange = async () => {
+      const file = importInput.files && importInput.files[0];
+      if (!file) return;
+      await importLessonExcelFileV871(file);
+      importInput.value = "";
+    };
+  }
+
+  if (exportBtn && typeof exportCurrentLessonsExcel === "function") {
+    exportBtn.onclick = exportCurrentLessonsExcel;
+  }
+
+  updateUndoImportButtonV871();
+}
+
+bindLessonExcelActions = bindLessonExcelActionsV871;
+
+// Bind v8.7.1 lesson buttons and actual generation
+function bindLessonButtonsV871() {
+  document.querySelectorAll("[data-create-actual]").forEach(btn => {
+    btn.onclick = () => makeActualFromPlannedV871(btn.dataset.createActual);
+  });
+  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
+    if (typeof copyLessonRecordV86 === "function") btn.onclick = () => copyLessonRecordV86(btn.dataset.copyLesson);
+    else if (typeof copyLessonRecordV59 === "function") btn.onclick = () => copyLessonRecordV59(btn.dataset.copyLesson);
+  });
+}
+bindLessonPairButtonsV59 = bindLessonButtonsV871;
+
+const renderLessonsBeforeV871 = typeof renderLessons === "function" ? renderLessons : null;
+if (renderLessonsBeforeV871) {
+  renderLessons = function() {
+    renderLessonsBeforeV871();
+    bindLessonButtonsV871();
+    bindLessonExcelActionsV871();
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    bindLessonButtonsV871();
+    bindLessonExcelActionsV871();
+    fetchSettlementLockHistoryV871();
+  }, 1000);
+});
+
+const renderAllBeforeV871 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV871) {
+  renderAll = function() {
+    renderAllBeforeV871();
+    bindLessonButtonsV871();
+    bindLessonExcelActionsV871();
+  };
+}
+

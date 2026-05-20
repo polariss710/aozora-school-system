@@ -2188,3 +2188,19 @@ button:disabled {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* === v8.7 settlement lock === */
+.settlement-lock-panel-v87{margin-top:18px;padding:18px;border:1px solid var(--line);border-radius:18px;background:#fff;box-shadow:var(--shadow-sm,0 10px 24px rgba(15,23,42,.06))}
+.settlement-lock-grid-v87{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(320px,1.2fr);gap:16px;margin-top:12px}
+.settlement-lock-summary-v87,.settlement-lock-form-v87{border:1px solid var(--line);border-radius:16px;padding:14px;background:#f8fafc}
+.settlement-lock-row-v87{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px dashed rgba(148,163,184,.55)}
+.settlement-lock-row-v87:last-child{border-bottom:none}
+.settlement-lock-form-v87{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.settlement-lock-form-v87 label{display:grid;gap:6px;color:var(--muted);font-size:13px;font-weight:700}
+.settlement-lock-form-v87 label.full{grid-column:1/-1}
+.settlement-lock-form-v87 input,.settlement-lock-form-v87 select,.settlement-lock-form-v87 textarea{border:1px solid var(--line);border-radius:12px;padding:9px 11px;font:inherit;background:#fff}
+.settlement-lock-actions-v87{grid-column:1/-1;display:flex;justify-content:flex-end;gap:10px}
+.settlement-result.due{color:#b91c1c}.settlement-result.credit{color:#047857}.settlement-result.clear{color:#2563eb}
+.settlement-lock-history-v87{margin-top:12px}
+.locked-settlement-v87{display:flex;flex-wrap:wrap;gap:10px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;padding:10px 12px;color:#166534}
+@media (max-width:900px){.settlement-lock-grid-v87{grid-template-columns:1fr}}

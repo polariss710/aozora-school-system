@@ -10556,3 +10556,200 @@ document.addEventListener("DOMContentLoaded", () => {
   setTimeout(removeIncomeOnlyFieldsFromNonIncomeFormsV864, 500);
 });
 
+
+
+// === v8.7 student settlement confirm / lock ===
+const SETTLEMENTS_TABLE_V87 = "school_student_monthly_settlements";
+
+function roundCnyV87(value) { return Math.round(Number(value || 0)); }
+function signedCnyV87(value) {
+  const n = roundCnyV87(value);
+  const sign = n > 0 ? "+" : "";
+  return `${sign}${n.toLocaleString()} CNY`;
+}
+function settlementStatusLabelV87(carryover) {
+  const n = roundCnyV87(carryover);
+  if (n > 0) return "需补交";
+  if (n < 0) return "有结余";
+  return "已结清";
+}
+function settlementStatusClassV87(carryover) {
+  const n = roundCnyV87(carryover);
+  if (n > 0) return "due";
+  if (n < 0) return "credit";
+  return "clear";
+}
+function selectedSettlementContextV87() {
+  const month = document.getElementById("settlementMonthFilter")?.value || currentYearMonth();
+  const studentId = document.getElementById("settlementStudentFilter")?.value || "";
+  const student = (state.students || []).find(x => x.id === studentId);
+  return { month, studentId, student };
+}
+function sumLessonsForSettlementV87(studentId, month, type) {
+  return (state.lessonRecords || [])
+    .filter(x => x.student_id === studentId && x.year_month === month && x.lesson_type === type && x.is_billable !== false && (type === "planned" || x.status === "completed" || x.status === "makeup"))
+    .reduce((sum, x) => sum + Number(x.lesson_fee || (Number(x.unit_price || 0) * Number(x.duration_hours || 0)) || 0), 0);
+}
+function sumIncomeForSettlementV87(studentId, month, currency) {
+  const sumFunc = typeof sumIncomeV86 === "function" ? sumIncomeV86 : (typeof sumIncomeV83 === "function" ? sumIncomeV83 : null);
+  if (sumFunc) return sumFunc(studentId, month, currency);
+  return (state.incomeRecords || [])
+    .filter(x => x.student_id === studentId && (x.settlement_month || x.year_month) === month && x.income_category === "tuition" && x.status === "received" && (x.payment_currency || x.currency || "CNY") === currency && x.include_in_student_settlement !== false)
+    .reduce((sum, x) => sum + Number(x.amount || 0), 0);
+}
+function computeSettlementSnapshotV87(adjustment = 0, reason = "") {
+  const { month, studentId, student } = selectedSettlementContextV87();
+  if (!studentId || !student) return null;
+  const rate = Number(student.preset_exchange_rate || 0);
+  const previousBalanceCny = Number(student.previous_balance_cny || 0);
+  const plannedJpy = sumLessonsForSettlementV87(studentId, month, "planned");
+  const actualJpy = sumLessonsForSettlementV87(studentId, month, "actual");
+  const plannedCny = plannedJpy * rate;
+  const actualCny = actualJpy * rate;
+  const receivedJpy = sumIncomeForSettlementV87(studentId, month, "JPY");
+  const receivedCny = sumIncomeForSettlementV87(studentId, month, "CNY");
+  const receivedEquivalentCny = receivedCny + receivedJpy * rate;
+  const systemDifferenceCny = actualCny - receivedEquivalentCny - previousBalanceCny;
+  const carryoverAmountCny = systemDifferenceCny + Number(adjustment || 0);
+  return {
+    student, student_id: studentId, year_month: month,
+    business_entity_id: student.business_entity_id || null,
+    preset_exchange_rate: rate,
+    planned_lesson_fee_jpy: plannedJpy,
+    planned_lesson_fee_cny: plannedCny,
+    actual_lesson_fee_jpy: actualJpy,
+    actual_lesson_fee_cny: actualCny,
+    previous_balance_cny: previousBalanceCny,
+    received_jpy: receivedJpy,
+    received_cny: receivedCny,
+    received_equivalent_cny: receivedEquivalentCny,
+    system_difference_cny: systemDifferenceCny,
+    adjustment_amount_cny: Number(adjustment || 0),
+    adjustment_reason: reason || "",
+    carryover_amount_cny: carryoverAmountCny,
+    settlement_status: "locked",
+    locked_at: new Date().toISOString()
+  };
+}
+function ensureSettlementPanelV87() {
+  const page = document.getElementById("page-student-settlement") || document.querySelector("[data-page='student-settlement']");
+  if (!page || page.querySelector("#settlementLockPanelV87")) return;
+  const html = `
+    <section class="settlement-lock-panel-v87" id="settlementLockPanelV87">
+      <div class="section-title-row">
+        <div><h3>结算确认 / 锁定</h3><p class="muted-small">确认本月结算结果，并处理汇率差额、尾差、小额差异。</p></div>
+        <button class="secondary-btn" id="refreshSettlementLockV87">刷新计算</button>
+      </div>
+      <div class="settlement-lock-grid-v87">
+        <div class="settlement-lock-summary-v87">
+          <div class="settlement-lock-row-v87"><span>系统计算差额</span><strong id="settlementSystemDiffV87">暂未计算</strong></div>
+          <div class="settlement-lock-row-v87"><span>调整后结转</span><strong id="settlementCarryoverV87">暂未计算</strong></div>
+          <div class="settlement-lock-row-v87"><span>结算状态</span><strong id="settlementStatusTextV87">暂未计算</strong></div>
+        </div>
+        <div class="settlement-lock-form-v87">
+          <label><span>差额处理方式</span><select id="settlementAdjustModeV87"><option value="carry">结转到下月</option><option value="clear">抹平差额</option><option value="custom">手动调整</option></select></label>
+          <label><span>调整金额（人民币）</span><input id="settlementAdjustmentAmountV87" type="number" step="1" value="0" /></label>
+          <label class="full"><span>调整原因 / 备注</span><textarea id="settlementAdjustmentReasonV87" rows="2" placeholder="例：汇率差额抹平"></textarea></label>
+          <div class="settlement-lock-actions-v87"><button class="secondary-btn" id="previewSettlementLockV87">预览结果</button><button class="primary-btn" id="lockSettlementV87">确认并锁定本月结算</button></div>
+        </div>
+      </div>
+      <div class="settlement-lock-history-v87" id="settlementLockHistoryV87"></div>
+    </section>`;
+  const anchor = page.querySelector("#settlementLessonsTable")?.closest(".section-card, .card, .table-wrap") || page.querySelector(".section-card:last-of-type") || page;
+  anchor.insertAdjacentHTML("afterend", html);
+  bindSettlementLockPanelV87();
+}
+function adjustmentFromPanelV87() {
+  const mode = document.getElementById("settlementAdjustModeV87")?.value || "carry";
+  const base = computeSettlementSnapshotV87(0, "");
+  if (!base) return { adjustment: 0, reason: "" };
+  if (mode === "clear") return { adjustment: -roundCnyV87(base.system_difference_cny), reason: document.getElementById("settlementAdjustmentReasonV87")?.value || "汇率差额/尾差抹平" };
+  if (mode === "custom") return { adjustment: Number(document.getElementById("settlementAdjustmentAmountV87")?.value || 0), reason: document.getElementById("settlementAdjustmentReasonV87")?.value || "手动调整" };
+  return { adjustment: 0, reason: document.getElementById("settlementAdjustmentReasonV87")?.value || "" };
+}
+function updateSettlementLockPreviewV87() {
+  ensureSettlementPanelV87();
+  const mode = document.getElementById("settlementAdjustModeV87")?.value || "carry";
+  const base = computeSettlementSnapshotV87(0, "");
+  if (!base) return;
+  if (mode === "clear") {
+    const input = document.getElementById("settlementAdjustmentAmountV87");
+    if (input) input.value = String(-roundCnyV87(base.system_difference_cny));
+    const reason = document.getElementById("settlementAdjustmentReasonV87");
+    if (reason && !reason.value) reason.value = "汇率差额/尾差抹平";
+  }
+  if (mode === "carry") {
+    const input = document.getElementById("settlementAdjustmentAmountV87");
+    if (input) input.value = "0";
+  }
+  const adj = adjustmentFromPanelV87();
+  const result = computeSettlementSnapshotV87(adj.adjustment, adj.reason);
+  if (!result) return;
+  const diffEl = document.getElementById("settlementSystemDiffV87");
+  const carryEl = document.getElementById("settlementCarryoverV87");
+  const statusEl = document.getElementById("settlementStatusTextV87");
+  if (diffEl) { diffEl.textContent = signedCnyV87(result.system_difference_cny); diffEl.className = `settlement-result ${settlementStatusClassV87(result.system_difference_cny)}`; }
+  if (carryEl) { carryEl.textContent = signedCnyV87(result.carryover_amount_cny); carryEl.className = `settlement-result ${settlementStatusClassV87(result.carryover_amount_cny)}`; }
+  if (statusEl) { statusEl.textContent = settlementStatusLabelV87(result.carryover_amount_cny); statusEl.className = `settlement-result ${settlementStatusClassV87(result.carryover_amount_cny)}`; }
+  const finalEl = document.getElementById("settlementFinalStatusCny");
+  if (finalEl) {
+    const label = settlementStatusLabelV87(result.carryover_amount_cny);
+    finalEl.textContent = roundCnyV87(result.carryover_amount_cny) === 0 ? "已结清" : `${label}：${signedCnyV87(result.carryover_amount_cny)}`;
+    finalEl.className = `settlement-result ${settlementStatusClassV87(result.carryover_amount_cny)}`;
+  }
+}
+async function fetchSettlementLockHistoryV87() {
+  const { month, studentId } = selectedSettlementContextV87();
+  const history = document.getElementById("settlementLockHistoryV87");
+  if (!history || !studentId) return;
+  try {
+    const { data, error } = await supabase.from(SETTLEMENTS_TABLE_V87).select("*").eq("student_id", studentId).eq("year_month", month).maybeSingle();
+    if (error && error.code !== "PGRST116") throw error;
+    if (!data) { history.innerHTML = `<div class="muted-small">当前月份尚未锁定。</div>`; return; }
+    history.innerHTML = `<div class="locked-settlement-v87"><strong>已锁定：</strong><span>${esc(data.year_month)}</span><span>${esc(settlementStatusLabelV87(data.carryover_amount_cny))}</span><span>结转 ${signedCnyV87(data.carryover_amount_cny)}</span><span>调整 ${signedCnyV87(data.adjustment_amount_cny)}</span><span>${data.locked_at ? esc(new Date(data.locked_at).toLocaleString()) : ""}</span></div>`;
+  } catch (error) {
+    history.innerHTML = `<div class="error-text">读取结算锁定状态失败：${esc(error.message || error)}</div>`;
+  }
+}
+async function lockSettlementV87() {
+  const adj = adjustmentFromPanelV87();
+  const snapshot = computeSettlementSnapshotV87(adj.adjustment, adj.reason);
+  if (!snapshot) { alert("请先选择学生和月份。"); return; }
+  const ok = confirm(`确认锁定 ${snapshot.year_month} 的结算吗？\n状态：${settlementStatusLabelV87(snapshot.carryover_amount_cny)}\n结转：${signedCnyV87(snapshot.carryover_amount_cny)}`);
+  if (!ok) return;
+  const payload = { ...snapshot };
+  delete payload.student;
+  try {
+    const { error } = await supabase.from(SETTLEMENTS_TABLE_V87).upsert(payload, { onConflict: "student_id,year_month" });
+    if (error) throw error;
+    alert("结算已锁定。");
+    await fetchSettlementLockHistoryV87();
+  } catch (error) {
+    alert(`锁定结算失败：${error.message || error}`);
+  }
+}
+function bindSettlementLockPanelV87() {
+  document.getElementById("refreshSettlementLockV87")?.addEventListener("click", () => { updateSettlementLockPreviewV87(); fetchSettlementLockHistoryV87(); });
+  document.getElementById("previewSettlementLockV87")?.addEventListener("click", updateSettlementLockPreviewV87);
+  document.getElementById("lockSettlementV87")?.addEventListener("click", lockSettlementV87);
+  document.getElementById("settlementAdjustModeV87")?.addEventListener("change", updateSettlementLockPreviewV87);
+  document.getElementById("settlementAdjustmentAmountV87")?.addEventListener("input", () => { const mode = document.getElementById("settlementAdjustModeV87"); if (mode) mode.value = "custom"; updateSettlementLockPreviewV87(); });
+  document.getElementById("settlementAdjustmentReasonV87")?.addEventListener("input", updateSettlementLockPreviewV87);
+}
+const renderStudentSettlementBeforeV87 = typeof renderStudentSettlement === "function" ? renderStudentSettlement : null;
+if (renderStudentSettlementBeforeV87) {
+  renderStudentSettlement = function() {
+    renderStudentSettlementBeforeV87();
+    ensureSettlementPanelV87();
+    updateSettlementLockPreviewV87();
+    fetchSettlementLockHistoryV87();
+  };
+}
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => { ensureSettlementPanelV87(); updateSettlementLockPreviewV87(); fetchSettlementLockHistoryV87(); }, 1000);
+});
+const renderAllBeforeV87 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV87) {
+  renderAll = function() { renderAllBeforeV87(); ensureSettlementPanelV87(); };
+}
+

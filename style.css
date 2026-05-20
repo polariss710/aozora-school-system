@@ -2236,3 +2236,9 @@ button:disabled {
 }
 
 #lessonImportCompletedExcelBtnV88{margin-left:8px}.expense-reimbursed-badge-v88{margin-left:6px;white-space:nowrap}
+
+/* === v8.8.1 reimbursed badge === */
+.expense-reimbursed-badge-v881 {
+  margin-left: 6px;
+  white-space: nowrap;
+}

@@ -11883,3 +11883,166 @@ document.addEventListener("DOMContentLoaded",()=>setTimeout(()=>{ensureCompleted
 const renderAllBeforeV88=typeof renderAll==="function"?renderAll:null;
 if(renderAllBeforeV88){renderAll=function(){renderAllBeforeV88();ensureCompletedImportButtonV88();applyReimbursedLabelsV88();};}
 
+
+
+// === v8.8.1 expense reimbursed status robust fix ===
+// 之前只是尝试根据 expense 本身是否带 reimbursement_id / reimbursed_at 来显示“已报销”。
+// 实际报销流程可能只在报销记录或报销明细里保存关联，所以支出本身不会自动有这些字段。
+// 本版改为从报销记录 + 明细 + 本地状态多路径判断。
+
+function collectReimbursedExpenseIdsV881() {
+  const ids = new Set();
+
+  const addId = (value) => {
+    if (value !== null && value !== undefined && String(value).trim()) ids.add(String(value).trim());
+  };
+
+  // 1. expense 自身字段
+  (state.expenseRecords || []).forEach(exp => {
+    const statusText = `${exp.status || ""} ${exp.reimbursement_status || ""}`.toLowerCase();
+    if (
+      exp.reimbursement_id ||
+      exp.reimbursed_at ||
+      exp.reimbursement_record_id ||
+      statusText.includes("reimbursed") ||
+      statusText.includes("已报销")
+    ) {
+      addId(exp.id);
+    }
+  });
+
+  // 2. 报销记录中可能直接保存 expense_ids / expenseIds / expense_id
+  (state.reimbursementRecords || state.reimbursements || []).forEach(reim => {
+    const statusText = `${reim.status || ""}`.toLowerCase();
+    const isActive = !/cancel|delete|void|取消|删除|作废/.test(statusText);
+    if (!isActive) return;
+
+    addId(reim.expense_id);
+
+    const possibleArrays = [
+      reim.expense_ids,
+      reim.expenseIds,
+      reim.expenses,
+      reim.selected_expense_ids,
+      reim.reimbursed_expense_ids,
+    ];
+
+    possibleArrays.forEach(arr => {
+      if (Array.isArray(arr)) {
+        arr.forEach(x => {
+          if (typeof x === "object") addId(x.id || x.expense_id);
+          else addId(x);
+        });
+      } else if (typeof arr === "string") {
+        try {
+          const parsed = JSON.parse(arr);
+          if (Array.isArray(parsed)) parsed.forEach(x => typeof x === "object" ? addId(x.id || x.expense_id) : addId(x));
+        } catch {
+          arr.split(",").forEach(addId);
+        }
+      }
+    });
+  });
+
+  // 3. 报销明细表/本地明细状态
+  const detailLists = [
+    state.reimbursementExpenseRecords,
+    state.reimbursementExpenseLinks,
+    state.reimbursementDetails,
+    state.reimbursementItems,
+    state.reimbursementExpenseItems,
+  ];
+
+  detailLists.forEach(list => {
+    (list || []).forEach(row => {
+      const statusText = `${row.status || ""}`.toLowerCase();
+      const isActive = !/cancel|delete|void|取消|删除|作废/.test(statusText);
+      if (isActive) addId(row.expense_id || row.expense_record_id || row.id);
+    });
+  });
+
+  return ids;
+}
+
+function isExpenseReimbursedV881(item) {
+  if (!item) return false;
+  const ids = collectReimbursedExpenseIdsV881();
+  return ids.has(String(item.id));
+}
+
+function expenseStatusTextV881(item) {
+  const base = typeof expenseStatusLabel === "function"
+    ? expenseStatusLabel(item.status)
+    : (item.status === "paid" ? "已支付" : item.status === "unpaid" ? "未支付" : (item.status || ""));
+  return isExpenseReimbursedV881(item) ? `${base} / 已报销` : base;
+}
+
+function applyReimbursedLabelsV881() {
+  const reimbursedIds = collectReimbursedExpenseIdsV881();
+
+  document.querySelectorAll("tr").forEach(tr => {
+    const editBtn = tr.querySelector("[data-edit][data-type='expense']");
+    const delBtn = tr.querySelector("[data-delete][data-type='expense']");
+    const id = editBtn?.dataset?.edit || delBtn?.dataset?.delete;
+    if (!id || !reimbursedIds.has(String(id))) return;
+
+    if (tr.querySelector(".expense-reimbursed-badge-v88, .expense-reimbursed-badge-v881")) return;
+
+    // 优先放到包含状态文字的单元格，找不到就放到操作列前一格
+    const statusCell =
+      Array.from(tr.children).find(td => /已支付|未支付|待确认|paid|pending|报销/i.test(td.textContent || "")) ||
+      tr.children[Math.max(0, tr.children.length - 2)];
+
+    if (statusCell) {
+      statusCell.insertAdjacentHTML("beforeend", `<span class="badge green expense-reimbursed-badge-v881">已报销</span>`);
+    }
+  });
+}
+
+// 如果页面渲染支出状态时调用了某些状态格式化函数，尽量覆盖为带“已报销”的状态。
+if (typeof expenseStatusLabel === "function") {
+  const expenseStatusLabelBeforeV881 = expenseStatusLabel;
+  expenseStatusLabel = function(status, item) {
+    const base = expenseStatusLabelBeforeV881(status, item);
+    if (item && isExpenseReimbursedV881(item)) return `${base} / 已报销`;
+    return base;
+  };
+}
+
+// 部分版本有独立 renderExpenses，渲染后补标识。
+const renderExpensesBeforeV881 = typeof renderExpenses === "function" ? renderExpenses : null;
+if (renderExpensesBeforeV881) {
+  renderExpenses = function() {
+    renderExpensesBeforeV881();
+    setTimeout(applyReimbursedLabelsV881, 0);
+  };
+}
+
+const renderReimbursementsBeforeV881 = typeof renderReimbursements === "function" ? renderReimbursements : null;
+if (renderReimbursementsBeforeV881) {
+  renderReimbursements = function() {
+    renderReimbursementsBeforeV881();
+    setTimeout(applyReimbursedLabelsV881, 0);
+  };
+}
+
+// 如果报销保存后没有刷新完整数据，补一次刷新和状态标记。
+const renderAllBeforeV881 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV881) {
+  renderAll = function() {
+    renderAllBeforeV881();
+    setTimeout(applyReimbursedLabelsV881, 0);
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(applyReimbursedLabelsV881, 1000);
+});
+
+// 调试辅助：在 console 可执行 debugReimbursedExpenseIdsV881()
+function debugReimbursedExpenseIdsV881() {
+  const ids = Array.from(collectReimbursedExpenseIdsV881());
+  console.log("reimbursed expense ids", ids);
+  return ids;
+}
+

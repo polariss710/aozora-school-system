@@ -1595,6 +1595,7 @@ function resetFormSavingStateV71(form, submitButton) {
 }
 
 async function saveForm(e) {
+  e = e || { preventDefault(){}, stopPropagation(){}, stopImmediatePropagation(){} };
   e.preventDefault();
   const form = e.target;
   const submitButton = form?.querySelector('button[type="submit"], .primary-btn');
@@ -4310,20 +4311,44 @@ function lessonSubjectOrderV77(item) {
 }
 
 function compareLessonsV77(a, b) {
-  // 月份升序 → 周/日期升序 → 老师顺序 → 科目顺序 → 开始时间
+  // v8.9-clean: 月份 → 科目优先级 → 老师 → 日期 → 回数 → 开始时间
   const month = String(a.year_month || "").localeCompare(String(b.year_month || ""));
   if (month !== 0) return month;
 
-  const date = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
-  if (date !== 0) return date;
+  const subject = lessonSubjectOrderClean(a).localeCompare(lessonSubjectOrderClean(b));
+  if (subject !== 0) return subject;
 
   const teacher = lessonTeacherOrderV77(a).localeCompare(lessonTeacherOrderV77(b));
   if (teacher !== 0) return teacher;
 
-  const subject = lessonSubjectOrderV77(a).localeCompare(lessonSubjectOrderV77(b));
-  if (subject !== 0) return subject;
+  const date = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
+  if (date !== 0) return date;
 
-  return String(a.start_time || "").localeCompare(String(b.start_time || ""));
+  const ac = lessonCountNumberClean(a);
+  const bc = lessonCountNumberClean(b);
+  if (ac !== null || bc !== null) {
+    if (ac === null) return 1;
+    if (bc === null) return -1;
+    if (ac !== bc) return ac - bc;
+  }
+
+  const time = String(a.start_time || "").localeCompare(String(b.start_time || ""));
+  if (time !== 0) return time;
+
+  return String(a.id || "").localeCompare(String(b.id || ""));
+}
+
+function lessonCountNumberClean(row) {
+  if (row?.lesson_count === null || row?.lesson_count === undefined || row?.lesson_count === "") return null;
+  const n = Number(String(row.lesson_count).replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+function lessonSubjectOrderClean(row) {
+  const name = row?.subject?.name || "";
+  const order = ["日语", "数学", "物理", "化学", "生物", "文综"];
+  const idx = order.findIndex(x => name.includes(x));
+  return `${String(idx < 0 ? 99 : idx).padStart(2, "0")}_${name}`;
 }
 
 function selectAllLessonsV77() {
@@ -6289,8 +6314,8 @@ function makeActualFromPlannedV837(id) {
 }
 
 function renderLessonRowsV837(rows) {
-  const plannedRows = rows.filter(x => x.lesson_type === "planned");
-  const actualRows = rows.filter(x => x.lesson_type === "actual");
+  const plannedRows = rows.filter(x => x.lesson_type === "planned").slice().sort(compareLessonsV77);
+  const actualRows = rows.filter(x => x.lesson_type === "actual").slice().sort(compareLessonsV77);
   const actualByPlan = new Map();
   const unlinkedActual = [];
 
@@ -6312,9 +6337,7 @@ function renderLessonRowsV837(rows) {
     }
   });
 
-  const sortFn = typeof compareLessonsV78 === "function"
-    ? compareLessonsV78
-    : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
+  for (const list of actualByPlan.values()) list.sort(compareLessonsV77);
 
   const html = [];
   let lastMonth = "";
@@ -6330,10 +6353,10 @@ function renderLessonRowsV837(rows) {
     }
   }
 
-  plannedRows.slice().sort(sortFn).forEach(plan => {
+  plannedRows.forEach(plan => {
     const ym = plan.year_month || "未归属月份";
     addMonthRow(ym);
-    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
+    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(compareLessonsV77);
     if (!actuals.length) {
       html.push(`<tr class="lesson-pair-row v837">${lessonPairCellsV837(plan, "planned")}${lessonPairCellsV837(null, "actual")}</tr>`);
     } else {
@@ -6346,7 +6369,7 @@ function renderLessonRowsV837(rows) {
     }
   });
 
-  unlinkedActual.slice().sort(sortFn).forEach(actual => {
+  unlinkedActual.slice().sort(compareLessonsV77).forEach(actual => {
     const ym = actual.year_month || "未归属月份";
     addMonthRow(ym);
     html.push(`<tr class="lesson-pair-row v837">${lessonPairCellsV837(null, "planned")}${lessonPairCellsV837(actual, "actual")}</tr>`);
@@ -6368,11 +6391,13 @@ function renderLessonsV837() {
   const tbody = document.getElementById("lessonsTable");
   if (!tbody) return;
   updateLessonFilters();
-  const rows = filterLessons().slice().sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
+  const rows = filterLessons().slice().sort(compareLessonsV77);
   renderLessonStats(rows);
   tbody.innerHTML = renderLessonRowsV837(rows) || `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
   bindLessonButtonsV837();
   if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
+  if (typeof patchLessonCountDisplayV886 === "function") patchLessonCountDisplayV886();
+  if (typeof patchActualTimeDisplayV888 === "function") patchActualTimeDisplayV888();
 }
 
 renderLessons = renderLessonsV837;
@@ -14666,209 +14691,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-// === v8.9.4 stable lesson patch ===
-// Important: v8.9.1-v8.9.3 introduced bad save click handlers and unstable lesson table rendering.
-// This version is based on the stable v8.8.13 code line and only applies two targeted fixes:
-// 1) lesson ordering inside the stable v8.8.x table layout
-// 2) saveForm missing event argument safety
-
-function saveEventStubV894() {
-  return {
-    preventDefault() {},
-    stopPropagation() {},
-    stopImmediatePropagation() {},
-  };
-}
-
-// Safety: if any caller invokes saveForm() without event, supply a stub.
-const saveFormBeforeV894 = typeof saveForm === "function" ? saveForm : null;
-if (saveFormBeforeV894) {
-  saveForm = async function(e, ...args) {
-    return saveFormBeforeV894.call(this, e || saveEventStubV894(), ...args);
-  };
-}
-
-function lessonCountNumberV894(row) {
-  if (row?.lesson_count === null || row?.lesson_count === undefined || row?.lesson_count === "") return null;
-  const n = Number(String(row.lesson_count).replace(/[^\d.-]/g, ""));
-  return Number.isFinite(n) ? n : null;
-}
-
-function lessonSubjectPriorityV894(row) {
-  const name = row?.subject?.name || row?.subject_name || "";
-  const order = ["日语", "数学", "物理", "化学", "生物", "文综"];
-  const idx = order.findIndex(x => name.includes(x));
-  return idx < 0 ? 99 : idx;
-}
-
-function lessonTeacherNameV894(row) {
-  return row?.teacher?.display_name || row?.teacher?.name || row?.teacher_name || row?.teacher_id || "";
-}
-
-// Desired visual grouping/order:
-// month -> subject priority -> teacher -> date -> lesson_count -> start_time
-function compareLessonsV894(a, b) {
-  const month = String(a?.year_month || "").localeCompare(String(b?.year_month || ""));
-  if (month) return month;
-
-  const subject = lessonSubjectPriorityV894(a) - lessonSubjectPriorityV894(b);
-  if (subject) return subject;
-
-  const subjectName = String(a?.subject?.name || "").localeCompare(String(b?.subject?.name || ""), "zh-Hans-CN");
-  if (subjectName) return subjectName;
-
-  const teacher = String(lessonTeacherNameV894(a)).localeCompare(String(lessonTeacherNameV894(b)), "zh-Hans-CN");
-  if (teacher) return teacher;
-
-  const date = String(a?.lesson_date || "").localeCompare(String(b?.lesson_date || ""));
-  if (date) return date;
-
-  const ac = lessonCountNumberV894(a);
-  const bc = lessonCountNumberV894(b);
-  if (ac !== null || bc !== null) {
-    if (ac === null) return 1;
-    if (bc === null) return -1;
-    if (ac !== bc) return ac - bc;
-  }
-
-  const start = String(a?.start_time || "").localeCompare(String(b?.start_time || ""));
-  if (start) return start;
-
-  const created = String(a?.created_at || "").localeCompare(String(b?.created_at || ""));
-  if (created) return created;
-
-  return String(a?.id || "").localeCompare(String(b?.id || ""));
-}
-
-compareLessonsV77 = compareLessonsV894;
-compareLessonsV78 = compareLessonsV894;
-compareLessonsV83 = compareLessonsV894;
-compareLessonsV872 = compareLessonsV894;
-compareLessonsV8813 = compareLessonsV894;
-
-// Hard-patch only the stable row builder. Keep v8.8.x table HTML/CSS/classes.
-function renderLessonRowsV894(rows) {
-  const plannedRows = rows.filter(x => x.lesson_type === "planned").sort(compareLessonsV894);
-  const actualRows = rows.filter(x => x.lesson_type === "actual").sort(compareLessonsV894);
-
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actualRows.forEach(actual => {
-    let planId = actual.planned_lesson_id;
-
-    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
-      const matched = schoolStableFindMatchingPlannedLessonV70(actual);
-      if (matched) planId = matched.id;
-    }
-
-    if (!planId && typeof findMatchingPlannedLesson === "function") {
-      const matched = findMatchingPlannedLesson(actual);
-      if (matched) planId = matched.id;
-    }
-
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(actual);
-    } else {
-      unlinkedActual.push(actual);
-    }
-  });
-
-  for (const list of actualByPlan.values()) list.sort(compareLessonsV894);
-
-  const html = [];
-  let lastMonth = "";
-
-  function addMonthRow(ym) {
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="12">${esc(expenseMonthLabel(ym))}</td></tr>`);
-      html.push(`<tr class="lesson-sub-head-body">
-        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容/操作</th>
-        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容/操作</th>
-      </tr>`);
-    }
-  }
-
-  const cells = typeof lessonPairCellsV837 === "function"
-    ? lessonPairCellsV837
-    : (typeof lessonPairCellsFinalV835 === "function" ? lessonPairCellsFinalV835 : lessonPairCells);
-
-  plannedRows.forEach(plan => {
-    const ym = plan.year_month || "未归属月份";
-    addMonthRow(ym);
-
-    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(compareLessonsV894);
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v837">${cells(plan, "planned")}${cells(null, "actual")}</tr>`);
-    } else {
-      actuals.forEach((actual, index) => {
-        const left = index === 0
-          ? cells(plan, "planned")
-          : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row v837">${left}${cells(actual, "actual")}</tr>`);
-      });
-    }
-  });
-
-  unlinkedActual.slice().sort(compareLessonsV894).forEach(actual => {
-    const ym = actual.year_month || "未归属月份";
-    addMonthRow(ym);
-    html.push(`<tr class="lesson-pair-row v837">${cells(null, "planned")}${cells(actual, "actual")}</tr>`);
-  });
-
-  return html.join("");
-}
-
-renderLessonRowsV837 = renderLessonRowsV894;
-
-// Stable render, no new table HTML.
-function renderLessonsV894() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-
-  updateLessonFilters();
-  const rows = filterLessons().slice().sort(compareLessonsV894);
-
-  if (typeof renderLessonStatsV8813 === "function") renderLessonStatsV8813(rows);
-  else if (typeof renderLessonStatsV8812 === "function") renderLessonStatsV8812(rows);
-  else if (typeof renderLessonStats === "function") renderLessonStats(rows);
-
-  tbody.innerHTML = renderLessonRowsV894(rows) || `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-
-  if (typeof bindLessonButtonsV837 === "function") bindLessonButtonsV837();
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-  if (typeof patchLessonCountDisplayV886 === "function") patchLessonCountDisplayV886();
-  if (typeof patchActualTimeDisplayV888 === "function") patchActualTimeDisplayV888();
-  if (typeof updateLessonButtonsDisabledV891 === "function") updateLessonButtonsDisabledV891();
-  if (typeof updateLessonButtonsDisabledV887 === "function") updateLessonButtonsDisabledV887();
-}
-
-renderLessons = renderLessonsV894;
-renderLessonsV837 = renderLessonsV894;
-
-const switchPageBeforeV894 = typeof switchPage === "function" ? switchPage : null;
-if (switchPageBeforeV894) {
-  switchPage = function(page) {
-    switchPageBeforeV894(page);
-    if (page === "lessons") setTimeout(renderLessonsV894, 0);
-  };
-}
-
-const renderAllBeforeV894 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV894) {
-  renderAll = function() {
-    renderAllBeforeV894();
-    if (document.getElementById("page-lessons")?.classList.contains("active")) {
-      setTimeout(renderLessonsV894, 0);
-    }
-  };
-}
+// === v8.9-clean final consistency ===
+compareLessonsV78 = compareLessonsV77;
+compareLessonsV83 = compareLessonsV77;
+compareLessonsV872 = compareLessonsV77;
+compareLessonsV8813 = compareLessonsV77;
+renderLessons = renderLessonsV837;
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    if (document.getElementById("page-lessons")?.classList.contains("active")) renderLessonsV894();
+    if (document.getElementById("page-lessons")?.classList.contains("active")) renderLessonsV837();
   }, 1000);
 });
 

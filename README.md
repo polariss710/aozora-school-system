@@ -127,17 +127,15 @@
 
 
 
-### v8.9.4
-- 基于 v8.8.13 稳定版重新制作，不再继承 v8.9.1-v8.9.3 的问题代码。
-- 修复 v8.9.3 仍然存在的两个问题：
-  - 课时表格输出崩坏
-  - 保存时报 `preventDefault` undefined
-- 保持 v8.8.13 的稳定课时表格结构：
-  - 标题栏
-  - 子标题行
-  - 12 列 paired view
-  - checkbox / 日期 / 科目 / 内容操作列旧样式
-- 只替换稳定 row builder 的排序逻辑。
+### v8.9-clean
+- 课时管理 clean 版。
+- 基于 v8.8.13 稳定版制作，不继承 v8.9.1-v8.9.4 的问题代码。
+- 本版不重写表格 HTML，不改变既有稳定画面结构。
+- 直接替换旧函数本体：
+  - `saveForm(e)`：增加 event 兜底，避免 `preventDefault` undefined
+  - `compareLessonsV77`：统一排序规则
+  - `renderLessonRowsV837`：保留旧表格结构，只替换排序与配对顺序
+  - `renderLessonsV837`：固定使用 clean 排序和 clean row builder
 - 排序规则：
   - 月份
   - 科目优先级
@@ -145,8 +143,11 @@
   - 日期
   - 回数
   - 开始时间
-- 保存函数增加兜底：
-  - 如果旧调用没有传 event，则自动补一个安全 event stub。
+- 保留 v8.8.13 的稳定画面：
+  - 标题栏
+  - 子标题行
+  - 12 列 paired view
+  - checkbox / 日期 / 科目 / 内容操作列旧样式
 - 本版无 SQL 修改。
 
 ### v8.8.13

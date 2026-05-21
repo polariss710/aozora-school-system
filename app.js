@@ -13753,3 +13753,169 @@ if (renderLessonsBeforeV888) {
 }
 document.addEventListener("DOMContentLoaded", () => setTimeout(patchActualTimeDisplayV888, 1000));
 
+
+
+// === v8.8.9 settlement makeup lesson logic ===
+// 月度结算要和课时管理保持同一套状态逻辑：
+// 已上课(completed) / 已补课(makeup_completed) 计入实际课时；
+// 待补课(pending_makeup) 不生成/不计入实际课时。
+// 同时用 year_month 作为结算归属月份，因此跨月补课也能算回预定月份。
+
+function isActualBillableSettlementStatusV889(row) {
+  if (!row || row.lesson_type !== "actual") return false;
+  const status = String(row.status || "").trim();
+  return (
+    status === "completed" ||
+    status === "makeup_completed" ||
+    status === "makeup" ||
+    status === "已上课" ||
+    status === "已补课" ||
+    status === "已上" ||
+    status === "已补"
+  );
+}
+
+function settlementLessonsForMonthV889(studentId, month) {
+  return (state.lessonRecords || []).filter(x =>
+    x.student_id === studentId &&
+    x.year_month === month &&
+    x.is_billable !== false
+  );
+}
+
+function settlementPlannedLessonsV889(studentId, month) {
+  return settlementLessonsForMonthV889(studentId, month).filter(x => x.lesson_type === "planned");
+}
+
+function settlementActualLessonsV889(studentId, month) {
+  return settlementLessonsForMonthV889(studentId, month).filter(isActualBillableSettlementStatusV889);
+}
+
+function lessonFeeForSettlementV889(row) {
+  return Number(row?.lesson_fee || (Number(row?.unit_price || 0) * Number(row?.duration_hours || 0)) || 0);
+}
+
+function sumLessonFeeForSettlementV889(rows) {
+  return (rows || []).reduce((sum, row) => sum + lessonFeeForSettlementV889(row), 0);
+}
+
+// Patch lock/preview calculation.
+sumLessonsForSettlementV87 = function(studentId, month, type) {
+  const rows = type === "planned"
+    ? settlementPlannedLessonsV889(studentId, month)
+    : settlementActualLessonsV889(studentId, month);
+  return sumLessonFeeForSettlementV889(rows);
+};
+
+// Patch visible monthly settlement page.
+function renderStudentSettlementV889() {
+  fillStudentSelectV83("settlementStudentFilter");
+  const month = document.getElementById("settlementMonthFilter")?.value || currentYearMonth();
+  const studentId = document.getElementById("settlementStudentFilter")?.value || "";
+  const student = (state.students || []).find(x => x.id === studentId);
+  const hint = document.getElementById("settlementStudentHint");
+
+  if (hint) {
+    hint.classList.toggle("ok", !!studentId && !!student && Number(student.preset_exchange_rate || 0) > 0);
+    hint.textContent = !studentId ? "学生必选" : (rateErrorTextV834(student) || "已选择学生");
+  }
+
+  if (!studentId || !student) {
+    ["settlementPlannedHours", "settlementActualHours", "settlementPlannedJpy", "settlementActualJpy",
+     "settlementPrevBalanceCny", "settlementExchangeRate", "settlementPlannedJpy2", "settlementPlannedCny",
+     "settlementPlannedTotalCny", "settlementActualJpy2", "settlementActualCny", "settlementReceivedCny", "settlementReceivedJpy"].forEach(id => setOptionalText(id, "0"));
+    const tbody = document.getElementById("settlementLessonsTable");
+    if (tbody) tbody.innerHTML = `<tr><td colspan="12" class="empty-row">请先选择学生</td></tr>`;
+    return;
+  }
+
+  const rate = Number(student.preset_exchange_rate || 0);
+  if (rate <= 0) {
+    showMessage(rateErrorTextV834(student), "error");
+  }
+
+  const planned = settlementPlannedLessonsV889(studentId, month);
+  const actual = settlementActualLessonsV889(studentId, month);
+
+  const prevBalanceCny = Number(student.previous_balance_cny || 0);
+  const plannedJpy = sumLessonFeeForSettlementV889(planned);
+  const actualJpy = sumLessonFeeForSettlementV889(actual);
+  const plannedCny = plannedJpy * rate;
+  const actualCny = actualJpy * rate;
+  const plannedTotalCny = plannedCny - prevBalanceCny;
+  const receivedCny = sumIncomeV83(studentId, month, "CNY");
+  const receivedJpy = sumIncomeV83(studentId, month, "JPY");
+
+  setOptionalText("settlementPlannedHours", money(sumLessonHoursV83(planned)));
+  setOptionalText("settlementActualHours", money(sumLessonHoursV83(actual)));
+  setOptionalText("settlementPlannedJpy", formatJpyV83(plannedJpy));
+  setOptionalText("settlementActualJpy", formatJpyV83(actualJpy));
+
+  setOptionalText("settlementPrevBalanceCny", formatCnyV83(prevBalanceCny));
+  setOptionalText("settlementExchangeRate", money(rate));
+  setOptionalText("settlementPlannedJpy2", formatJpyV83(plannedJpy));
+  setOptionalText("settlementPlannedCny", formatCnyV83(plannedCny));
+  setOptionalText("settlementPlannedTotalCny", formatCnyV83(plannedTotalCny));
+
+  setOptionalText("settlementActualJpy2", formatJpyV83(actualJpy));
+  setOptionalText("settlementActualCny", formatCnyV83(actualCny));
+  setOptionalText("settlementReceivedCny", formatCnyV83(receivedCny));
+  setOptionalText("settlementReceivedJpy", formatCnyV83(receivedJpy));
+
+  renderSettlementPairedLessonsV834(planned, actual);
+
+  if (typeof updateSettlementLockPreviewV87 === "function") {
+    setTimeout(updateSettlementLockPreviewV87, 0);
+  }
+}
+
+renderStudentSettlement = renderStudentSettlementV889;
+renderStudentSettlementV834 = renderStudentSettlementV889;
+
+function bindStudentSettlementV889() {
+  if (typeof fillStudentSelectV83 === "function") fillStudentSelectV83("settlementStudentFilter");
+
+  const refresh = document.getElementById("settlementRefreshBtn");
+  if (refresh) refresh.onclick = renderStudentSettlementV889;
+
+  const month = document.getElementById("settlementMonthFilter");
+  if (month) month.onchange = renderStudentSettlementV889;
+
+  const student = document.getElementById("settlementStudentFilter");
+  if (student) student.onchange = renderStudentSettlementV889;
+
+  renderStudentSettlementV889();
+}
+bindStudentSettlementV834 = bindStudentSettlementV889;
+
+const renderAllBeforeV889 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV889) {
+  renderAll = function() {
+    renderAllBeforeV889();
+    bindStudentSettlementV889();
+  };
+}
+
+const switchPageBeforeV889 = typeof switchPage === "function" ? switchPage : null;
+if (switchPageBeforeV889) {
+  switchPage = function(page) {
+    switchPageBeforeV889(page);
+    if (page === "student-settlement") {
+      bindStudentSettlementV889();
+    }
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(bindStudentSettlementV889, 800);
+});
+
+function debugSettlementLessonsV889(studentId, month) {
+  const planned = settlementPlannedLessonsV889(studentId, month);
+  const actual = settlementActualLessonsV889(studentId, month);
+  console.log("settlement planned", planned);
+  console.log("settlement actual", actual);
+  console.log("planned fee", sumLessonFeeForSettlementV889(planned), "actual fee", sumLessonFeeForSettlementV889(actual));
+  return { planned, actual };
+}
+

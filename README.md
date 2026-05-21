@@ -127,6 +127,25 @@
 
 
 
+
+### v9.0
+- 第一阶段 JS 模块化整理版。
+- 基于已测试通过的 v8.8.13.2 制作。
+- 功能逻辑保持 v8.8.13.2 不变，优先保证稳定性。
+- 拆分后的文件结构：
+  - `js/legacy-core.js`：当前已测试通过的主体逻辑
+  - `js/modules/form-save-fix.js`：保存/登录 event 修复
+  - `js/modules/lessons.js`：课时管理模块边界
+  - `js/modules/lesson-import.js`：完整课时导入模块边界
+  - `js/modules/student-settlement.js`：学生月度结算模块边界
+  - `js/modules/income.js`：收入记录模块边界
+  - `js/modules/expense.js`：支出记录模块边界
+  - `js/modules/reimbursements.js`：报销管理模块边界
+  - `app.js`：轻量启动入口和版本标识
+- 本阶段不重写课时管理渲染，不改变画面和业务逻辑。
+- 后续修改按模块进行，不再在单一 app.js 末尾继续叠加补丁。
+- 本版无 SQL 修改。
+
 ### v8.8.13.2
 - 基于 v8.8.13 稳定版制作。
 - 不修改课时管理画面输出。

@@ -14666,299 +14666,54 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-// === v8.8.14 hard override lesson paired render order ===
-// v8.8.13 only patched compareLessons, but an older renderLessons wrapper still rendered using
-// its own old order. This version hard-overrides renderLessons itself.
+// === v8.9.1 lesson stable rebuild ===
+// This version intentionally restores the v8.8.13 visual/table baseline.
+// It does NOT hard-rewrite the lesson table HTML.
+// It only patches:
+// - sorting by subject/date/count
+// - create-actual/save modal submit safety
+// - lesson status labels/options
+// - button disabled state
 
-function lessonCountNumberV8814(row) {
-  const value = row?.lesson_count;
-  if (value === null || value === undefined || value === "") return null;
-  const n = Number(String(value).replace(/[^\d.-]/g, ""));
-  return Number.isFinite(n) ? n : null;
-}
-
-function lessonTeacherOrderV8814(row) {
-  if (typeof lessonTeacherOrderV77 === "function") return lessonTeacherOrderV77(row);
-  return row?.teacher?.display_name || row?.teacher?.name || row?.teacher_id || "";
-}
-
-function lessonSubjectOrderV8814(row) {
-  if (typeof lessonSubjectOrderV77 === "function") return lessonSubjectOrderV77(row);
-  const name = row?.subject?.name || row?.subject_name || "";
-  const order = ["日语", "数学", "物理", "化学", "生物", "文综"];
-  const idx = order.findIndex(x => name.includes(x));
-  return `${String(idx < 0 ? 99 : idx).padStart(2, "0")}_${name}`;
-}
-
-function compareLessonsV8814(a, b) {
-  const month = String(a?.year_month || "").localeCompare(String(b?.year_month || ""));
-  if (month) return month;
-
-  const teacher = String(lessonTeacherOrderV8814(a)).localeCompare(String(lessonTeacherOrderV8814(b)));
-  if (teacher) return teacher;
-
-  const subject = String(lessonSubjectOrderV8814(a)).localeCompare(String(lessonSubjectOrderV8814(b)));
-  if (subject) return subject;
-
-  const date = String(a?.lesson_date || "").localeCompare(String(b?.lesson_date || ""));
-  if (date) return date;
-
-  const ac = lessonCountNumberV8814(a);
-  const bc = lessonCountNumberV8814(b);
-  if (ac !== null || bc !== null) {
-    if (ac === null) return 1;
-    if (bc === null) return -1;
-    if (ac !== bc) return ac - bc;
-  }
-
-  const start = String(a?.start_time || "").localeCompare(String(b?.start_time || ""));
-  if (start) return start;
-
-  const created = String(a?.created_at || "").localeCompare(String(b?.created_at || ""));
-  if (created) return created;
-
-  return String(a?.id || "").localeCompare(String(b?.id || ""));
-}
-
-compareLessonsV78 = compareLessonsV8814;
-compareLessonsV83 = compareLessonsV8814;
-compareLessonsV872 = compareLessonsV8814;
-compareLessonsV8813 = compareLessonsV8814;
-
-function lessonPairCellsV8814(item, side) {
-  if (typeof lessonPairCellsFinalV835 === "function") return lessonPairCellsFinalV835(item, side);
-  if (typeof lessonPairCellsV834 === "function") return lessonPairCellsV834(item, side);
-  if (typeof lessonPairCells === "function") return lessonPairCells(item, side);
-
-  if (!item) {
-    return `<td colspan="6" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const studentName = item.student?.display_name || item.student?.name || "";
-  const teacherName = item.teacher?.display_name || item.teacher?.name || "";
-  const subjectName = item.subject?.name || "";
-  const timeText = [item.start_time, item.end_time].filter(Boolean).join(" - ");
-  const fee = Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0);
-  const statusClass = (item.status === "cancelled" || item.status === "holiday") ? "red" : "";
-
-  return `
-    <td class="lesson-date-cell">
-      <div>${esc(displayRecordDate(item.lesson_date || ""))}</div>
-      <span class="muted-small">${esc(item.year_month || "")}</span>
-      ${item.lesson_count ? `<div class="lesson-count-v886">第${esc(item.lesson_count)}回</div>` : ""}
-    </td>
-    <td>${esc(studentName)}</td>
-    <td>${esc(teacherName)}</td>
-    <td>
-      <div><strong>${esc(subjectName)}</strong></div>
-      <span class="muted-small">${esc(timeText || "时间未定")} / ${money(item.duration_hours)}H / ${typeof formatJpyV83 === "function" ? formatJpyV83(fee) : `${fee.toLocaleString()} JPY`}</span>
-    </td>
-    <td>
-      ${badge(lessonStatusLabel(item.status), statusClass)}
-      ${item.is_billable !== false ? badge("计费") : badge("不计费", "gray")}
-    </td>
-    <td>
-      <div class="lesson-content-cell">${esc(short(item.lesson_content || item.note, 18))}</div>
-      ${typeof lessonPairActionsFinalV835 === "function" ? lessonPairActionsFinalV835(item) : (typeof lessonPairActions === "function" ? lessonPairActions(item) : actionButtons("lesson", item.id))}
-    </td>
-  `;
-}
-
-function renderLessonsV8814() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-
-  updateLessonFilters();
-
-  const rows = filterLessons().slice().sort(compareLessonsV8814);
-
-  if (typeof renderLessonStatsV8813 === "function") renderLessonStatsV8813(rows);
-  else if (typeof renderLessonStatsV8812 === "function") renderLessonStatsV8812(rows);
-  else if (typeof renderLessonStats === "function") renderLessonStats(rows);
-
-  const plannedRows = rows.filter(x => x.lesson_type === "planned").sort(compareLessonsV8814);
-  const actualRows = rows.filter(x => x.lesson_type === "actual").sort(compareLessonsV8814);
-
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actualRows.forEach(actual => {
-    let planId = actual.planned_lesson_id;
-
-    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
-      const matched = schoolStableFindMatchingPlannedLessonV70(actual);
-      if (matched) planId = matched.id;
-    }
-
-    if (!planId && typeof findMatchingPlannedLesson === "function") {
-      const matched = findMatchingPlannedLesson(actual);
-      if (matched) planId = matched.id;
-    }
-
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(actual);
-    } else {
-      unlinkedActual.push(actual);
-    }
-  });
-
-  for (const list of actualByPlan.values()) list.sort(compareLessonsV8814);
-  unlinkedActual.sort(compareLessonsV8814);
-
-  const html = [];
-  let lastMonth = "";
-
-  function addMonthRow(ym) {
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="12">${esc(expenseMonthLabel(ym))}</td></tr>`);
-    }
-  }
-
-  plannedRows.forEach(plan => {
-    const ym = plan.year_month || "未归属月份";
-    addMonthRow(ym);
-
-    const actuals = actualByPlan.get(plan.id) || [];
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row">${lessonPairCellsV8814(plan, "planned")}${lessonPairCellsV8814(null, "actual")}</tr>`);
-    } else {
-      actuals.forEach((actual, index) => {
-        const left = index === 0
-          ? lessonPairCellsV8814(plan, "planned")
-          : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row">${left}${lessonPairCellsV8814(actual, "actual")}</tr>`);
-      });
-    }
-  });
-
-  unlinkedActual.forEach(actual => {
-    const ym = actual.year_month || "未归属月份";
-    addMonthRow(ym);
-    html.push(`<tr class="lesson-pair-row">${lessonPairCellsV8814(null, "planned")}${lessonPairCellsV8814(actual, "actual")}</tr>`);
-  });
-
-  tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-
-  if (typeof bindLessonPairButtonsV59 === "function") bindLessonPairButtonsV59();
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-  if (typeof patchLessonCountDisplayV886 === "function") patchLessonCountDisplayV886();
-  if (typeof patchActualTimeDisplayV888 === "function") patchActualTimeDisplayV888();
-  if (typeof updateLessonButtonsDisabledV887 === "function") updateLessonButtonsDisabledV887();
-}
-
-renderLessons = renderLessonsV8814;
-
-const renderAllBeforeV8814 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV8814) {
-  renderAll = function() {
-    renderAllBeforeV8814();
-    if (document.getElementById("page-lessons")?.classList.contains("active")) {
-      renderLessonsV8814();
-    }
-  };
-}
-
-const switchPageBeforeV8814 = typeof switchPage === "function" ? switchPage : null;
-if (switchPageBeforeV8814) {
-  switchPage = function(page) {
-    switchPageBeforeV8814(page);
-    if (page === "lessons") renderLessonsV8814();
-  };
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    if (document.getElementById("page-lessons")?.classList.contains("active")) renderLessonsV8814();
-  }, 1000);
-});
-
-
-
-// === v8.9 Lesson Management Refactor ===
-// 目标：集中整理课时管理核心逻辑，避免旧版补丁互相覆盖。
-// Scope:
-// - renderLessons
-// - sorting
-// - planned/actual pairing
-// - actions binding
-// - create actual
-// - copy lesson
-// - delete selected
-// - import button disabled state
-// - top stats
-
-const LESSON_STATUS_OPTIONS_V89 = [
-  { value: "completed", label: "已上课" },
-  { value: "pending_makeup", label: "待补课" },
-  { value: "makeup_completed", label: "已补课" },
-  { value: "cancelled", label: "取消课" },
-];
-
-function lessonStatusLabelV89(status) {
-  const map = {
-    completed: "已上课",
-    pending_makeup: "待补课",
-    makeup_completed: "已补课",
-    cancelled: "取消课",
-    planned: "预定",
-    makeup: "已补课",
-    已上课: "已上课",
-    待补课: "待补课",
-    已补课: "已补课",
-    取消课: "取消课",
-  };
-  return map[status] || status || "";
-}
-
-function lessonStatusClassV89(status) {
-  if (status === "cancelled" || status === "取消课") return "red";
-  if (status === "pending_makeup" || status === "待补课") return "orange";
-  if (status === "makeup_completed" || status === "已补课") return "green";
-  return "";
-}
-
-function lessonNumberV89(value) {
-  const n = Number(value || 0);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function lessonCountNumberV89(row) {
+function lessonCountNumberV891(row) {
   if (row?.lesson_count === null || row?.lesson_count === undefined || row?.lesson_count === "") return null;
   const n = Number(String(row.lesson_count).replace(/[^\d.-]/g, ""));
   return Number.isFinite(n) ? n : null;
 }
 
-function lessonSubjectPriorityV89(row) {
-  const name = row?.subject?.name || row?.subject_name || "";
+function lessonSubjectNameV891(row) {
+  return row?.subject?.name || row?.subject_name || "";
+}
+
+function lessonSubjectPriorityV891(row) {
+  const name = lessonSubjectNameV891(row);
   const order = ["日语", "数学", "物理", "化学", "生物", "文综"];
   const idx = order.findIndex(x => name.includes(x));
   return idx < 0 ? 99 : idx;
 }
 
-function lessonTeacherNameV89(row) {
+function lessonTeacherNameV891(row) {
   return row?.teacher?.display_name || row?.teacher?.name || row?.teacher_name || row?.teacher_id || "";
 }
 
-function compareLessonsV89(a, b) {
-  const ym = String(a?.year_month || "").localeCompare(String(b?.year_month || ""));
-  if (ym) return ym;
-
-  const teacher = String(lessonTeacherNameV89(a)).localeCompare(String(lessonTeacherNameV89(b)), "zh-Hans-CN");
-  if (teacher) return teacher;
-
-  const subject = lessonSubjectPriorityV89(a) - lessonSubjectPriorityV89(b);
-  if (subject) return subject;
-
-  const subjectName = String(a?.subject?.name || "").localeCompare(String(b?.subject?.name || ""), "zh-Hans-CN");
-  if (subjectName) return subjectName;
+function compareLessonsV891(a, b) {
+  const month = String(a?.year_month || "").localeCompare(String(b?.year_month || ""));
+  if (month) return month;
 
   const date = String(a?.lesson_date || "").localeCompare(String(b?.lesson_date || ""));
   if (date) return date;
 
-  const ac = lessonCountNumberV89(a);
-  const bc = lessonCountNumberV89(b);
+  const subject = lessonSubjectPriorityV891(a) - lessonSubjectPriorityV891(b);
+  if (subject) return subject;
+
+  const subjectName = String(lessonSubjectNameV891(a)).localeCompare(String(lessonSubjectNameV891(b)), "zh-Hans-CN");
+  if (subjectName) return subjectName;
+
+  const teacher = String(lessonTeacherNameV891(a)).localeCompare(String(lessonTeacherNameV891(b)), "zh-Hans-CN");
+  if (teacher) return teacher;
+
+  const ac = lessonCountNumberV891(a);
+  const bc = lessonCountNumberV891(b);
   if (ac !== null || bc !== null) {
     if (ac === null) return 1;
     if (bc === null) return -1;
@@ -14974,320 +14729,119 @@ function compareLessonsV89(a, b) {
   return String(a?.id || "").localeCompare(String(b?.id || ""));
 }
 
-compareLessonsV78 = compareLessonsV89;
-compareLessonsV83 = compareLessonsV89;
-compareLessonsV872 = compareLessonsV89;
-compareLessonsV8813 = compareLessonsV89;
-compareLessonsV8814 = compareLessonsV89;
+compareLessonsV77 = compareLessonsV891;
+compareLessonsV78 = compareLessonsV891;
+compareLessonsV83 = compareLessonsV891;
+compareLessonsV872 = compareLessonsV891;
+compareLessonsV8813 = compareLessonsV891;
 
-function lessonFeeCalcV89(row, hours = lessonNumberV89(row?.duration_hours)) {
-  return lessonNumberV89(row?.unit_price) * lessonNumberV89(hours);
+// Status labels/options stay aligned with the current business rules.
+function lessonStatusOptionsV891() {
+  return [
+    { value: "completed", label: "已上课" },
+    { value: "pending_makeup", label: "待补课" },
+    { value: "makeup_completed", label: "已补课" },
+    { value: "cancelled", label: "取消课" },
+  ];
 }
 
-function lessonStatusIsPendingMakeupV89(row) {
-  return ["pending_makeup", "待补课", "待补"].includes(String(row?.status || ""));
-}
-
-function lessonStatusIsCancelledV89(row) {
-  return ["cancelled", "取消课", "取消"].includes(String(row?.status || ""));
-}
-
-function lessonStatsV89(rows) {
-  const list = rows || [];
-  const planned = list.filter(x => x.lesson_type === "planned");
-  const actual = list.filter(x => x.lesson_type === "actual");
-
-  const plannedHours = planned.reduce((sum, row) => sum + lessonNumberV89(row.duration_hours), 0);
-  const plannedFee = planned.reduce((sum, row) => sum + lessonFeeCalcV89(row), 0);
-
-  const actualCountable = actual.filter(row => !lessonStatusIsCancelledV89(row));
-  const actualHoursFromActual = actualCountable.reduce((sum, row) => sum + lessonNumberV89(row.duration_hours), 0);
-
-  const pendingBillable = planned.filter(row => lessonStatusIsPendingMakeupV89(row) && row.is_billable !== false);
-  const pendingBillableHours = pendingBillable.reduce((sum, row) => sum + lessonNumberV89(row.duration_hours), 0);
-
-  const actualHours = actualHoursFromActual + pendingBillableHours;
-
-  const actualFeeFromActual = actualCountable
-    .filter(row => row.is_billable !== false)
-    .reduce((sum, row) => sum + lessonFeeCalcV89(row), 0);
-
-  const pendingBillableFee = pendingBillable.reduce((sum, row) => sum + lessonFeeCalcV89(row), 0);
-  const actualFee = actualFeeFromActual + pendingBillableFee;
-
-  return {
-    plannedHours,
-    actualHours,
-    plannedFee,
-    actualFee,
-    completedCount: actualCountable.length,
-    pendingMakeupCount: planned.filter(lessonStatusIsPendingMakeupV89).length,
-    recordCount: list.length,
+function lessonStatusLabelV891(status) {
+  const map = {
+    completed: "已上课",
+    pending_makeup: "待补课",
+    makeup_completed: "已补课",
+    cancelled: "取消课",
+    makeup: "已补课",
+    planned: "预定",
   };
+  return map[status] || status || "";
 }
 
-function lessonFormatHoursV89(value) {
-  const n = Number(value || 0);
-  if (!Number.isFinite(n)) return "0";
-  return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
+lessonStatusOptions = lessonStatusOptionsV891;
+lessonStatusLabel = lessonStatusLabelV891;
+
+function patchLessonStatusSelectV891() {
+  const form = document.getElementById("modalForm");
+  if (!form || state.editing?.type !== "lesson") return;
+  const select = form.querySelector('[name="status"]');
+  if (!select) return;
+
+  const current = select.value;
+  select.innerHTML = lessonStatusOptionsV891()
+    .map(opt => `<option value="${escAttr(opt.value)}">${esc(opt.label)}</option>`)
+    .join("");
+  select.value = lessonStatusOptionsV891().some(x => x.value === current) ? current : "completed";
 }
 
-function setLessonStatByLabelV89(pattern, value) {
-  const cards = Array.from(document.querySelectorAll("#page-lessons .stat-card, #page-lessons .summary-card, #page-lessons .metric-card, #page-lessons .card"));
-  const card = cards.find(c => pattern.test(c.textContent || ""));
-  if (!card) return;
-  const candidates = Array.from(card.querySelectorAll("strong, .stat-value, .metric-value, h2, h3, .value"));
-  const target = candidates.find(x => /\d|JPY|CNY/.test(x.textContent || "")) || candidates[candidates.length - 1];
-  if (target) target.textContent = value;
-}
-
-function renderLessonStatsV89(rows) {
-  const stats = lessonStatsV89(rows || []);
-  setLessonStatByLabelV89(/预定课时合计/, lessonFormatHoursV89(stats.plannedHours));
-  setLessonStatByLabelV89(/实际课时合计/, lessonFormatHoursV89(stats.actualHours));
-  setLessonStatByLabelV89(/预定课时费合计/, typeof formatJpyV83 === "function" ? formatJpyV83(stats.plannedFee) : `${Math.round(stats.plannedFee).toLocaleString()} JPY`);
-  setLessonStatByLabelV89(/实际课时费合计/, typeof formatJpyV83 === "function" ? formatJpyV83(stats.actualFee) : `${Math.round(stats.actualFee).toLocaleString()} JPY`);
-  setLessonStatByLabelV89(/已上课数量/, String(stats.completedCount));
-  setLessonStatByLabelV89(/待补课数量/, String(stats.pendingMakeupCount));
-  setLessonStatByLabelV89(/记录数/, String(stats.recordCount));
-
-  document.querySelectorAll("#page-lessons .stat-card, #page-lessons .summary-card, #page-lessons .metric-card, #page-lessons .card").forEach(card => {
-    if (/取消\/放假数量|取消放假数量/.test(card.textContent || "")) card.style.display = "none";
-  });
-}
-
-renderLessonStats = renderLessonStatsV89;
-renderLessonStatsV8812 = renderLessonStatsV89;
-renderLessonStatsV8813 = renderLessonStatsV89;
-
-function lessonDateCellV89(item) {
-  const count = lessonCountNumberV89(item);
-  return `
-    <td class="lesson-date-cell">
-      <div>${esc(displayRecordDate(item.lesson_date || ""))}</div>
-      <span class="muted-small">${esc(item.year_month || "")}</span>
-      ${count !== null ? `<div class="lesson-count-v886">第${esc(count)}回</div>` : ""}
-    </td>
-  `;
-}
-
-function lessonSubjectCellV89(item) {
-  const subjectName = item?.subject?.name || "";
-  const timeText = [item?.start_time, item?.end_time].filter(Boolean).join(" - ");
-  const fee = lessonNumberV89(item?.lesson_fee || lessonFeeCalcV89(item));
-  return `
-    <td class="lesson-subject-cell">
-      <div><strong>${esc(subjectName)}</strong></div>
-      <span class="muted-small">${esc(timeText || "时间未定")} / ${lessonFormatHoursV89(item?.duration_hours)}H / ${typeof formatJpyV83 === "function" ? formatJpyV83(fee) : `${fee.toLocaleString()} JPY`}</span>
-    </td>
-  `;
-}
-
-function lessonStatusCellV89(item) {
-  return `
-    <td class="lesson-status-cell">
-      ${badge(lessonStatusLabelV89(item.status), lessonStatusClassV89(item.status))}
-      ${item.is_billable !== false ? badge("计费") : badge("不计费", "gray")}
-    </td>
-  `;
-}
-
-function lessonActionsV89(item) {
-  if (!item) return "";
-  const createActual = item.lesson_type === "planned"
-    ? `<button type="button" class="secondary-btn lesson-mini-btn" data-v89-create-actual="${escAttr(item.id)}">生成实际</button>`
-    : "";
-  return `
-    <div class="lesson-actions-grid final">
-      ${createActual}
-      <button type="button" class="secondary-btn lesson-mini-btn" data-v89-copy="${escAttr(item.id)}">复制</button>
-      <button type="button" class="secondary-btn lesson-mini-btn" data-v89-edit="${escAttr(item.id)}">编辑</button>
-      <button type="button" class="danger-btn lesson-mini-btn" data-v89-delete="${escAttr(item.id)}">删除</button>
-    </div>
-  `;
-}
-
-function lessonCellsV89(item, side) {
-  if (!item) {
-    return `<td colspan="8" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const studentName = item.student?.display_name || item.student?.name || "";
-  const teacherName = item.teacher?.display_name || item.teacher?.name || "";
-
-  return `
-    <td class="lesson-select-cell"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /></td>
-    ${lessonDateCellV89(item)}
-    <td class="lesson-name-cell">${esc(studentName)}</td>
-    <td class="lesson-teacher-cell">${esc(teacherName)}</td>
-    ${lessonSubjectCellV89(item)}
-    ${lessonStatusCellV89(item)}
-    <td class="lesson-content-actions-cell"><div class="lesson-content-cell">${esc(short(item.lesson_content || item.note, 24))}</div></td>
-    <td class="lesson-action-cell">${lessonActionsV89(item)}</td>
-  `;
-}
-
-function pairLessonsV89(rows) {
-  const planned = rows.filter(x => x.lesson_type === "planned").sort(compareLessonsV89);
-  const actual = rows.filter(x => x.lesson_type === "actual").sort(compareLessonsV89);
-
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actual.forEach(act => {
-    const planId = act.planned_lesson_id;
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(act);
-    } else {
-      unlinkedActual.push(act);
-    }
-  });
-
-  for (const list of actualByPlan.values()) list.sort(compareLessonsV89);
-  unlinkedActual.sort(compareLessonsV89);
-
-  return { planned, actualByPlan, unlinkedActual };
-}
-
-function renderLessonsV89() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-
-  if (typeof updateLessonFilters === "function") updateLessonFilters();
-
-  const rows = (typeof filterLessons === "function" ? filterLessons().slice() : (state.lessonRecords || []).slice()).sort(compareLessonsV89);
-  renderLessonStatsV89(rows);
-
-  const { planned, actualByPlan, unlinkedActual } = pairLessonsV89(rows);
-  const html = [];
-  let lastMonth = "";
-
-  const addMonth = (ym) => {
-    const label = ym || "未归属月份";
-    if (label !== lastMonth) {
-      lastMonth = label;
-      html.push(`<tr class="month-group-row"><td colspan="16">${esc(typeof expenseMonthLabel === "function" ? expenseMonthLabel(label) : label)}</td></tr>`);
-    }
-  };
-
-  planned.forEach(plan => {
-    addMonth(plan.year_month);
-    const acts = actualByPlan.get(plan.id) || [];
-    if (!acts.length) {
-      html.push(`<tr class="lesson-pair-row">${lessonCellsV89(plan, "planned")}${lessonCellsV89(null, "actual")}</tr>`);
-    } else {
-      acts.forEach((act, index) => {
-        const left = index === 0 ? lessonCellsV89(plan, "planned") : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row">${left}${lessonCellsV89(act, "actual")}</tr>`);
-      });
-    }
-  });
-
-  unlinkedActual.forEach(act => {
-    addMonth(act.year_month);
-    html.push(`<tr class="lesson-pair-row">${lessonCellsV89(null, "planned")}${lessonCellsV89(act, "actual")}</tr>`);
-  });
-
-  tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-  updateLessonButtonsDisabledV89();
-}
-
-function lessonCloneForActualV89(plan) {
-  const id = window.crypto?.randomUUID ? crypto.randomUUID() : `actual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  return {
-    ...plan,
-    id,
-    lesson_type: "actual",
-    planned_lesson_id: plan.id,
-    lesson_date: plan.lesson_date,
-    year_month: plan.year_month,
-    status: "completed",
-    start_time: plan.start_time || "",
-    end_time: plan.end_time || "",
-    actual_minutes: plan.actual_minutes || null,
-    created_at: undefined,
-    updated_at: undefined,
-  };
-}
-
-async function createActualFromPlannedV89(planId) {
-  const plan = (state.lessonRecords || []).find(x => String(x.id) === String(planId));
-  if (!plan) {
-    showMessage("找不到预定课时。", "error");
-    return;
-  }
-
-  const data = lessonCloneForActualV89(plan);
-
-  if (typeof openCreateModal === "function") {
-    openCreateModal("lesson", data);
-    return;
-  }
-
-  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
-  const { error } = await client.from(tables.lessons).insert([data]);
-  if (error) {
-    showMessage(`生成实际课时失败：${error.message}`, "error");
-    return;
-  }
-  await loadAll();
-  renderLessonsV89();
-}
-
-async function copyLessonV89(id) {
-  const item = (state.lessonRecords || []).find(x => String(x.id) === String(id));
-  if (!item) return;
-  const data = { ...item };
-  delete data.id;
-  delete data.created_at;
-  delete data.updated_at;
-  if (window.crypto?.randomUUID) data.id = crypto.randomUUID();
-
-  if (typeof openCreateModal === "function") {
-    openCreateModal("lesson", data);
-    return;
+// Keep the existing v8.8.13 renderer; only force it to rerender after sort function replacement.
+function rerenderLessonsV891() {
+  if (typeof renderLessons === "function") {
+    renderLessons();
   }
 }
 
-async function deleteLessonV89(id) {
-  const ok = confirm("确定删除这条课时记录吗？");
-  if (!ok) return;
-  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
-  const { error } = await client.from(tables.lessons).delete().eq("id", id);
-  if (error) {
-    showMessage(`删除失败：${error.message}`, "error");
-    return;
-  }
-  await loadAll();
-  renderLessonsV89();
-  showMessage("已删除课时记录。", "ok");
-}
-
-document.addEventListener("click", async (e) => {
-  const createBtn = e.target.closest("[data-v89-create-actual]");
-  const copyBtn = e.target.closest("[data-v89-copy]");
-  const editBtn = e.target.closest("[data-v89-edit]");
-  const deleteBtn = e.target.closest("[data-v89-delete]");
-
-  if (createBtn || copyBtn || editBtn || deleteBtn) {
+// Prevent modal form from doing native GET navigation.
+// This is the likely source of "生成实际课时后回到系统首页 / URL变成 query params".
+function bindModalSubmitGuardV891() {
+  const form = document.getElementById("modalForm");
+  if (!form || form.dataset.submitGuardV891 === "true") return;
+  form.dataset.submitGuardV891 = "true";
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();
-  }
+    if (typeof saveForm === "function") {
+      await saveForm();
+    }
+    return false;
+  }, true);
+}
 
-  if (createBtn) return createActualFromPlannedV89(createBtn.dataset.v89CreateActual);
-  if (copyBtn) return copyLessonV89(copyBtn.dataset.v89Copy);
-  if (editBtn) return openEditModal("lesson", editBtn.dataset.v89Edit);
-  if (deleteBtn) return deleteLessonV89(deleteBtn.dataset.v89Delete);
+document.addEventListener("click", async (e) => {
+  const btn = e.target?.closest?.("#saveModalBtn, [data-save-modal], button[type='submit']");
+  if (!btn) return;
+  const form = document.getElementById("modalForm");
+  if (!form) return;
+
+  // Do not let any modal save button trigger native form submission.
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+  if (typeof saveForm === "function") {
+    await saveForm();
+  }
+  return false;
 }, true);
 
-function lessonStudentSelectedV89() {
+const openCreateModalBeforeV891 = typeof openCreateModal === "function" ? openCreateModal : null;
+if (openCreateModalBeforeV891) {
+  openCreateModal = function(type, prefill = {}) {
+    openCreateModalBeforeV891(type, prefill);
+    setTimeout(() => {
+      bindModalSubmitGuardV891();
+      if (type === "lesson") patchLessonStatusSelectV891();
+    }, 0);
+  };
+}
+
+const openEditModalBeforeV891 = typeof openEditModal === "function" ? openEditModal : null;
+if (openEditModalBeforeV891) {
+  openEditModal = function(type, id) {
+    openEditModalBeforeV891(type, id);
+    setTimeout(() => {
+      bindModalSubmitGuardV891();
+      if (type === "lesson") patchLessonStatusSelectV891();
+    }, 0);
+  };
+}
+
+// Student must be selected before adding/importing lessons.
+function lessonStudentSelectedV891() {
   return Boolean(document.getElementById("lessonStudentFilter")?.value || "");
 }
 
-function updateLessonButtonsDisabledV89() {
-  const disabled = !lessonStudentSelectedV89();
+function updateLessonButtonsDisabledV891() {
+  const disabled = !lessonStudentSelectedV891();
   ["lessonImportCompletedExcelBtnV88", "lessonImportExcelBtn", "addLessonBtn", "newLessonBtn", "createLessonBtn"].forEach(id => {
     const btn = document.getElementById(id);
     if (!btn) return;
@@ -15299,64 +14853,42 @@ function updateLessonButtonsDisabledV89() {
 }
 
 document.addEventListener("change", (e) => {
-  if (e.target?.id === "lessonStudentFilter") updateLessonButtonsDisabledV89();
+  if (e.target?.id === "lessonStudentFilter") updateLessonButtonsDisabledV891();
 });
 
-function patchLessonStatusSelectV89() {
-  const form = document.getElementById("modalForm");
-  if (!form || state.editing?.type !== "lesson") return;
-  const select = form.querySelector('[name="status"]');
-  if (!select) return;
-  const current = select.value;
-  select.innerHTML = LESSON_STATUS_OPTIONS_V89.map(opt => `<option value="${escAttr(opt.value)}">${esc(opt.label)}</option>`).join("");
-  select.value = LESSON_STATUS_OPTIONS_V89.some(x => x.value === current) ? current : "completed";
-}
-
-const openCreateModalBeforeV89 = typeof openCreateModal === "function" ? openCreateModal : null;
-if (openCreateModalBeforeV89) {
-  openCreateModal = function(type, prefill = {}) {
-    openCreateModalBeforeV89(type, prefill);
-    if (type === "lesson") setTimeout(patchLessonStatusSelectV89, 0);
-  };
-}
-
-const openEditModalBeforeV89 = typeof openEditModal === "function" ? openEditModal : null;
-if (openEditModalBeforeV89) {
-  openEditModal = function(type, id) {
-    openEditModalBeforeV89(type, id);
-    if (type === "lesson") setTimeout(patchLessonStatusSelectV89, 0);
-  };
-}
-
-renderLessons = renderLessonsV89;
-renderLessonsV8814 = renderLessonsV89;
-renderLessonStatsV8813 = renderLessonStatsV89;
-renderLessonStatsV8812 = renderLessonStatsV89;
-
-const switchPageBeforeV89 = typeof switchPage === "function" ? switchPage : null;
-if (switchPageBeforeV89) {
+const switchPageBeforeV891 = typeof switchPage === "function" ? switchPage : null;
+if (switchPageBeforeV891) {
   switchPage = function(page) {
-    switchPageBeforeV89(page);
-    if (page === "lessons") renderLessonsV89();
+    switchPageBeforeV891(page);
+    if (page === "lessons") {
+      setTimeout(() => {
+        if (typeof renderLessons === "function") renderLessons();
+        updateLessonButtonsDisabledV891();
+      }, 0);
+    }
   };
 }
 
-const renderAllBeforeV89 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV89) {
+const renderAllBeforeV891 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV891) {
   renderAll = function() {
-    renderAllBeforeV89();
+    renderAllBeforeV891();
     if (document.getElementById("page-lessons")?.classList.contains("active")) {
-      renderLessonsV89();
+      setTimeout(() => {
+        if (typeof renderLessons === "function") renderLessons();
+        updateLessonButtonsDisabledV891();
+      }, 0);
     }
   };
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    if (document.getElementById("page-lessons")?.classList.contains("active")) {
-      renderLessonsV89();
+    bindModalSubmitGuardV891();
+    if (document.getElementById("page-lessons")?.classList.contains("active") && typeof renderLessons === "function") {
+      renderLessons();
     }
-    updateLessonButtonsDisabledV89();
+    updateLessonButtonsDisabledV891();
   }, 1000);
 });
 

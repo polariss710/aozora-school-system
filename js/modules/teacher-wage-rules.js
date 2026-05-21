@@ -51,23 +51,27 @@
     try {
       let rate = 0;
 
-      // Primary: Frankfurter public API. Usually supports browser CORS.
+      // Primary: open.er-api.com, browser CORS generally works on GitHub Pages.
       try {
-        const res = await fetch("https://api.frankfurter.app/latest?from=JPY&to=CNY", { cache: "no-store" });
+        const res = await fetch("https://open.er-api.com/v6/latest/JPY", { cache: "no-store" });
         if (res.ok) {
           const json = await res.json();
           rate = Number(json?.rates?.CNY || 0);
         }
       } catch (e) {
-        console.warn("Frankfurter exchange rate fetch failed", e);
+        console.warn("open.er-api.com exchange rate fetch failed", e);
       }
 
-      // Fallback: open.er-api.com public API.
+      // Fallback: jsdelivr-hosted currency API.
       if (!rate) {
-        const res = await fetch("https://open.er-api.com/v6/latest/JPY", { cache: "no-store" });
-        if (res.ok) {
-          const json = await res.json();
-          rate = Number(json?.rates?.CNY || 0);
+        try {
+          const res = await fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/jpy.json", { cache: "no-store" });
+          if (res.ok) {
+            const json = await res.json();
+            rate = Number(json?.jpy?.cny || 0);
+          }
+        } catch (e) {
+          console.warn("jsdelivr currency API fetch failed", e);
         }
       }
 
@@ -87,7 +91,6 @@
       }
     }
   }
-
 
   function fillSelects() {
     const teacher = document.getElementById("teacherWageRuleTeacher");

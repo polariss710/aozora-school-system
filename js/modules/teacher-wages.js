@@ -1,4 +1,4 @@
-// === v9.1.10 teacher wage settlement display/sort/rule hint ===
+// === v9.1.10.1 teacher wage settlement display/sort/rule hint ===
 // 改善工资结算显示：
 // 1. 汇总表显示业务归属、学生、规则状态。
 // 2. 排序优先级：业务归属 → 老师 → 学生 → 科目 → 日期 → 时间。
@@ -109,6 +109,10 @@
     ].join(" / ");
   }
 
+  function missingRuleHelp(row) {
+    return `请在工资规则中新增：${missingRuleText(row)}`;
+  }
+
   function settlementTypeLabel(value) {
     const map = {
       jpy_hourly: "日元时薪",
@@ -147,6 +151,7 @@
       cnyAmount,
       hasRule: !!rule,
       missingRuleText: rule ? "" : missingRuleText(row),
+      missingRuleHelp: rule ? "" : missingRuleHelp(row),
     };
   }
 
@@ -212,6 +217,7 @@
           exchangeRate: wage.exchangeRate,
           hasRule: wage.hasRule,
           missingRuleText: wage.missingRuleText,
+          missingRuleHelp: wage.missingRuleHelp,
           minutes: 0,
           hours: 0,
           jpyAmount: 0,
@@ -264,7 +270,7 @@
             <td>${rateText}</td>
             <td><strong>${fmtAmount(x.jpyAmount, "JPY")}</strong><br><span class="muted-small">${fmtAmount(x.cnyAmount, "CNY")}</span></td>
             <td>${x.count}</td>
-            <td>${x.hasRule ? badge("已匹配") : `${badge("未设置", "red")}<br><span class="muted-small">缺少：${esc(x.missingRuleText)}</span>`}</td>
+            <td>${x.hasRule ? badge("已匹配") : `${badge("未设置", "red")}<br><span class="muted-small">${esc(x.missingRuleHelp || ("缺少：" + x.missingRuleText))}</span>`}</td>
           </tr>
         `;
       }).join("") : `<tr><td colspan="11" class="empty-row">当前条件下没有可计算工资的实际课时</td></tr>`;
@@ -307,7 +313,7 @@
             <td>${rateText}</td>
             <td><strong>${fmtAmount(wage.jpyAmount, "JPY")}</strong></td>
             <td>${fmtAmount(wage.cnyAmount, "CNY")}</td>
-            <td>${wage.hasRule ? badge("已匹配") : `${badge("未设置", "red")}<br><span class="muted-small">缺少：${esc(wage.missingRuleText)}</span>`}</td>
+            <td>${wage.hasRule ? badge("已匹配") : `${badge("未设置", "red")}<br><span class="muted-small">${esc(wage.missingRuleHelp || ("缺少：" + wage.missingRuleText))}</span>`}</td>
             <td>${badge(lessonStatusLabel(r.status),"")}</td>
             <td>${esc(short(r.lesson_content || r.note, 32))}</td>
           </tr>
@@ -413,7 +419,7 @@
   });
 
   window.SchoolTeacherWagesModule = {
-    version: "9.1.10",
+    version: "9.1.10.1",
     render,
     summarize,
     targetLessons,

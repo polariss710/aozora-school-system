@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="stylesheet" href="./style.css?v=9.1.10.1" />
+  <link rel="stylesheet" href="./style.css?v=9.1.10" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -23,7 +23,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v9.1.10.1</p>
+        <p>运营管理系统 v9.1.10</p>
       </div>
 
       <nav class="nav">
@@ -120,19 +120,125 @@
             <table>
               <thead>
                 <tr>
-                  <th>业务归属</th>
-                  <th>老师</th>
-                  <th>学生</th>
-                  <th>科目</th>
-                  <th>实际分钟</th>
-                  <th>工资课时</th>
-                  <th>结算方式</th>
-                  <th>时给</th>
-                  <th>预计工资</th>
-                  <th>课时数</th>
-                  <th>规则</th>
+                  <th>名称</th><th>代码</th><th>类型</th><th>默认币种</th><th>公司报表</th><th>状态</th><th>操作</th>
                 </tr>
               </thead>
+              <tbody id="businessTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-students">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>学生管理</h3>
+            <button class="primary-btn" data-open-modal="student">新增学生</button>
+          </div>
+          <div class="toolbar">
+            <input type="search" id="studentSearch" placeholder="搜索学生姓名、微信、目标..." />
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>姓名</th><th>业务归属</th><th>文理</th><th>预设汇率</th><th>状态</th><th>备注</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="studentsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+
+      <section class="page" id="page-student-settlement">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>学生月度结算</h3>
+            <div class="panel-actions">
+              <button class="secondary-btn" id="settlementRefreshBtn" type="button">刷新结算</button>
+            </div>
+          </div>
+          <div class="toolbar finance-toolbar">
+            <input type="month" id="settlementMonthFilter" />
+            <select id="settlementStudentFilter"></select>
+            <span class="required-hint" id="settlementStudentHint">学生必选</span>
+          </div>
+          <div class="cards-grid finance-mini-stats">
+            <div class="stat-card"><span>预定课时</span><strong id="settlementPlannedHours">0</strong></div>
+            <div class="stat-card"><span>实际课时</span><strong id="settlementActualHours">0</strong></div>
+            <div class="stat-card"><span>预定课时费（日元）</span><strong id="settlementPlannedJpy">0</strong></div>
+            <div class="stat-card"><span>实际课时费（日元）</span><strong id="settlementActualJpy">0</strong></div>
+          </div>
+
+          <div class="settlement-board">
+            <div class="settlement-card">
+              <h4>月初预定结算</h4>
+              <table class="settlement-mini-table">
+                <tbody>
+                  <tr><th>上月结余/补交（人民币）</th><td id="settlementPrevBalanceCny">0</td></tr>
+                  <tr><th>本月应收（日元）</th><td id="settlementPlannedJpy2">0</td></tr>
+                  <tr><th>本月应收（人民币）</th><td id="settlementPlannedCny">0</td></tr>
+                  <tr class="total-row"><th>本月应收合计（人民币）</th><td id="settlementPlannedTotalCny">0</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="settlement-card">
+              <h4>月底实际结算</h4>
+              <table class="settlement-mini-table">
+                <tbody>
+                  <tr><th>实际课时费（日元）</th><td id="settlementActualJpy2">0</td></tr>
+                  <tr><th>实际课时费（人民币）</th><td id="settlementActualCny">0</td></tr>
+                  <tr><th>已收学费（人民币）</th><td id="settlementReceivedCny">0</td></tr>
+                  <tr class="total-row"><th>本月课时费结余/补交</th><td>暂未计算</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <h4 class="subsection-title">课时明细</h4>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th colspan="8" class="lesson-pair-head">预定课时</th><th colspan="8" class="lesson-pair-head actual">实际课时</th>
+                </tr>
+                <tr class="lesson-sub-head">
+                  <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+                  <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="settlementLessonsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      
+      <section class="page" id="page-teacher-wages">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>老师工资结算</h3>
+              <p class="muted-small">基础版：按实际课时的工资结算月份汇总，按30分钟向下取整计算工资。</p>
+            </div>
+            <button class="secondary-btn" id="teacherWageRefreshBtn" type="button">刷新计算</button>
+          </div>
+          <div class="toolbar finance-toolbar teacher-wage-toolbar">
+            <input type="month" id="teacherWageMonthFilter" />
+            <select id="teacherWageTeacherFilter"></select>
+            <button class="secondary-btn" id="teacherWageClearFilter" type="button">清除筛选</button>
+          </div>
+          <div class="cards-grid finance-mini-stats">
+            <div class="stat-card"><span>实际授课分钟</span><strong id="teacherWageTotalMinutes">0</strong></div>
+            <div class="stat-card"><span>工资结算课时</span><strong id="teacherWagePayHours">0</strong></div>
+            <div class="stat-card"><span>预计工资合计</span><strong id="teacherWageTotalAmount">0 JPY</strong></div>
+            <div class="stat-card"><span>实际课时数</span><strong id="teacherWageLessonCount">0</strong></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>老师</th><th>科目</th><th>实际分钟</th><th>工资课时</th><th>时薪</th><th>预计工资</th><th>课时数</th></tr></thead>
               <tbody id="teacherWageSummaryTable"></tbody>
             </table>
           </div>
@@ -560,16 +666,16 @@
     </div>
   </div>
 
-  <script src="js/legacy-core.js?v=9.1.10.1"></script>
-  <script src="js/modules/form-save-fix.js?v=9.1.10.1"></script>
-  <script src="js/modules/lessons.js?v=9.1.10.1"></script>
-  <script src="js/modules/lesson-import.js?v=9.1.10.1"></script>
-  <script src="js/modules/student-settlement.js?v=9.1.10.1"></script>
-  <script src="js/modules/income.js?v=9.1.10.1"></script>
-  <script src="js/modules/expense.js?v=9.1.10.1"></script>
-  <script src="js/modules/reimbursements.js?v=9.1.10.1"></script>
-  <script src="js/modules/teacher-wages.js?v=9.1.10.1"></script>
-  <script src="js/modules/teacher-wage-rules.js?v=9.1.10.1"></script>
-  <script src="app.js?v=9.1.10.1"></script>
+  <script src="js/legacy-core.js?v=9.1.10"></script>
+  <script src="js/modules/form-save-fix.js?v=9.1.10"></script>
+  <script src="js/modules/lessons.js?v=9.1.10"></script>
+  <script src="js/modules/lesson-import.js?v=9.1.10"></script>
+  <script src="js/modules/student-settlement.js?v=9.1.10"></script>
+  <script src="js/modules/income.js?v=9.1.10"></script>
+  <script src="js/modules/expense.js?v=9.1.10"></script>
+  <script src="js/modules/reimbursements.js?v=9.1.10"></script>
+  <script src="js/modules/teacher-wages.js?v=9.1.10"></script>
+  <script src="js/modules/teacher-wage-rules.js?v=9.1.10"></script>
+  <script src="app.js?v=9.1.10"></script>
 </body>
 </html>

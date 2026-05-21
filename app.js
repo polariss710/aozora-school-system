@@ -1595,7 +1595,6 @@ function resetFormSavingStateV71(form, submitButton) {
 }
 
 async function saveForm(e) {
-  e = e || { preventDefault(){}, stopPropagation(){}, stopImmediatePropagation(){} };
   e.preventDefault();
   const form = e.target;
   const submitButton = form?.querySelector('button[type="submit"], .primary-btn');
@@ -4311,44 +4310,20 @@ function lessonSubjectOrderV77(item) {
 }
 
 function compareLessonsV77(a, b) {
-  // v8.9-clean: 月份 → 科目优先级 → 老师 → 日期 → 回数 → 开始时间
+  // 月份升序 → 周/日期升序 → 老师顺序 → 科目顺序 → 开始时间
   const month = String(a.year_month || "").localeCompare(String(b.year_month || ""));
   if (month !== 0) return month;
-
-  const subject = lessonSubjectOrderClean(a).localeCompare(lessonSubjectOrderClean(b));
-  if (subject !== 0) return subject;
-
-  const teacher = lessonTeacherOrderV77(a).localeCompare(lessonTeacherOrderV77(b));
-  if (teacher !== 0) return teacher;
 
   const date = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
   if (date !== 0) return date;
 
-  const ac = lessonCountNumberClean(a);
-  const bc = lessonCountNumberClean(b);
-  if (ac !== null || bc !== null) {
-    if (ac === null) return 1;
-    if (bc === null) return -1;
-    if (ac !== bc) return ac - bc;
-  }
+  const teacher = lessonTeacherOrderV77(a).localeCompare(lessonTeacherOrderV77(b));
+  if (teacher !== 0) return teacher;
 
-  const time = String(a.start_time || "").localeCompare(String(b.start_time || ""));
-  if (time !== 0) return time;
+  const subject = lessonSubjectOrderV77(a).localeCompare(lessonSubjectOrderV77(b));
+  if (subject !== 0) return subject;
 
-  return String(a.id || "").localeCompare(String(b.id || ""));
-}
-
-function lessonCountNumberClean(row) {
-  if (row?.lesson_count === null || row?.lesson_count === undefined || row?.lesson_count === "") return null;
-  const n = Number(String(row.lesson_count).replace(/[^\d.-]/g, ""));
-  return Number.isFinite(n) ? n : null;
-}
-
-function lessonSubjectOrderClean(row) {
-  const name = row?.subject?.name || "";
-  const order = ["日语", "数学", "物理", "化学", "生物", "文综"];
-  const idx = order.findIndex(x => name.includes(x));
-  return `${String(idx < 0 ? 99 : idx).padStart(2, "0")}_${name}`;
+  return String(a.start_time || "").localeCompare(String(b.start_time || ""));
 }
 
 function selectAllLessonsV77() {
@@ -6314,8 +6289,8 @@ function makeActualFromPlannedV837(id) {
 }
 
 function renderLessonRowsV837(rows) {
-  const plannedRows = rows.filter(x => x.lesson_type === "planned").slice().sort(compareLessonsV77);
-  const actualRows = rows.filter(x => x.lesson_type === "actual").slice().sort(compareLessonsV77);
+  const plannedRows = rows.filter(x => x.lesson_type === "planned");
+  const actualRows = rows.filter(x => x.lesson_type === "actual");
   const actualByPlan = new Map();
   const unlinkedActual = [];
 
@@ -6337,7 +6312,9 @@ function renderLessonRowsV837(rows) {
     }
   });
 
-  for (const list of actualByPlan.values()) list.sort(compareLessonsV77);
+  const sortFn = typeof compareLessonsV78 === "function"
+    ? compareLessonsV78
+    : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
 
   const html = [];
   let lastMonth = "";
@@ -6353,10 +6330,10 @@ function renderLessonRowsV837(rows) {
     }
   }
 
-  plannedRows.forEach(plan => {
+  plannedRows.slice().sort(sortFn).forEach(plan => {
     const ym = plan.year_month || "未归属月份";
     addMonthRow(ym);
-    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(compareLessonsV77);
+    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
     if (!actuals.length) {
       html.push(`<tr class="lesson-pair-row v837">${lessonPairCellsV837(plan, "planned")}${lessonPairCellsV837(null, "actual")}</tr>`);
     } else {
@@ -6369,7 +6346,7 @@ function renderLessonRowsV837(rows) {
     }
   });
 
-  unlinkedActual.slice().sort(compareLessonsV77).forEach(actual => {
+  unlinkedActual.slice().sort(sortFn).forEach(actual => {
     const ym = actual.year_month || "未归属月份";
     addMonthRow(ym);
     html.push(`<tr class="lesson-pair-row v837">${lessonPairCellsV837(null, "planned")}${lessonPairCellsV837(actual, "actual")}</tr>`);
@@ -6391,13 +6368,11 @@ function renderLessonsV837() {
   const tbody = document.getElementById("lessonsTable");
   if (!tbody) return;
   updateLessonFilters();
-  const rows = filterLessons().slice().sort(compareLessonsV77);
+  const rows = filterLessons().slice().sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
   renderLessonStats(rows);
   tbody.innerHTML = renderLessonRowsV837(rows) || `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
   bindLessonButtonsV837();
   if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-  if (typeof patchLessonCountDisplayV886 === "function") patchLessonCountDisplayV886();
-  if (typeof patchActualTimeDisplayV888 === "function") patchActualTimeDisplayV888();
 }
 
 renderLessons = renderLessonsV837;
@@ -14686,21 +14661,6 @@ if (renderAllBeforeV8813) {
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     if (typeof filterLessons === "function") renderLessonStatsV8813(filterLessons().slice());
-  }, 1000);
-});
-
-
-
-// === v8.9-clean final consistency ===
-compareLessonsV78 = compareLessonsV77;
-compareLessonsV83 = compareLessonsV77;
-compareLessonsV872 = compareLessonsV77;
-compareLessonsV8813 = compareLessonsV77;
-renderLessons = renderLessonsV837;
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    if (document.getElementById("page-lessons")?.classList.contains("active")) renderLessonsV837();
   }, 1000);
 });
 

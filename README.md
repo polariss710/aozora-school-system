@@ -126,30 +126,6 @@
 
 
 
-
-### v8.9-clean
-- 课时管理 clean 版。
-- 基于 v8.8.13 稳定版制作，不继承 v8.9.1-v8.9.4 的问题代码。
-- 本版不重写表格 HTML，不改变既有稳定画面结构。
-- 直接替换旧函数本体：
-  - `saveForm(e)`：增加 event 兜底，避免 `preventDefault` undefined
-  - `compareLessonsV77`：统一排序规则
-  - `renderLessonRowsV837`：保留旧表格结构，只替换排序与配对顺序
-  - `renderLessonsV837`：固定使用 clean 排序和 clean row builder
-- 排序规则：
-  - 月份
-  - 科目优先级
-  - 老师
-  - 日期
-  - 回数
-  - 开始时间
-- 保留 v8.8.13 的稳定画面：
-  - 标题栏
-  - 子标题行
-  - 12 列 paired view
-  - checkbox / 日期 / 科目 / 内容操作列旧样式
-- 本版无 SQL 修改。
-
 ### v8.8.13
 - 修复课时管理顶部“预定课时费合计”仍然排除取消课的问题。
 - 新口径：

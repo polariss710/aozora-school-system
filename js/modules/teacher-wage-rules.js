@@ -1,6 +1,6 @@
-// === v9.1.8 teacher wage rules module ===
-// 基础版：维护老师 + 科目 + 业务归属的工资规则。
-// 本版只做规则维护，不改老师工资结算计算逻辑；v9.1.9 再把规则接入工资结算明细。
+// === v9.1.8.1 teacher wage rules module ===
+// 基础版：维护老师 + 学生 + 科目 + 业务归属的工资规则。
+// 本版只做规则维护，不改老师工资结算计算逻辑；下一版再把规则接入工资结算明细。
 
 (function () {
   const TABLE = "school_teacher_wage_rules";
@@ -13,6 +13,11 @@
 
   function teacherName(id) {
     const item = (state.teachers || []).find(x => x.id === id);
+    return item?.display_name || item?.name || "";
+  }
+
+  function studentName(id) {
+    const item = (state.students || []).find(x => x.id === id);
     return item?.display_name || item?.name || "";
   }
 
@@ -33,15 +38,21 @@
 
   function fillSelects() {
     const teacher = document.getElementById("teacherWageRuleTeacher");
+    const student = document.getElementById("teacherWageRuleStudent");
     const subject = document.getElementById("teacherWageRuleSubject");
     const business = document.getElementById("teacherWageRuleBusiness");
-    if (!teacher || !subject || !business) return;
+    if (!teacher || !student || !subject || !business) return;
 
     const oldTeacher = teacher.value;
+    const oldStudent = student.value;
     const oldSubject = subject.value;
     const oldBusiness = business.value;
 
     teacher.innerHTML = `<option value="">请选择老师</option>` + (state.teachers || [])
+      .map(x => `<option value="${escAttr(x.id)}">${esc(x.display_name || x.name || "")}</option>`)
+      .join("");
+
+    student.innerHTML = `<option value="">请选择学生</option>` + (state.students || [])
       .map(x => `<option value="${escAttr(x.id)}">${esc(x.display_name || x.name || "")}</option>`)
       .join("");
 
@@ -54,6 +65,7 @@
       .join("");
 
     teacher.value = oldTeacher;
+    student.value = oldStudent;
     subject.value = oldSubject;
     business.value = oldBusiness;
   }
@@ -83,6 +95,7 @@
     [
       "teacherWageRuleId",
       "teacherWageRuleTeacher",
+      "teacherWageRuleStudent",
       "teacherWageRuleSubject",
       "teacherWageRuleBusiness",
       "teacherWageRuleHourlyJpy",
@@ -105,16 +118,19 @@
 
   function readPayload() {
     const teacherId = formValue("teacherWageRuleTeacher");
+    const studentId = formValue("teacherWageRuleStudent");
     const subjectId = formValue("teacherWageRuleSubject");
     const businessId = formValue("teacherWageRuleBusiness");
     const settlementType = formValue("teacherWageRuleSettlementType") || "jpy_hourly";
 
     if (!teacherId) throw new Error("请选择老师。");
+    if (!studentId) throw new Error("请选择学生。");
     if (!subjectId) throw new Error("请选择科目。");
     if (!businessId) throw new Error("请选择业务归属。");
 
     return {
       teacher_id: teacherId,
+      student_id: studentId,
       subject_id: subjectId,
       business_entity_id: businessId,
       settlement_type: settlementType,
@@ -163,6 +179,7 @@
 
     document.getElementById("teacherWageRuleId").value = item.id || "";
     document.getElementById("teacherWageRuleTeacher").value = item.teacher_id || "";
+    document.getElementById("teacherWageRuleStudent").value = item.student_id || "";
     document.getElementById("teacherWageRuleSubject").value = item.subject_id || "";
     document.getElementById("teacherWageRuleBusiness").value = item.business_entity_id || "";
     document.getElementById("teacherWageRuleSettlementType").value = item.settlement_type || "jpy_hourly";
@@ -203,6 +220,7 @@
     tbody.innerHTML = rules.length ? rules.map(item => `
       <tr>
         <td>${esc(teacherName(item.teacher_id))}</td>
+        <td>${esc(studentName(item.student_id))}</td>
         <td>${esc(subjectName(item.subject_id))}</td>
         <td>${esc(businessName(item.business_entity_id))}</td>
         <td>${esc(settlementTypeLabel(item.settlement_type))}</td>
@@ -218,7 +236,7 @@
           <button type="button" class="danger-btn teacher-rule-mini-btn" data-rule-delete="${escAttr(item.id)}">删除</button>
         </td>
       </tr>
-    `).join("") : `<tr><td colspan="12" class="empty-row">暂无老师工资规则</td></tr>`;
+    `).join("") : `<tr><td colspan="13" class="empty-row">暂无老师工资规则</td></tr>`;
 
     tbody.querySelectorAll("[data-rule-edit]").forEach(btn => {
       btn.onclick = () => editRule(btn.dataset.ruleEdit);
@@ -253,24 +271,24 @@
     loadRules();
   }
 
-  const switchPageBeforeV918 = typeof switchPage === "function" ? switchPage : null;
-  if (switchPageBeforeV918) {
+  const switchPageBeforeV9181 = typeof switchPage === "function" ? switchPage : null;
+  if (switchPageBeforeV9181) {
     window.switchPage = function(page) {
-      switchPageBeforeV918(page);
+      switchPageBeforeV9181(page);
       if (page === "teacher-wage-rules") {
         const titleEl = document.getElementById("pageTitle");
         const subtitleEl = document.getElementById("pageSubtitle");
         if (titleEl) titleEl.textContent = "老师工资规则";
-        if (subtitleEl) subtitleEl.textContent = "维护老师、科目、业务归属对应的时给、交通费、教室费与结算方式";
+        if (subtitleEl) subtitleEl.textContent = "维护老师、学生、科目、业务归属对应的时给、交通费、教室费与结算方式";
         setTimeout(bindTeacherWageRules, 0);
       }
     };
   }
 
-  const renderAllBeforeV918 = typeof renderAll === "function" ? renderAll : null;
-  if (renderAllBeforeV918) {
+  const renderAllBeforeV9181 = typeof renderAll === "function" ? renderAll : null;
+  if (renderAllBeforeV9181) {
     window.renderAll = function() {
-      renderAllBeforeV918();
+      renderAllBeforeV9181();
       if (document.getElementById("page-teacher-wage-rules")?.classList.contains("active")) {
         setTimeout(bindTeacherWageRules, 0);
       }
@@ -284,7 +302,7 @@
   });
 
   window.SchoolTeacherWageRulesModule = {
-    version: "9.1.8",
+    version: "9.1.8.1",
     load: loadRules,
     render: renderRules,
   };

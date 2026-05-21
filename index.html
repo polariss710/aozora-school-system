@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="stylesheet" href="./style.css?v=9.1.8" />
+  <link rel="stylesheet" href="./style.css?v=9.1.8.1" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -23,7 +23,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v9.1.8</p>
+        <p>运营管理系统 v9.1.8.1</p>
       </div>
 
       <nav class="nav">
@@ -274,6 +274,10 @@
               <select id="teacherWageRuleTeacher"></select>
             </div>
             <div class="form-row">
+              <label>学生</label>
+              <select id="teacherWageRuleStudent"></select>
+            </div>
+            <div class="form-row">
               <label>科目</label>
               <select id="teacherWageRuleSubject"></select>
             </div>
@@ -331,6 +335,7 @@
               <thead>
                 <tr>
                   <th>老师</th>
+                  <th>学生</th>
                   <th>科目</th>
                   <th>业务归属</th>
                   <th>结算方式</th>
@@ -668,16 +673,16 @@
     </div>
   </div>
 
-  <script src="js/legacy-core.js?v=9.1.8"></script>
-  <script src="js/modules/form-save-fix.js?v=9.1.8"></script>
-  <script src="js/modules/lessons.js?v=9.1.8"></script>
-  <script src="js/modules/lesson-import.js?v=9.1.8"></script>
-  <script src="js/modules/student-settlement.js?v=9.1.8"></script>
-  <script src="js/modules/income.js?v=9.1.8"></script>
-  <script src="js/modules/expense.js?v=9.1.8"></script>
-  <script src="js/modules/reimbursements.js?v=9.1.8"></script>
-  <script src="js/modules/teacher-wages.js?v=9.1.8"></script>
-  <script src="js/modules/teacher-wage-rules.js?v=9.1.8"></script>
-  <script src="app.js?v=9.1.8"></script>
+  <script src="js/legacy-core.js?v=9.1.8.1"></script>
+  <script src="js/modules/form-save-fix.js?v=9.1.8.1"></script>
+  <script src="js/modules/lessons.js?v=9.1.8.1"></script>
+  <script src="js/modules/lesson-import.js?v=9.1.8.1"></script>
+  <script src="js/modules/student-settlement.js?v=9.1.8.1"></script>
+  <script src="js/modules/income.js?v=9.1.8.1"></script>
+  <script src="js/modules/expense.js?v=9.1.8.1"></script>
+  <script src="js/modules/reimbursements.js?v=9.1.8.1"></script>
+  <script src="js/modules/teacher-wages.js?v=9.1.8.1"></script>
+  <script src="js/modules/teacher-wage-rules.js?v=9.1.8.1"></script>
+  <script src="app.js?v=9.1.8.1"></script>
 </body>
 </html>

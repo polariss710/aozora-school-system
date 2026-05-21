@@ -2404,3 +2404,27 @@ button:disabled {
   white-space: nowrap;
   min-height: 34px;
 }
+
+/* === v9.1.11 table selection checkboxes === */
+.selection-col {
+  width: 44px;
+  min-width: 44px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.row-select-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  cursor: pointer;
+}
+
+.table-row-select,
+.table-select-all {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}

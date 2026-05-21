@@ -14892,3 +14892,239 @@ document.addEventListener("DOMContentLoaded", () => {
   }, 1000);
 });
 
+
+
+// === v8.9.2 lesson sort + save event fix ===
+// 修复：
+// 1. v8.9.1 保存按钮直接调用 saveForm()，但旧 saveForm 需要 event 参数，导致 preventDefault 报错。
+// 2. 课时排序仍被旧 renderLessonsV837 的排序链影响。本版用稳定旧布局 + 新排序重渲染，不硬改表格结构。
+
+function noopSubmitEventV892() {
+  return {
+    preventDefault() {},
+    stopPropagation() {},
+    stopImmediatePropagation() {},
+  };
+}
+
+function lessonSubjectPriorityV892(row) {
+  const name = row?.subject?.name || row?.subject_name || "";
+  const order = ["日语", "数学", "物理", "化学", "生物", "文综"];
+  const idx = order.findIndex(x => name.includes(x));
+  return idx < 0 ? 99 : idx;
+}
+
+function lessonTeacherNameV892(row) {
+  return row?.teacher?.display_name || row?.teacher?.name || row?.teacher_name || row?.teacher_id || "";
+}
+
+function lessonCountNumberV892(row) {
+  if (row?.lesson_count === null || row?.lesson_count === undefined || row?.lesson_count === "") return null;
+  const n = Number(String(row.lesson_count).replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+// 课时管理视觉顺序：月份 → 科目优先级 → 老师 → 日期 → 回数 → 开始时间
+// 这样同一科目的整月课程会连续显示，同时同一周内第1回在第2回上面。
+function compareLessonsV892(a, b) {
+  const month = String(a?.year_month || "").localeCompare(String(b?.year_month || ""));
+  if (month) return month;
+
+  const subject = lessonSubjectPriorityV892(a) - lessonSubjectPriorityV892(b);
+  if (subject) return subject;
+
+  const subjectName = String(a?.subject?.name || "").localeCompare(String(b?.subject?.name || ""), "zh-Hans-CN");
+  if (subjectName) return subjectName;
+
+  const teacher = String(lessonTeacherNameV892(a)).localeCompare(String(lessonTeacherNameV892(b)), "zh-Hans-CN");
+  if (teacher) return teacher;
+
+  const date = String(a?.lesson_date || "").localeCompare(String(b?.lesson_date || ""));
+  if (date) return date;
+
+  const ac = lessonCountNumberV892(a);
+  const bc = lessonCountNumberV892(b);
+  if (ac !== null || bc !== null) {
+    if (ac === null) return 1;
+    if (bc === null) return -1;
+    if (ac !== bc) return ac - bc;
+  }
+
+  const start = String(a?.start_time || "").localeCompare(String(b?.start_time || ""));
+  if (start) return start;
+
+  const created = String(a?.created_at || "").localeCompare(String(b?.created_at || ""));
+  if (created) return created;
+
+  return String(a?.id || "").localeCompare(String(b?.id || ""));
+}
+
+compareLessonsV77 = compareLessonsV892;
+compareLessonsV78 = compareLessonsV892;
+compareLessonsV83 = compareLessonsV892;
+compareLessonsV872 = compareLessonsV892;
+compareLessonsV8813 = compareLessonsV892;
+compareLessonsV891 = compareLessonsV892;
+
+// 使用 v8.8.x 的稳定 paired row 组件，只替换排序和配对顺序。
+function renderLessonsV892() {
+  const tbody = document.getElementById("lessonsTable");
+  if (!tbody) return;
+
+  if (typeof updateLessonFilters === "function") updateLessonFilters();
+
+  const rows = (typeof filterLessons === "function" ? filterLessons().slice() : (state.lessonRecords || []).slice()).sort(compareLessonsV892);
+
+  if (typeof renderLessonStatsV8813 === "function") renderLessonStatsV8813(rows);
+  else if (typeof renderLessonStatsV8812 === "function") renderLessonStatsV8812(rows);
+  else if (typeof renderLessonStats === "function") renderLessonStats(rows);
+
+  const plannedRows = rows.filter(x => x.lesson_type === "planned").sort(compareLessonsV892);
+  const actualRows = rows.filter(x => x.lesson_type === "actual").sort(compareLessonsV892);
+
+  const actualByPlan = new Map();
+  const unlinkedActual = [];
+
+  actualRows.forEach(actual => {
+    const planId = actual.planned_lesson_id;
+    if (planId) {
+      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
+      actualByPlan.get(planId).push(actual);
+    } else {
+      unlinkedActual.push(actual);
+    }
+  });
+
+  for (const list of actualByPlan.values()) list.sort(compareLessonsV892);
+  unlinkedActual.sort(compareLessonsV892);
+
+  const html = [];
+  let lastMonth = "";
+
+  function addMonthRow(ym) {
+    const label = ym || "未归属月份";
+    if (label !== lastMonth) {
+      lastMonth = label;
+      html.push(`<tr class="month-group-row"><td colspan="12">${esc(typeof expenseMonthLabel === "function" ? expenseMonthLabel(label) : label)}</td></tr>`);
+    }
+  }
+
+  const cells = typeof lessonPairCellsFinalV835 === "function"
+    ? lessonPairCellsFinalV835
+    : (typeof lessonPairCellsV837 === "function" ? lessonPairCellsV837 : lessonPairCells);
+
+  plannedRows.forEach(plan => {
+    addMonthRow(plan.year_month);
+    const actuals = actualByPlan.get(plan.id) || [];
+
+    if (!actuals.length) {
+      html.push(`<tr class="lesson-pair-row">${cells(plan, "planned")}${cells(null, "actual")}</tr>`);
+    } else {
+      actuals.forEach((actual, index) => {
+        const left = index === 0 ? cells(plan, "planned") : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
+        html.push(`<tr class="lesson-pair-row">${left}${cells(actual, "actual")}</tr>`);
+      });
+    }
+  });
+
+  unlinkedActual.forEach(actual => {
+    addMonthRow(actual.year_month);
+    html.push(`<tr class="lesson-pair-row">${cells(null, "planned")}${cells(actual, "actual")}</tr>`);
+  });
+
+  tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
+
+  if (typeof bindLessonButtonsV837 === "function") bindLessonButtonsV837();
+  else if (typeof bindLessonPairButtonsV59 === "function") bindLessonPairButtonsV59();
+
+  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
+  if (typeof patchLessonCountDisplayV886 === "function") patchLessonCountDisplayV886();
+  if (typeof patchActualTimeDisplayV888 === "function") patchActualTimeDisplayV888();
+  if (typeof updateLessonButtonsDisabledV891 === "function") updateLessonButtonsDisabledV891();
+}
+
+// 覆盖所有旧入口，避免旧排序链再次接管。
+renderLessons = renderLessonsV892;
+renderLessonsV837 = renderLessonsV892;
+renderLessonsV8814 = renderLessonsV892;
+renderLessonsV89 = renderLessonsV892;
+
+// 保存按钮修复：传入事件对象，避免旧 saveForm 读取 undefined.preventDefault。
+function bindModalSubmitGuardV892() {
+  const form = document.getElementById("modalForm");
+  if (!form || form.dataset.submitGuardV892 === "true") return;
+  form.dataset.submitGuardV892 = "true";
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    if (typeof saveForm === "function") await saveForm(e);
+    return false;
+  }, true);
+}
+
+// 覆盖 v8.9.1 的 document click 兜底：阻止原生提交，但调用 saveForm(e) 而不是 saveForm()。
+document.addEventListener("click", async (e) => {
+  const btn = e.target?.closest?.("#saveModalBtn, [data-save-modal], button[type='submit']");
+  if (!btn) return;
+  const form = document.getElementById("modalForm");
+  if (!form) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+
+  if (typeof saveForm === "function") {
+    await saveForm(e || noopSubmitEventV892());
+  }
+  return false;
+}, true);
+
+const openCreateModalBeforeV892 = typeof openCreateModal === "function" ? openCreateModal : null;
+if (openCreateModalBeforeV892) {
+  openCreateModal = function(type, prefill = {}) {
+    openCreateModalBeforeV892(type, prefill);
+    setTimeout(() => {
+      bindModalSubmitGuardV892();
+      if (typeof patchLessonStatusSelectV891 === "function" && type === "lesson") patchLessonStatusSelectV891();
+    }, 0);
+  };
+}
+
+const openEditModalBeforeV892 = typeof openEditModal === "function" ? openEditModal : null;
+if (openEditModalBeforeV892) {
+  openEditModal = function(type, id) {
+    openEditModalBeforeV892(type, id);
+    setTimeout(() => {
+      bindModalSubmitGuardV892();
+      if (typeof patchLessonStatusSelectV891 === "function" && type === "lesson") patchLessonStatusSelectV891();
+    }, 0);
+  };
+}
+
+const switchPageBeforeV892 = typeof switchPage === "function" ? switchPage : null;
+if (switchPageBeforeV892) {
+  switchPage = function(page) {
+    switchPageBeforeV892(page);
+    if (page === "lessons") setTimeout(renderLessonsV892, 0);
+  };
+}
+
+const renderAllBeforeV892 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV892) {
+  renderAll = function() {
+    renderAllBeforeV892();
+    if (document.getElementById("page-lessons")?.classList.contains("active")) {
+      setTimeout(renderLessonsV892, 0);
+    }
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    bindModalSubmitGuardV892();
+    if (document.getElementById("page-lessons")?.classList.contains("active")) renderLessonsV892();
+  }, 1000);
+});
+

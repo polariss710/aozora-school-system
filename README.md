@@ -127,6 +127,24 @@
 
 
 
+
+### v8.9.2
+- 修复生成实际课时、登录收入时 Console 报错：
+  - `Cannot read properties of undefined (reading 'preventDefault')`
+- 原因：
+  - v8.9.1 的保存兜底逻辑调用了 `saveForm()`，但旧版 `saveForm` 需要事件参数。
+- 本版改为调用 `saveForm(e)`，避免 undefined.preventDefault。
+- 继续保留 v8.8.x 稳定表格布局。
+- 修正课时管理排序：
+  - 月份
+  - 科目优先级
+  - 老师
+  - 日期
+  - 回数
+  - 开始时间
+- 覆盖旧的 `renderLessonsV837` 等入口，避免旧排序链再次接管。
+- 本版无 SQL 修改。
+
 ### v8.9.1
 - 回滚 v8.9 的课时管理硬重写布局，恢复 v8.8.13 的稳定画面结构。
 - 保留原有标题栏、列宽、checkbox 居中、日期显示、科目两行显示、内容列网格等旧版稳定布局。

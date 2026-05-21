@@ -2347,3 +2347,20 @@ button:disabled {
 /* === v9.1.3 teacher wage settlement === */
 .teacher-wage-toolbar{margin-bottom:12px;}
 .teacher-wage-detail-title{margin-top:18px;margin-bottom:8px;}
+
+/* === v9.1.4 teacher wage pay hour override === */
+.teacher-pay-hours-input {
+  width: 76px;
+  min-height: 28px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.teacher-pay-reset-btn {
+  margin-left: 4px;
+  padding: 3px 8px;
+  min-height: 26px;
+  font-size: 12px;
+}

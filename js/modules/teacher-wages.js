@@ -1,4 +1,4 @@
-// === v9.1.4 teacher wage settlement basic module ===
+// === v9.1.5 teacher wage settlement basic module ===
 // 新增“工资课时”临时调整：
 // - 默认值 = 实际分钟按30分钟向下取整
 // - 可以在明细表中手动修改
@@ -9,6 +9,15 @@
 
   function n(v){ const x = Number(v || 0); return Number.isFinite(x) ? x : 0; }
   function currentMonth(){ return new Date().toISOString().slice(0, 7); }
+  function monthFromDateV915(dateText){
+    const text = String(dateText || "").trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text.slice(0, 7);
+    if (/^\d{4}\/\d{2}\/\d{2}$/.test(text)) return text.slice(0, 7).replace("/", "-");
+    return "";
+  }
+  function teacherSettlementMonth(row){
+    return row.teacher_settlement_month || monthFromDateV915(row.lesson_date) || row.year_month || "";
+  }
   function fmtHours(v){
     const x = Number(v || 0);
     if (!Number.isFinite(x)) return "0";
@@ -73,7 +82,7 @@
     const month = document.getElementById("teacherWageMonthFilter")?.value || currentMonth();
     const teacherId = document.getElementById("teacherWageTeacherFilter")?.value || "";
     return (state.lessonRecords || [])
-      .filter(r => r.year_month === month && (!teacherId || r.teacher_id === teacherId) && isTarget(r))
+      .filter(r => teacherSettlementMonth(r) === month && (!teacherId || r.teacher_id === teacherId) && isTarget(r))
       .sort((a,b) =>
         teacherName(a).localeCompare(teacherName(b),"zh-Hans-CN") ||
         subjectName(a).localeCompare(subjectName(b),"zh-Hans-CN") ||
@@ -245,7 +254,7 @@
   });
 
   window.SchoolTeacherWagesModule = {
-    version: "9.1.4",
+    version: "9.1.5",
     render,
     summarize,
     targetLessons,

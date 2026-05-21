@@ -348,3 +348,122 @@
     setTimeout(patchLessonDurationDecimalV906, 800);
   });
 })();
+
+// === v9.1.5 teacher settlement month for actual lessons ===
+(function () {
+  function monthFromDateV915(dateText) {
+    const text = String(dateText || "").trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text.slice(0, 7);
+    if (/^\d{4}\/\d{2}\/\d{2}$/.test(text)) return text.slice(0, 7).replace("/", "-");
+    return "";
+  }
+
+  function currentRecordV915() {
+    if (state.editing?.type !== "lesson") return null;
+    if (!state.editing?.id) return state.editing?.data || null;
+    return typeof findLocal === "function" ? findLocal("lesson", state.editing.id) : null;
+  }
+
+  function patchTeacherSettlementMonthFieldV915() {
+    const form = document.getElementById("modalForm");
+    if (!form || state.editing?.type !== "lesson") return;
+
+    const typeValue = form.querySelector('[name="lesson_type"]')?.value || currentRecordV915()?.lesson_type || "actual";
+    const existingRow = form.querySelector('[name="teacher_settlement_month"]')?.closest(".form-row, label, .form-field");
+
+    if (typeValue !== "actual") {
+      existingRow?.remove();
+      return;
+    }
+
+    if (!form.querySelector('[name="teacher_settlement_month"]')) {
+      const html = `
+        <div class="form-row teacher-settlement-month-field-v915">
+          <label>工资结算月份</label>
+          <input name="teacher_settlement_month" type="month" />
+        </div>
+      `;
+      const ymRow = form.querySelector('[name="year_month"]')?.closest(".form-row");
+      const dateRow = form.querySelector('[name="lesson_date"]')?.closest(".form-row");
+      const anchor = ymRow || dateRow;
+      if (anchor) anchor.insertAdjacentHTML("afterend", html);
+      else form.insertAdjacentHTML("afterbegin", html);
+    }
+
+    const input = form.querySelector('[name="teacher_settlement_month"]');
+    const record = currentRecordV915();
+    if (input && !input.value) {
+      input.value = record?.teacher_settlement_month ||
+        monthFromDateV915(form.querySelector('[name="lesson_date"]')?.value) ||
+        monthFromDateV915(record?.lesson_date) ||
+        record?.year_month ||
+        "";
+    }
+  }
+
+  function bindTeacherSettlementMonthEventsV915() {
+    const form = document.getElementById("modalForm");
+    if (!form || state.editing?.type !== "lesson") return;
+    if (form.dataset.teacherSettlementMonthBoundV915 === "true") return;
+    form.dataset.teacherSettlementMonthBoundV915 = "true";
+
+    form.querySelector('[name="lesson_type"]')?.addEventListener("change", patchTeacherSettlementMonthFieldV915);
+
+    form.querySelector('[name="lesson_date"]')?.addEventListener("change", () => {
+      const input = form.querySelector('[name="teacher_settlement_month"]');
+      if (input && input.dataset.manualEditedV915 !== "true") {
+        input.value = monthFromDateV915(form.querySelector('[name="lesson_date"]')?.value) || input.value;
+      }
+    });
+
+    form.addEventListener("input", e => {
+      if (e.target?.name === "teacher_settlement_month") e.target.dataset.manualEditedV915 = "true";
+    });
+  }
+
+  function patchLessonModalV915() {
+    patchTeacherSettlementMonthFieldV915();
+    bindTeacherSettlementMonthEventsV915();
+  }
+
+  const normalizeBeforeV915 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
+  window.normalizeLessonPayload = function(payload, type) {
+    if (normalizeBeforeV915) payload = normalizeBeforeV915(payload, type);
+    if (type === "lesson") {
+      const form = document.getElementById("modalForm");
+      const lessonType = payload.lesson_type || form?.querySelector('[name="lesson_type"]')?.value;
+      if (lessonType === "actual") {
+        payload.teacher_settlement_month =
+          form?.querySelector('[name="teacher_settlement_month"]')?.value ||
+          monthFromDateV915(payload.lesson_date) ||
+          payload.year_month ||
+          null;
+      } else {
+        payload.teacher_settlement_month = null;
+      }
+    }
+    return payload;
+  };
+
+  const openCreateBeforeV915 = typeof openCreateModal === "function" ? openCreateModal : null;
+  if (openCreateBeforeV915) {
+    window.openCreateModal = function(type, prefill = {}) {
+      if (type === "lesson" && (prefill.lesson_type || "actual") === "actual" && !prefill.teacher_settlement_month) {
+        prefill = { ...prefill, teacher_settlement_month: monthFromDateV915(prefill.lesson_date) || prefill.year_month || "" };
+      }
+      openCreateBeforeV915(type, prefill);
+      if (type === "lesson") setTimeout(patchLessonModalV915, 0);
+    };
+  }
+
+  const openEditBeforeV915 = typeof openEditModal === "function" ? openEditModal : null;
+  if (openEditBeforeV915) {
+    window.openEditModal = function(type, id) {
+      openEditBeforeV915(type, id);
+      if (type === "lesson") setTimeout(patchLessonModalV915, 0);
+    };
+  }
+
+  document.addEventListener("DOMContentLoaded", () => setTimeout(patchLessonModalV915, 800));
+  window.SchoolLessonTeacherSettlementMonthV915 = { monthFromDate: monthFromDateV915, patch: patchLessonModalV915 };
+})();

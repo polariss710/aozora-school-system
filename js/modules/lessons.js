@@ -73,3 +73,80 @@
     }, 1000);
   });
 })();
+
+
+// === v9.0.4 lesson count modal field ===
+// 新增/编辑课时时正式显示“回数”输入框。
+// 旧记录没有 lesson_count 时，可以通过编辑课时补录。
+// 不强制必填；为空时继续允许保存。
+
+(function () {
+  function normalizeLessonCountV904(value) {
+    if (value === null || value === undefined || value === "") return null;
+    const n = Number(String(value).replace(/[^\d.-]/g, ""));
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function patchLessonCountFieldV904() {
+    const form = document.getElementById("modalForm");
+    if (!form || state.editing?.type !== "lesson") return;
+    if (form.querySelector('[name="lesson_count"]')) return;
+
+    const rowHtml = `
+      <div class="form-row lesson-count-field-v904">
+        <label>回数</label>
+        <input name="lesson_count" type="number" step="1" min="1" placeholder="例：1" />
+      </div>
+    `;
+
+    const statusRow = form.querySelector('[name="status"]')?.closest(".form-row");
+    const contentRow = form.querySelector('[name="lesson_content"]')?.closest(".form-row");
+    const actionsRow = form.querySelector(".form-actions");
+
+    if (statusRow) statusRow.insertAdjacentHTML("beforebegin", rowHtml);
+    else if (contentRow) contentRow.insertAdjacentHTML("beforebegin", rowHtml);
+    else if (actionsRow) actionsRow.insertAdjacentHTML("beforebegin", rowHtml);
+    else form.insertAdjacentHTML("beforeend", rowHtml);
+
+    const input = form.querySelector('[name="lesson_count"]');
+    const current = state.editing?.id ? findLocal("lesson", state.editing.id)?.lesson_count : "";
+    if (input && current !== undefined && current !== null && current !== "") input.value = current;
+  }
+
+  // The older v8.8.6 patch inserted a <label class="form-field"> which did not match the current form layout.
+  window.patchLessonCountFieldV886 = patchLessonCountFieldV904;
+  window.patchLessonCountFieldV904 = patchLessonCountFieldV904;
+
+  const normalizeLessonPayloadBeforeV904 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
+  window.normalizeLessonPayload = function(payload, type) {
+    if (normalizeLessonPayloadBeforeV904) payload = normalizeLessonPayloadBeforeV904(payload, type);
+
+    if (type === "lesson") {
+      const raw = document.getElementById("modalForm")?.querySelector('[name="lesson_count"]')?.value;
+      const count = normalizeLessonCountV904(raw ?? payload.lesson_count);
+      payload.lesson_count = count;
+    }
+
+    return payload;
+  };
+
+  const openCreateModalBeforeV904 = typeof openCreateModal === "function" ? openCreateModal : null;
+  if (openCreateModalBeforeV904) {
+    window.openCreateModal = function(type, prefill = {}) {
+      openCreateModalBeforeV904(type, prefill);
+      if (type === "lesson") setTimeout(patchLessonCountFieldV904, 0);
+    };
+  }
+
+  const openEditModalBeforeV904 = typeof openEditModal === "function" ? openEditModal : null;
+  if (openEditModalBeforeV904) {
+    window.openEditModal = function(type, id) {
+      openEditModalBeforeV904(type, id);
+      if (type === "lesson") setTimeout(patchLessonCountFieldV904, 0);
+    };
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(patchLessonCountFieldV904, 800);
+  });
+})();

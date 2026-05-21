@@ -221,3 +221,58 @@
 
   window.debugStudentSettlementStatsV902 = settlementStats;
 })();
+
+
+// === v9.0.3 settlement date/count display ===
+// 月度结算明细的日期列增加“第X回”，显示方式与课时管理保持一致。
+(function () {
+  function lessonCountNumber(row) {
+    if (row?.lesson_count === null || row?.lesson_count === undefined || row?.lesson_count === "") return null;
+    const n = Number(String(row.lesson_count).replace(/[^\d.-]/g, ""));
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function settlementDateHtmlV903(item) {
+    const count = lessonCountNumber(item);
+    return `
+      <td class="lesson-date-cell">
+        <div>${esc(displayRecordDate(item.lesson_date || ""))}</div>
+        <span class="muted-small">${esc(item.year_month || "")}</span>
+        ${count !== null ? `<div class="lesson-count-v886">第${esc(count)}回</div>` : ""}
+      </td>
+    `;
+  }
+
+  function settlementLessonCellsV903(item, side) {
+    if (!item) {
+      return `<td colspan="6" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
+    }
+
+    const fee = feeOfLessonV83(item);
+    const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
+    const timeText = [item.start_time, item.end_time].filter(Boolean).join(" - ");
+    const studentName = item.student?.display_name || item.student?.name || "";
+    const teacherName = item.teacher?.display_name || item.teacher?.name || "";
+    const subjectName = item.subject?.name || "";
+
+    return `
+      ${settlementDateHtmlV903(item)}
+      <td class="lesson-name-cell">${esc(studentName)}</td>
+      <td class="lesson-teacher-cell">${esc(teacherName)}</td>
+      <td class="lesson-subject-cell">
+        <div>${esc(subjectName)}</div>
+        <span class="muted-small">${esc(timeText || "时间未定")} / ${money(item.duration_hours)}H / ${formatJpyV83(fee)}</span>
+      </td>
+      <td class="lesson-status-cell">
+        ${badge(lessonStatusLabel(item.status), statusClass)}
+        ${item.is_billable !== false ? badge("计费") : badge("不计费", "gray")}
+      </td>
+      <td class="lesson-content-actions-cell">
+        <div class="lesson-content-cell">${esc(short(item.lesson_content || item.note, 36))}</div>
+      </td>
+    `;
+  }
+
+  window.settlementLessonCellsV834 = settlementLessonCellsV903;
+  window.settlementLessonCellsV903 = settlementLessonCellsV903;
+})();

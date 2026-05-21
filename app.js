@@ -14518,3 +14518,149 @@ document.addEventListener("DOMContentLoaded", () => {
   }, 1000);
 });
 
+
+
+// === v8.8.13 planned fee and lesson_count ordering fix ===
+// 1. 预定课时费合计：按全部预定课时的 单价 × 预定时长 计算，包括取消课。
+// 2. 同一天/同周同科目课程排序加入 lesson_count，回数小的在上。
+
+function normalizeLessonCountV8813(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(String(value).replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+function lessonSubjectNameV8813(row) {
+  return row?.subject?.name || row?.subject_name || "";
+}
+
+function subjectPriorityV8813(row) {
+  const name = lessonSubjectNameV8813(row);
+  const order = ["日语", "数学", "物理", "化学", "生物", "文综"];
+  const idx = order.findIndex(x => name.includes(x));
+  return idx < 0 ? 99 : idx;
+}
+
+function lessonSortKeyDateV8813(row) {
+  return String(row?.lesson_date || "");
+}
+
+function compareLessonsV8813(a, b) {
+  const dateCompare = lessonSortKeyDateV8813(a).localeCompare(lessonSortKeyDateV8813(b));
+  if (dateCompare) return dateCompare;
+
+  const subjectCompare = subjectPriorityV8813(a) - subjectPriorityV8813(b);
+  if (subjectCompare) return subjectCompare;
+
+  const teacherCompare = String(a?.teacher_id || "").localeCompare(String(b?.teacher_id || ""));
+  if (teacherCompare) return teacherCompare;
+
+  const aCount = normalizeLessonCountV8813(a?.lesson_count);
+  const bCount = normalizeLessonCountV8813(b?.lesson_count);
+  if (aCount !== null || bCount !== null) {
+    if (aCount === null) return 1;
+    if (bCount === null) return -1;
+    if (aCount !== bCount) return aCount - bCount;
+  }
+
+  const timeCompare = String(a?.start_time || "").localeCompare(String(b?.start_time || ""));
+  if (timeCompare) return timeCompare;
+
+  const createdCompare = String(a?.created_at || "").localeCompare(String(b?.created_at || ""));
+  if (createdCompare) return createdCompare;
+
+  return String(a?.id || "").localeCompare(String(b?.id || ""));
+}
+
+compareLessonsV78 = compareLessonsV8813;
+compareLessonsV83 = compareLessonsV8813;
+compareLessonsV872 = compareLessonsV8813;
+
+// v8.8.12 statistics correction:
+// 预定课时费合计包含取消课，因为它表示“原始预定课时费合计”。
+// 实际课时费合计仍然排除取消课、不计费课，并加入待补课且计费的课。
+function lessonStatsV8813(rows) {
+  const list = rows || [];
+  const planned = list.filter(x => x.lesson_type === "planned");
+  const actual = list.filter(x => x.lesson_type === "actual");
+
+  const plannedHours = planned.reduce((sum, row) => sum + nV8812(row.duration_hours), 0);
+
+  const plannedFee = planned
+    .reduce((sum, row) => sum + lessonCalcFeeV8812(row), 0);
+
+  const actualCountable = actual.filter(row => !lessonIsCancelledV8812(row));
+
+  const actualHoursFromActual = actualCountable
+    .reduce((sum, row) => sum + nV8812(row.duration_hours), 0);
+
+  const pendingBillable = planned.filter(row => lessonIsPendingMakeupV8812(row) && row.is_billable !== false);
+
+  const pendingBillableHours = pendingBillable
+    .reduce((sum, row) => sum + nV8812(row.duration_hours), 0);
+
+  const actualHoursForStats = actualHoursFromActual + pendingBillableHours;
+
+  const actualFeeFromActual = actualCountable
+    .filter(row => row.is_billable !== false)
+    .reduce((sum, row) => sum + lessonCalcFeeV8812(row), 0);
+
+  const pendingBillableFee = pendingBillable
+    .reduce((sum, row) => sum + lessonCalcFeeV8812(row), 0);
+
+  const actualFeeForStats = actualFeeFromActual + pendingBillableFee;
+
+  return {
+    plannedHours,
+    actualHoursForStats,
+    plannedFee,
+    actualFeeForStats,
+    completedCount: actualCountable.length,
+    pendingMakeupCount: planned.filter(lessonIsPendingMakeupV8812).length,
+    cancelledCount: planned.filter(lessonIsCancelledV8812).length,
+    recordCount: list.length,
+  };
+}
+
+lessonStatsV8812 = lessonStatsV8813;
+
+function renderLessonStatsV8813(rows) {
+  const stats = lessonStatsV8813(rows || []);
+  setLessonStatTextV8812(["lessonPlannedHours", "lessonPlannedHoursTotal", "plannedLessonHoursTotal"], formatHoursV8812(stats.plannedHours));
+  setLessonStatTextV8812(["lessonActualHours", "lessonActualHoursTotal", "actualLessonHoursTotal"], formatHoursV8812(stats.actualHoursForStats));
+  setLessonStatTextV8812(["lessonPlannedFee", "lessonPlannedFeeTotal", "plannedLessonFeeTotal"], typeof formatJpyV83 === "function" ? formatJpyV83(stats.plannedFee) : `${Math.round(stats.plannedFee).toLocaleString()} JPY`);
+  setLessonStatTextV8812(["lessonActualFee", "lessonActualFeeTotal", "actualLessonFeeTotal"], typeof formatJpyV83 === "function" ? formatJpyV83(stats.actualFeeForStats) : `${Math.round(stats.actualFeeForStats).toLocaleString()} JPY`);
+  setLessonStatTextV8812(["lessonCompletedCount", "completedLessonCount"], String(stats.completedCount));
+  setLessonStatTextV8812(["lessonPendingMakeupCount", "pendingMakeupLessonCount"], String(stats.pendingMakeupCount));
+  setLessonStatTextV8812(["lessonRecordCount", "lessonTotalCount"], String(stats.recordCount));
+  setTimeout(() => patchLessonStatsCardsByTextV8812(stats), 0);
+}
+
+renderLessonStats = renderLessonStatsV8813;
+renderLessonStatsV8812 = renderLessonStatsV8813;
+
+const renderLessonsBeforeV8813 = typeof renderLessons === "function" ? renderLessons : null;
+if (renderLessonsBeforeV8813) {
+  renderLessons = function() {
+    renderLessonsBeforeV8813();
+    const rows = typeof filterLessons === "function" ? filterLessons().slice() : (state.lessonRecords || []);
+    renderLessonStatsV8813(rows);
+  };
+}
+
+const renderAllBeforeV8813 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV8813) {
+  renderAll = function() {
+    renderAllBeforeV8813();
+    if (typeof filterLessons === "function") {
+      setTimeout(() => renderLessonStatsV8813(filterLessons().slice()), 0);
+    }
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    if (typeof filterLessons === "function") renderLessonStatsV8813(filterLessons().slice());
+  }, 1000);
+});
+

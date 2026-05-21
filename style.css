@@ -2343,3 +2343,13 @@ button:disabled {
   border-color: #ef4444 !important;
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
 }
+
+/* === v9.1 teacher wage settlement === */
+.teacher-wage-toolbar {
+  margin-bottom: 12px;
+}
+
+.teacher-wage-detail-title {
+  margin-top: 18px;
+  margin-bottom: 8px;
+}

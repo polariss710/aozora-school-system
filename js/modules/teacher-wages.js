@@ -1,4 +1,4 @@
-// === v9.1.10.2 teacher wage settlement display/sort/rule hint ===
+// === v9.1.10.3 teacher wage rule matching fix ===
 // 改善工资结算显示：
 // 1. 汇总表显示业务归属、学生、规则状态。
 // 2. 排序优先级：业务归属 → 老师 → 学生 → 科目 → 日期 → 时间。
@@ -39,8 +39,38 @@
 
   function teacherName(row){ const t = teacherObj(row); return t.display_name || t.name || ""; }
   function subjectName(row){ const s = subjectObj(row); return s.name || ""; }
-  function businessName(row){ const b = businessObj(row); return b.name || ""; }
+  function businessName(row){ const b = businessObj(row); return b.name || businessNameForRule(row) || ""; }
   function studentName(row){ const s = studentObj(row); return s.display_name || s.name || ""; }
+
+  function lessonTeacherId(row) {
+    return String(row?.teacher_id || row?.teacher?.id || "");
+  }
+
+  function lessonStudentId(row) {
+    return String(row?.student_id || row?.student?.id || "");
+  }
+
+  function lessonSubjectId(row) {
+    return String(row?.subject_id || row?.subject?.id || "");
+  }
+
+  function lessonBusinessId(row) {
+    if (row?.business_entity_id) return String(row.business_entity_id);
+    if (row?.business_entity?.id) return String(row.business_entity.id);
+    const student = (state.students || []).find(x => String(x.id) === lessonStudentId(row));
+    return String(student?.business_entity_id || student?.business_entity?.id || "");
+  }
+
+  function businessObjById(id) {
+    return (state.businessEntities || []).find(x => String(x.id) === String(id)) || {};
+  }
+
+  function businessNameForRule(row) {
+    const id = lessonBusinessId(row);
+    const direct = businessObj(row);
+    return direct.name || businessObjById(id).name || "";
+  }
+
 
   function parseTime(v){
     const m = String(v || "").trim().match(/^(\d{1,2}):(\d{1,2})$/);
@@ -59,7 +89,7 @@
   }
 
   function rowKey(row) {
-    return String(row.id || `${row.teacher_id || ""}_${row.student_id || ""}_${row.subject_id || ""}_${row.lesson_date || ""}_${row.start_time || ""}`);
+    return String(row.id || `${lessonTeacherId(row)}_${lessonStudentId(row)}_${lessonSubjectId(row)}_${lessonBusinessId(row)}_${row.lesson_date || ""}_${row.start_time || ""}`);
   }
 
   function payHoursForRow(row) {
@@ -90,10 +120,10 @@
   }
 
   function ruleMatches(rule, row) {
-    return String(rule.teacher_id || "") === String(row.teacher_id || "") &&
-      String(rule.student_id || "") === String(row.student_id || "") &&
-      String(rule.subject_id || "") === String(row.subject_id || "") &&
-      String(rule.business_entity_id || "") === String(row.business_entity_id || "");
+    return String(rule.teacher_id || "") === lessonTeacherId(row) &&
+      String(rule.student_id || "") === lessonStudentId(row) &&
+      String(rule.subject_id || "") === lessonSubjectId(row) &&
+      String(rule.business_entity_id || "") === lessonBusinessId(row);
   }
 
   function findRule(row) {
@@ -101,11 +131,12 @@
   }
 
   function missingRuleText(row) {
+    const businessLabel = businessNameForRule(row) || businessName(row) || "业务归属未定";
     return [
       teacherName(row) || "老师未定",
       studentName(row) || "学生未定",
       subjectName(row) || "科目未定",
-      businessName(row) || "业务归属未定",
+      businessLabel,
     ].join(" / ");
   }
 
@@ -212,10 +243,10 @@
     list.forEach(r => {
       const wage = calcRowWage(r);
       const key = [
-        r.business_entity_id || "",
-        r.teacher_id || "",
-        r.student_id || "",
-        r.subject_id || "",
+        lessonBusinessId(r),
+        lessonTeacherId(r),
+        lessonStudentId(r),
+        lessonSubjectId(r),
         wage.type,
         wage.rateJpy,
         wage.rateCny,
@@ -437,8 +468,23 @@
     }, 1000);
   });
 
+  window.debugTeacherWageRuleMatchV91103 = function(rowOrId) {
+    const row = typeof rowOrId === "string"
+      ? (state.lessonRecords || []).find(x => String(x.id) === String(rowOrId))
+      : rowOrId;
+    if (!row) return null;
+    return {
+      teacher_id: lessonTeacherId(row),
+      student_id: lessonStudentId(row),
+      subject_id: lessonSubjectId(row),
+      business_entity_id: lessonBusinessId(row),
+      display: missingRuleText(row),
+      matched_rule: findRule(row),
+    };
+  };
+
   window.SchoolTeacherWagesModule = {
-    version: "9.1.10.2",
+    version: "9.1.10.3",
     render,
     summarize,
     targetLessons,

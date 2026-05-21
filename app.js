@@ -14249,3 +14249,272 @@ if (openEditModalBeforeV8810) {
   };
 }
 
+
+
+// === v8.8.11 income tuition student validation fix ===
+// v8.8.10 只在 saveForm 外层拦截，但部分版本的保存按钮/submit 流程没有进入该分支，
+// 导致未选学生时没有保存、同时页面回到首页。本版在 submit/click/saveForm 三层都拦截。
+
+function incomeCategoryIsTuitionV8811(value) {
+  const text = String(value || "").trim();
+  return (
+    text === "tuition" ||
+    text === "学费" ||
+    text === "授業料" ||
+    /学费|授業料|tuition/i.test(text)
+  );
+}
+
+function currentModalTypeV8811() {
+  return state?.editing?.type || document.getElementById("modalForm")?.dataset?.type || "";
+}
+
+function validateIncomeTuitionStudentV8811({ show = true } = {}) {
+  const form = document.getElementById("modalForm");
+  const type = currentModalTypeV8811();
+  if (!form || type !== "income") return true;
+
+  const category =
+    form.querySelector('[name="income_category"]')?.value ||
+    form.querySelector('[name="category"]')?.value ||
+    form.querySelector('[name="income_type"]')?.value ||
+    "";
+
+  const studentId =
+    form.querySelector('[name="student_id"]')?.value ||
+    form.querySelector('[name="student"]')?.value ||
+    "";
+
+  if (incomeCategoryIsTuitionV8811(category) && !studentId) {
+    if (show) {
+      showMessage("收入分类为学费时，必须指定学生。", "error");
+      const select = form.querySelector('[name="student_id"], [name="student"]');
+      if (select) {
+        select.focus();
+        select.classList.add("input-error-v8811");
+        setTimeout(() => select.classList.remove("input-error-v8811"), 1800);
+      }
+    }
+    return false;
+  }
+
+  return true;
+}
+
+function bindIncomeTuitionValidationV8811() {
+  const form = document.getElementById("modalForm");
+  if (!form || form.dataset.incomeValidationBoundV8811 === "true") return;
+  form.dataset.incomeValidationBoundV8811 = "true";
+
+  // 标记 form 类型，避免 state.editing 在某些 submit 路径中被重置后判断不到。
+  if (state?.editing?.type) form.dataset.type = state.editing.type;
+
+  form.addEventListener("submit", (e) => {
+    if (!validateIncomeTuitionStudentV8811()) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      return false;
+    }
+  }, true);
+}
+
+const saveFormBeforeV8811 = typeof saveForm === "function" ? saveForm : null;
+if (saveFormBeforeV8811) {
+  saveForm = async function(...args) {
+    if (!validateIncomeTuitionStudentV8811()) return;
+    return saveFormBeforeV8811.apply(this, args);
+  };
+}
+
+// 兜底：保存按钮 click 阶段提前拦截，防止原生 submit 或旧 onclick 导航。
+document.addEventListener("click", (e) => {
+  const btn = e.target?.closest?.("#saveModalBtn, [data-save-modal], button[type='submit']");
+  if (!btn) return;
+
+  const form = document.getElementById("modalForm");
+  if (!form || currentModalTypeV8811() !== "income") return;
+
+  if (!validateIncomeTuitionStudentV8811()) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    return false;
+  }
+}, true);
+
+const openCreateModalBeforeV8811 = typeof openCreateModal === "function" ? openCreateModal : null;
+if (openCreateModalBeforeV8811) {
+  openCreateModal = function(type, prefill = {}) {
+    openCreateModalBeforeV8811(type, prefill);
+    const form = document.getElementById("modalForm");
+    if (form) form.dataset.type = type;
+    if (type === "income") setTimeout(bindIncomeTuitionValidationV8811, 0);
+  };
+}
+
+const openEditModalBeforeV8811 = typeof openEditModal === "function" ? openEditModal : null;
+if (openEditModalBeforeV8811) {
+  openEditModal = function(type, id) {
+    openEditModalBeforeV8811(type, id);
+    const form = document.getElementById("modalForm");
+    if (form) form.dataset.type = type;
+    if (type === "income") setTimeout(bindIncomeTuitionValidationV8811, 0);
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(bindIncomeTuitionValidationV8811, 1000);
+});
+
+
+
+// === v8.8.12 lesson statistics scope fix ===
+function lessonStatusV8812(row) {
+  return String(row?.status || "").trim();
+}
+
+function lessonIsPendingMakeupV8812(row) {
+  const s = lessonStatusV8812(row);
+  return s === "pending_makeup" || s === "待补课" || s === "待补";
+}
+
+function lessonIsCancelledV8812(row) {
+  const s = lessonStatusV8812(row);
+  return s === "cancelled" || s === "取消课" || s === "取消";
+}
+
+function nV8812(value) {
+  const n = Number(value || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function lessonCalcFeeV8812(row, hours = nV8812(row?.duration_hours)) {
+  return nV8812(row?.unit_price) * nV8812(hours);
+}
+
+function formatHoursV8812(value) {
+  const n = Number(value || 0);
+  if (!Number.isFinite(n)) return "0";
+  return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
+}
+
+function lessonStatsV8812(rows) {
+  const list = rows || [];
+  const planned = list.filter(x => x.lesson_type === "planned");
+  const actual = list.filter(x => x.lesson_type === "actual");
+
+  const plannedHours = planned.reduce((sum, row) => sum + nV8812(row.duration_hours), 0);
+
+  const plannedFee = planned
+    .filter(row => row.is_billable !== false)
+    .reduce((sum, row) => sum + lessonCalcFeeV8812(row), 0);
+
+  const actualCountable = actual.filter(row => !lessonIsCancelledV8812(row));
+
+  const actualHoursFromActual = actualCountable
+    .reduce((sum, row) => sum + nV8812(row.duration_hours), 0);
+
+  const pendingBillable = planned.filter(row => lessonIsPendingMakeupV8812(row) && row.is_billable !== false);
+
+  const pendingBillableHours = pendingBillable
+    .reduce((sum, row) => sum + nV8812(row.duration_hours), 0);
+
+  const actualHoursForStats = actualHoursFromActual + pendingBillableHours;
+
+  const actualFeeFromActual = actualCountable
+    .filter(row => row.is_billable !== false)
+    .reduce((sum, row) => sum + lessonCalcFeeV8812(row), 0);
+
+  const pendingBillableFee = pendingBillable
+    .reduce((sum, row) => sum + lessonCalcFeeV8812(row), 0);
+
+  const actualFeeForStats = actualFeeFromActual + pendingBillableFee;
+
+  return {
+    plannedHours,
+    actualHoursForStats,
+    plannedFee,
+    actualFeeForStats,
+    completedCount: actualCountable.length,
+    pendingMakeupCount: planned.filter(lessonIsPendingMakeupV8812).length,
+    cancelledCount: planned.filter(lessonIsCancelledV8812).length,
+    recordCount: list.length,
+  };
+}
+
+function setLessonStatTextV8812(ids, value) {
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = value;
+      return true;
+    }
+  }
+  return false;
+}
+
+function patchLessonStatsCardsByTextV8812(stats) {
+  const cards = Array.from(document.querySelectorAll(".stat-card, .summary-card, .metric-card, .card"));
+  const setByLabel = (pattern, value) => {
+    const card = cards.find(c => pattern.test(c.textContent || ""));
+    if (!card) return;
+    const candidates = Array.from(card.querySelectorAll("strong, .stat-value, .metric-value, h2, h3, .value"));
+    const target = candidates.find(x => /\d|JPY|CNY/.test(x.textContent || "")) || candidates[candidates.length - 1];
+    if (target) target.textContent = value;
+  };
+
+  setByLabel(/预定课时合计/, formatHoursV8812(stats.plannedHours));
+  setByLabel(/实际课时合计/, formatHoursV8812(stats.actualHoursForStats));
+  setByLabel(/预定课时费合计/, typeof formatJpyV83 === "function" ? formatJpyV83(stats.plannedFee) : `${Math.round(stats.plannedFee).toLocaleString()} JPY`);
+  setByLabel(/实际课时费合计/, typeof formatJpyV83 === "function" ? formatJpyV83(stats.actualFeeForStats) : `${Math.round(stats.actualFeeForStats).toLocaleString()} JPY`);
+  setByLabel(/已上课数量/, String(stats.completedCount));
+  setByLabel(/待补课数量/, String(stats.pendingMakeupCount));
+  setByLabel(/记录数/, String(stats.recordCount));
+
+  cards.forEach(card => {
+    if (/取消\/放假数量|取消放假数量/.test(card.textContent || "")) {
+      card.style.display = "none";
+    }
+  });
+}
+
+function renderLessonStatsV8812(rows) {
+  const stats = lessonStatsV8812(rows || []);
+  setLessonStatTextV8812(["lessonPlannedHours", "lessonPlannedHoursTotal", "plannedLessonHoursTotal"], formatHoursV8812(stats.plannedHours));
+  setLessonStatTextV8812(["lessonActualHours", "lessonActualHoursTotal", "actualLessonHoursTotal"], formatHoursV8812(stats.actualHoursForStats));
+  setLessonStatTextV8812(["lessonPlannedFee", "lessonPlannedFeeTotal", "plannedLessonFeeTotal"], typeof formatJpyV83 === "function" ? formatJpyV83(stats.plannedFee) : `${Math.round(stats.plannedFee).toLocaleString()} JPY`);
+  setLessonStatTextV8812(["lessonActualFee", "lessonActualFeeTotal", "actualLessonFeeTotal"], typeof formatJpyV83 === "function" ? formatJpyV83(stats.actualFeeForStats) : `${Math.round(stats.actualFeeForStats).toLocaleString()} JPY`);
+  setLessonStatTextV8812(["lessonCompletedCount", "completedLessonCount"], String(stats.completedCount));
+  setLessonStatTextV8812(["lessonPendingMakeupCount", "pendingMakeupLessonCount"], String(stats.pendingMakeupCount));
+  setLessonStatTextV8812(["lessonRecordCount", "lessonTotalCount"], String(stats.recordCount));
+  setTimeout(() => patchLessonStatsCardsByTextV8812(stats), 0);
+}
+
+renderLessonStats = renderLessonStatsV8812;
+
+const renderLessonsBeforeV8812 = typeof renderLessons === "function" ? renderLessons : null;
+if (renderLessonsBeforeV8812) {
+  renderLessons = function() {
+    renderLessonsBeforeV8812();
+    const rows = typeof filterLessons === "function" ? filterLessons().slice() : (state.lessonRecords || []);
+    renderLessonStatsV8812(rows);
+  };
+}
+
+const renderAllBeforeV8812 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV8812) {
+  renderAll = function() {
+    renderAllBeforeV8812();
+    if (typeof filterLessons === "function") {
+      setTimeout(() => renderLessonStatsV8812(filterLessons().slice()), 0);
+    }
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    if (typeof filterLessons === "function") renderLessonStatsV8812(filterLessons().slice());
+  }, 1000);
+});
+

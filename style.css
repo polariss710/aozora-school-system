@@ -2337,3 +2337,9 @@ button:disabled {
 }
 
 .actual-time-v888{margin-top:3px;font-size:11px;font-weight:800;color:#475569}
+
+/* === v8.8.11 validation highlight === */
+.input-error-v8811 {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}

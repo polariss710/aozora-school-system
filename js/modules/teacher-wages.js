@@ -1,7 +1,9 @@
-// === v9.1.9 teacher wage settlement with wage rules ===
-// 接入老师工资规则：老师 + 学生 + 科目 + 业务归属。
-// 本版计算：工资课时 × 时给，并显示日元工资/人民币折算。
-// 交通费、教室费暂不接入，后续在明细行逐行维护。
+// === v9.1.10 teacher wage settlement display/sort/rule hint ===
+// 改善工资结算显示：
+// 1. 汇总表显示业务归属、学生、规则状态。
+// 2. 排序优先级：业务归属 → 老师 → 学生 → 科目 → 日期 → 时间。
+// 3. 规则未设置时显示缺少哪条规则。
+// 4. 不修改数据库。
 
 (function () {
   const payHourOverrides = new Map();
@@ -19,7 +21,7 @@
     return `${amount.toLocaleString()} ${c}`;
   }
 
-  function monthFromDateV919(dateText){
+  function monthFromDateV9110(dateText){
     const text = String(dateText || "").trim();
     if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text.slice(0, 7);
     if (/^\d{4}\/\d{2}\/\d{2}$/.test(text)) return text.slice(0, 7).replace("/", "-");
@@ -27,16 +29,18 @@
   }
 
   function teacherSettlementMonth(row){
-    return row.teacher_settlement_month || monthFromDateV919(row.lesson_date) || row.year_month || "";
+    return row.teacher_settlement_month || monthFromDateV9110(row.lesson_date) || row.year_month || "";
   }
 
   function teacherObj(row){ return (state.teachers || []).find(t => t.id === row.teacher_id) || row.teacher || {}; }
   function subjectObj(row){ return (state.subjects || []).find(s => s.id === row.subject_id) || row.subject || {}; }
   function businessObj(row) { return (state.businessEntities || []).find(x => x.id === row.business_entity_id) || row.business_entity || {}; }
+  function studentObj(row) { return (state.students || []).find(x => x.id === row.student_id) || row.student || {}; }
+
   function teacherName(row){ const t = teacherObj(row); return t.display_name || t.name || ""; }
   function subjectName(row){ const s = subjectObj(row); return s.name || ""; }
   function businessName(row){ const b = businessObj(row); return b.name || ""; }
-  function studentName(row){ return row.student?.display_name || row.student?.name || ""; }
+  function studentName(row){ const s = studentObj(row); return s.display_name || s.name || ""; }
 
   function parseTime(v){
     const m = String(v || "").trim().match(/^(\d{1,2}):(\d{1,2})$/);
@@ -96,6 +100,15 @@
     return wageRules.find(ruleMatches) || null;
   }
 
+  function missingRuleText(row) {
+    return [
+      teacherName(row) || "老师未定",
+      studentName(row) || "学生未定",
+      subjectName(row) || "科目未定",
+      businessName(row) || "业务归属未定",
+    ].join(" / ");
+  }
+
   function settlementTypeLabel(value) {
     const map = {
       jpy_hourly: "日元时薪",
@@ -133,6 +146,7 @@
       jpyAmount,
       cnyAmount,
       hasRule: !!rule,
+      missingRuleText: rule ? "" : missingRuleText(row),
     };
   }
 
@@ -150,19 +164,22 @@
     sel.value = old;
   }
 
+  function sortLessons(list) {
+    return list.sort((a,b) =>
+      businessName(a).localeCompare(businessName(b),"zh-Hans-CN") ||
+      teacherName(a).localeCompare(teacherName(b),"zh-Hans-CN") ||
+      studentName(a).localeCompare(studentName(b),"zh-Hans-CN") ||
+      subjectName(a).localeCompare(subjectName(b),"zh-Hans-CN") ||
+      String(a.lesson_date||"").localeCompare(String(b.lesson_date||"")) ||
+      String(a.start_time||"").localeCompare(String(b.start_time||""))
+    );
+  }
+
   function targetLessons(){
     const month = document.getElementById("teacherWageMonthFilter")?.value || currentMonth();
     const teacherId = document.getElementById("teacherWageTeacherFilter")?.value || "";
-    return (state.lessonRecords || [])
-      .filter(r => teacherSettlementMonth(r) === month && (!teacherId || r.teacher_id === teacherId) && isTarget(r))
-      .sort((a,b) =>
-        teacherName(a).localeCompare(teacherName(b),"zh-Hans-CN") ||
-        studentName(a).localeCompare(studentName(b),"zh-Hans-CN") ||
-        subjectName(a).localeCompare(subjectName(b),"zh-Hans-CN") ||
-        businessName(a).localeCompare(businessName(b),"zh-Hans-CN") ||
-        String(a.lesson_date||"").localeCompare(String(b.lesson_date||"")) ||
-        String(a.start_time||"").localeCompare(String(b.start_time||""))
-      );
+    return sortLessons((state.lessonRecords || [])
+      .filter(r => teacherSettlementMonth(r) === month && (!teacherId || r.teacher_id === teacherId) && isTarget(r)));
   }
 
   function summarize(list){
@@ -171,28 +188,30 @@
     list.forEach(r => {
       const wage = calcRowWage(r);
       const key = [
+        r.business_entity_id || "",
         r.teacher_id || "",
         r.student_id || "",
         r.subject_id || "",
-        r.business_entity_id || "",
         wage.type,
         wage.rateJpy,
         wage.rateCny,
         wage.exchangeRate,
-        wage.hasRule ? "rule" : "missing"
+        wage.hasRule ? "rule" : "missing",
+        wage.missingRuleText,
       ].join("|");
 
       if (!map.has(key)) {
         map.set(key, {
+          business: businessName(r),
           teacher: teacherName(r),
           student: studentName(r),
           subject: subjectName(r),
-          business: businessName(r),
           settlementType: wage.type,
           rateJpy: wage.rateJpy,
           rateCny: wage.rateCny,
           exchangeRate: wage.exchangeRate,
           hasRule: wage.hasRule,
+          missingRuleText: wage.missingRuleText,
           minutes: 0,
           hours: 0,
           jpyAmount: 0,
@@ -209,7 +228,12 @@
       x.count += 1;
     });
 
-    return Array.from(map.values());
+    return Array.from(map.values()).sort((a,b) =>
+      String(a.business || "").localeCompare(String(b.business || ""),"zh-Hans-CN") ||
+      String(a.teacher || "").localeCompare(String(b.teacher || ""),"zh-Hans-CN") ||
+      String(a.student || "").localeCompare(String(b.student || ""),"zh-Hans-CN") ||
+      String(a.subject || "").localeCompare(String(b.subject || ""),"zh-Hans-CN")
+    );
   }
 
   function render(){
@@ -230,16 +254,20 @@
           : fmtAmount(x.rateJpy, "JPY");
         return `
           <tr>
+            <td>${esc(x.business)}</td>
             <td>${esc(x.teacher)}</td>
+            <td>${esc(x.student)}</td>
             <td>${esc(x.subject)}</td>
             <td>${Math.round(x.minutes)}</td>
             <td>${fmtHours(x.hours)}H</td>
+            <td>${esc(settlementTypeLabel(x.settlementType))}</td>
             <td>${rateText}</td>
             <td><strong>${fmtAmount(x.jpyAmount, "JPY")}</strong><br><span class="muted-small">${fmtAmount(x.cnyAmount, "CNY")}</span></td>
-            <td>${x.count}${x.hasRule ? "" : `<br><span class="badge red">规则未设置</span>`}</td>
+            <td>${x.count}</td>
+            <td>${x.hasRule ? badge("已匹配") : `${badge("未设置", "red")}<br><span class="muted-small">缺少：${esc(x.missingRuleText)}</span>`}</td>
           </tr>
         `;
-      }).join("") : `<tr><td colspan="7" class="empty-row">当前条件下没有可计算工资的实际课时</td></tr>`;
+      }).join("") : `<tr><td colspan="11" class="empty-row">当前条件下没有可计算工资的实际课时</td></tr>`;
     }
 
     const detail = document.getElementById("teacherWageDetailTable");
@@ -279,7 +307,7 @@
             <td>${rateText}</td>
             <td><strong>${fmtAmount(wage.jpyAmount, "JPY")}</strong></td>
             <td>${fmtAmount(wage.cnyAmount, "CNY")}</td>
-            <td>${wage.hasRule ? badge("已匹配") : badge("未设置", "red")}</td>
+            <td>${wage.hasRule ? badge("已匹配") : `${badge("未设置", "red")}<br><span class="muted-small">缺少：${esc(wage.missingRuleText)}</span>`}</td>
             <td>${badge(lessonStatusLabel(r.status),"")}</td>
             <td>${esc(short(r.lesson_content || r.note, 32))}</td>
           </tr>
@@ -322,8 +350,8 @@
     await loadWageRules();
 
     const refresh = document.getElementById("teacherWageRefreshBtn");
-    if (refresh && refresh.dataset.boundTeacherWageV919 !== "true") {
-      refresh.dataset.boundTeacherWageV919 = "true";
+    if (refresh && refresh.dataset.boundTeacherWageV9110 !== "true") {
+      refresh.dataset.boundTeacherWageV9110 = "true";
       refresh.addEventListener("click", async () => {
         await loadWageRules();
         render();
@@ -331,20 +359,20 @@
     }
 
     const month = document.getElementById("teacherWageMonthFilter");
-    if (month && month.dataset.boundTeacherWageV919 !== "true") {
-      month.dataset.boundTeacherWageV919 = "true";
+    if (month && month.dataset.boundTeacherWageV9110 !== "true") {
+      month.dataset.boundTeacherWageV9110 = "true";
       month.addEventListener("change", render);
     }
 
     const teacher = document.getElementById("teacherWageTeacherFilter");
-    if (teacher && teacher.dataset.boundTeacherWageV919 !== "true") {
-      teacher.dataset.boundTeacherWageV919 = "true";
+    if (teacher && teacher.dataset.boundTeacherWageV9110 !== "true") {
+      teacher.dataset.boundTeacherWageV9110 = "true";
       teacher.addEventListener("change", render);
     }
 
     const clear = document.getElementById("teacherWageClearFilter");
-    if (clear && clear.dataset.boundTeacherWageV919 !== "true") {
-      clear.dataset.boundTeacherWageV919 = "true";
+    if (clear && clear.dataset.boundTeacherWageV9110 !== "true") {
+      clear.dataset.boundTeacherWageV9110 = "true";
       clear.addEventListener("click", () => {
         const m = document.getElementById("teacherWageMonthFilter"), t = document.getElementById("teacherWageTeacherFilter");
         if (m) m.value = currentMonth();
@@ -364,7 +392,7 @@
       if (page === "teacher-wages") {
         const title = document.getElementById("pageTitle"), sub = document.getElementById("pageSubtitle");
         if (title) title.textContent = "老师工资结算";
-        if (sub) sub.textContent = "按工资规则计算课时工资，并显示日元工资和人民币折算";
+        if (sub) sub.textContent = "按业务归属、老师、学生、科目汇总工资，并提示缺少的工资规则";
         setTimeout(bind, 0);
       }
     };
@@ -385,7 +413,7 @@
   });
 
   window.SchoolTeacherWagesModule = {
-    version: "9.1.9",
+    version: "9.1.10",
     render,
     summarize,
     targetLessons,

@@ -13615,3 +13615,141 @@ document.addEventListener("DOMContentLoaded", () => {
   }, 1000);
 });
 
+
+
+// === v8.8.8 Excel time parse/display fix ===
+function excelTimeToHHMMV888(value) {
+  if (value === null || value === undefined || value === "") return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return `${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}`;
+  }
+  if (typeof value === "number") {
+    if (value >= 0 && value < 1) {
+      const total = Math.round(value * 24 * 60);
+      return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+    }
+    return "";
+  }
+  const text = String(value).trim();
+  if (!text) return "";
+  const dateLike = text.match(/(?:Sat Dec 30 1899\s+)?(\d{1,2}):(\d{2}):?\d{0,2}/);
+  if (dateLike) return `${String(Number(dateLike[1])).padStart(2, "0")}:${dateLike[2]}`;
+  const m = text.match(/(\d{1,2})[:：](\d{1,2})/);
+  if (m) return `${String(Number(m[1])).padStart(2, "0")}:${String(Number(m[2])).padStart(2, "0")}`;
+  return "";
+}
+
+function parseTimeRangeSmartV888(value) {
+  if (value instanceof Date || typeof value === "number") return { start: excelTimeToHHMMV888(value), end: "" };
+  const text = String(value || "").trim();
+  if (!text) return { start: "", end: "" };
+  const m = text.match(/(.+?)\s*[-~〜～]\s*(.+)/);
+  if (!m) return { start: excelTimeToHHMMV888(text), end: "" };
+  return { start: excelTimeToHHMMV888(m[1]), end: excelTimeToHHMMV888(m[2]) };
+}
+
+timeRange88 = parseTimeRangeSmartV888;
+
+function cleanTimeForDisplayV888(value) {
+  return excelTimeToHHMMV888(value) || "";
+}
+
+function actualTimeTextV888(item) {
+  if (!item || item.lesson_type !== "actual") return "";
+  const start = cleanTimeForDisplayV888(item.start_time);
+  const end = cleanTimeForDisplayV888(item.end_time);
+  if (!start && !end) return "";
+  const minutes = Number(item.actual_minutes || minutesBetweenV887(start, end) || 0);
+  const hourText = minutes ? ` / ${hoursFromMinutesExactV887(minutes)}H` : "";
+  return `${start || "--:--"}-${end || "--:--"}${hourText}`;
+}
+actualTimeTextV887 = actualTimeTextV888;
+
+function patchBrokenExcelDateTimeTextV888() {
+  const root = document.body;
+  if (!root) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    if (/Sat Dec 30 1899|GMT|日本標準時/.test(node.nodeValue || "")) nodes.push(node);
+  }
+  nodes.forEach(node => {
+    node.nodeValue = node.nodeValue.replace(/Sat Dec 30 1899\s+(\d{1,2}):(\d{2}):\d{2}\s+GMT[^\s)]*(?:\s*\([^)]*\))?/g, (_, h, m) => `${String(Number(h)).padStart(2, "0")}:${m}`);
+  });
+}
+
+const buildCompletedImportRecordsBeforeV888 = typeof buildCompletedImportRecordsV887 === "function" ? buildCompletedImportRecordsV887 : null;
+if (buildCompletedImportRecordsBeforeV888) {
+  buildCompletedImportRecordsV887 = function(file, rows, sheetName, col, context) {
+    const result = buildCompletedImportRecordsBeforeV888(file, rows, sheetName, col, context);
+    (result.records || []).forEach(row => {
+      row.start_time = cleanTimeForDisplayV888(row.start_time);
+      row.end_time = cleanTimeForDisplayV888(row.end_time);
+      const minutes = minutesBetweenV887(row.start_time, row.end_time);
+      if (row.lesson_type === "actual" && minutes) {
+        row.actual_minutes = minutes;
+        row.duration_hours = hoursFromMinutesExactV887(minutes);
+        row.lesson_fee = Math.round(Number(row.unit_price || 0) * Number(row.duration_hours || 0));
+      }
+    });
+    return result;
+  };
+}
+
+function patchActualTimeDisplayV888() {
+  patchBrokenExcelDateTimeTextV888();
+  document.querySelectorAll("tr.lesson-pair-row").forEach(tr => {
+    tr.querySelectorAll(".actual-time-v887, .actual-time-v888").forEach(x => x.remove());
+    const actualEditBtn = Array.from(tr.querySelectorAll("[data-edit][data-type='lesson']")).find(btn => {
+      const item = (state.lessonRecords || []).find(x => String(x.id) === String(btn.dataset.edit));
+      return item?.lesson_type === "actual";
+    });
+    const item = (state.lessonRecords || []).find(x => String(x.id) === String(actualEditBtn?.dataset?.edit));
+    if (!item) return;
+    const dateCell = tr.querySelectorAll("td")[9];
+    const text = actualTimeTextV888(item);
+    if (dateCell && text) dateCell.insertAdjacentHTML("beforeend", `<div class="actual-time-v888">${esc(text)}</div>`);
+  });
+}
+patchActualTimeDisplayV887 = patchActualTimeDisplayV888;
+
+async function repairLessonTimeStringsV888() {
+  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
+  const targets = (state.lessonRecords || []).filter(row =>
+    /1899|GMT|日本標準時/.test(String(row.start_time || "")) ||
+    /1899|GMT|日本標準時/.test(String(row.end_time || ""))
+  );
+  for (const row of targets) {
+    const start = cleanTimeForDisplayV888(row.start_time);
+    const end = cleanTimeForDisplayV888(row.end_time);
+    const minutes = minutesBetweenV887(start, end);
+    await client.from(tables.lessons).update({
+      start_time: start || null,
+      end_time: end || null,
+      actual_minutes: row.lesson_type === "actual" ? minutes : null,
+      duration_hours: row.lesson_type === "actual" && minutes ? hoursFromMinutesExactV887(minutes) : row.duration_hours,
+      lesson_fee: row.lesson_type === "actual" && minutes ? Math.round(Number(row.unit_price || 0) * hoursFromMinutesExactV887(minutes)) : row.lesson_fee,
+    }).eq("id", row.id);
+  }
+  await loadAll();
+  renderAll();
+  showMessage(`已修复 ${targets.length} 条课时时间。`, "ok");
+}
+
+const renderAllBeforeV888 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV888) {
+  renderAll = function() {
+    renderAllBeforeV888();
+    setTimeout(patchActualTimeDisplayV888, 0);
+  };
+}
+const renderLessonsBeforeV888 = typeof renderLessons === "function" ? renderLessons : null;
+if (renderLessonsBeforeV888) {
+  renderLessons = function() {
+    renderLessonsBeforeV888();
+    setTimeout(patchActualTimeDisplayV888, 0);
+  };
+}
+document.addEventListener("DOMContentLoaded", () => setTimeout(patchActualTimeDisplayV888, 1000));
+

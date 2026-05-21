@@ -12733,6 +12733,7 @@ if (headerMapBeforeV885) {
     (header || []).forEach((cell, idx) => {
       const key = tx88(cell);
       if (/回数|回次|课次|回/.test(key) && map.count === undefined) map.count = idx;
+      if (/工资.*结算.*月份|工资结算月份|給料.*締.*月|給料.*月|工资月份/.test(key) && map.teacherSettlementMonth === undefined) map.teacherSettlementMonth = idx;
       if (/工资.*结算.*备注|工资结算备注|給料.*備考|工资备注/.test(key) && map.salaryNote === undefined) map.salaryNote = idx;
     });
     return map;
@@ -12815,6 +12816,9 @@ async function importCompletedLessonExcelV885(file) {
     const count = col.count !== undefined ? row[col.count] : "";
     const normalNote = String(col.note !== undefined ? row[col.note] || "" : "");
     const salaryNote = String(col.salaryNote !== undefined ? row[col.salaryNote] || "" : "");
+    const teacherSettlementMonth = normalizeTeacherSettlementMonthV916
+      ? normalizeTeacherSettlementMonthV916(col.teacherSettlementMonth !== undefined ? row[col.teacherSettlementMonth] : "")
+      : "";
     const status = normalizeLessonStatusTextV885(col.status !== undefined ? row[col.status] : "");
 
     const plannedId = uuidV884("planned");
@@ -12862,6 +12866,7 @@ async function importCompletedLessonExcelV885(file) {
         status: status || "completed",
         duration_hours: actualDuration || duration,
         lesson_fee: unit && (actualDuration || duration) ? unit * (actualDuration || duration) : fee,
+        teacher_settlement_month: teacherSettlementMonth || (actualDate ? actualDate.slice(0, 7) : plannedYm),
         ...common,
       });
     } else {

@@ -2387,3 +2387,20 @@ button:disabled {
   min-height: 26px;
   font-size: 12px;
 }
+
+/* === v9.1.8.3 inline exchange rate button === */
+.inline-input-button {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.inline-input-button input {
+  flex: 1;
+  min-width: 0;
+}
+
+.inline-input-button button {
+  white-space: nowrap;
+  min-height: 34px;
+}

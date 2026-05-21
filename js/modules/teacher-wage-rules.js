@@ -1,4 +1,4 @@
-// === v9.1.8.2 teacher wage rules module ===
+// === v9.1.8.3 teacher wage rules module ===
 // 老师工资规则只维护相对稳定的内容。
 // 交通费、教室费属于每节课可能变化的费用，不再写入规则。
 // 后续在老师工资结算明细中逐行维护交通费/教室费。
@@ -36,6 +36,58 @@
     const amount = currency === "CNY" ? Math.round(n(value) * 100) / 100 : Math.round(n(value));
     return `${amount.toLocaleString()} ${currency}`;
   }
+
+  async function fetchTodayJpyCnyRate() {
+    const button = document.getElementById("teacherWageRateFetchBtn");
+    const input = document.getElementById("teacherWageRuleExchangeRate");
+    if (!input) return;
+
+    const oldText = button?.textContent;
+    if (button) {
+      button.disabled = true;
+      button.textContent = "查询中...";
+    }
+
+    try {
+      let rate = 0;
+
+      // Primary: Frankfurter public API. Usually supports browser CORS.
+      try {
+        const res = await fetch("https://api.frankfurter.app/latest?from=JPY&to=CNY", { cache: "no-store" });
+        if (res.ok) {
+          const json = await res.json();
+          rate = Number(json?.rates?.CNY || 0);
+        }
+      } catch (e) {
+        console.warn("Frankfurter exchange rate fetch failed", e);
+      }
+
+      // Fallback: open.er-api.com public API.
+      if (!rate) {
+        const res = await fetch("https://open.er-api.com/v6/latest/JPY", { cache: "no-store" });
+        if (res.ok) {
+          const json = await res.json();
+          rate = Number(json?.rates?.CNY || 0);
+        }
+      }
+
+      if (!rate || !Number.isFinite(rate)) {
+        showMessage("汇率查询失败，请手动输入。", "error");
+        return;
+      }
+
+      input.value = String(Math.round(rate * 1000000) / 1000000);
+      showMessage(`已填入今日 JPY → CNY 汇率：${input.value}`, "ok");
+    } catch (e) {
+      showMessage(`汇率查询失败：${e.message || e}`, "error");
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = oldText || "查询今日汇率";
+      }
+    }
+  }
+
 
   function fillSelects() {
     const teacher = document.getElementById("teacherWageRuleTeacher");
@@ -261,6 +313,12 @@
       reload.addEventListener("click", loadRules);
     }
 
+    const rateBtn = document.getElementById("teacherWageRateFetchBtn");
+    if (rateBtn && rateBtn.dataset.boundRateFetch !== "true") {
+      rateBtn.dataset.boundRateFetch = "true";
+      rateBtn.addEventListener("click", fetchTodayJpyCnyRate);
+    }
+
     loadRules();
   }
 
@@ -295,7 +353,7 @@
   });
 
   window.SchoolTeacherWageRulesModule = {
-    version: "9.1.8.2",
+    version: "9.1.8.3",
     load: loadRules,
     render: renderRules,
   };

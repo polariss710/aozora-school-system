@@ -1,4 +1,4 @@
-// === v9.1.10 teacher wage settlement display/sort/rule hint ===
+// === v9.1.10.2 teacher wage settlement display/sort/rule hint ===
 // 改善工资结算显示：
 // 1. 汇总表显示业务归属、学生、规则状态。
 // 2. 排序优先级：业务归属 → 老师 → 学生 → 科目 → 日期 → 时间。
@@ -116,6 +116,30 @@
     };
     return map[value] || value || "未设置";
   }
+
+  function ensureTeacherWageSummaryHeaderV91102() {
+    const tbody = document.getElementById("teacherWageSummaryTable");
+    const table = tbody?.closest("table");
+    const head = table?.querySelector("thead");
+    if (!head) return;
+
+    head.innerHTML = `
+      <tr>
+        <th>业务归属</th>
+        <th>老师</th>
+        <th>学生</th>
+        <th>科目</th>
+        <th>实际分钟</th>
+        <th>工资课时</th>
+        <th>结算方式</th>
+        <th>时给</th>
+        <th>预计工资</th>
+        <th>课时数</th>
+        <th>规则</th>
+      </tr>
+    `;
+  }
+
 
   function calcRowWage(row) {
     const rule = findRule(row);
@@ -237,6 +261,7 @@
   }
 
   function render(){
+    ensureTeacherWageSummaryHeaderV91102();
     fillFilters();
     const list = targetLessons();
     const summary = summarize(list);
@@ -413,7 +438,7 @@
   });
 
   window.SchoolTeacherWagesModule = {
-    version: "9.1.10",
+    version: "9.1.10.2",
     render,
     summarize,
     targetLessons,

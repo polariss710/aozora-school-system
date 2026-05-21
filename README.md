@@ -145,6 +145,17 @@
 
 
 
+
+### v9.1.10.2
+- 安全修复老师工资结算汇总表表头与内容不匹配的问题。
+  - 不再直接替换 `index.html` 的大段表格结构。
+  - 改为在老师工资页面渲染时，只定位 `teacherWageSummaryTable` 所在表格并更新表头。
+- 修复汇率查询 CORS 报错：
+  - 去掉 Frankfurter API。
+  - 改用 `open.er-api.com` 优先。
+  - 使用 jsdelivr currency API 作为备用。
+- 本版无 SQL 修改。
+
 ### v9.1.10
 - 优化老师工资结算页面的显示与排序。
 - 工资汇总表增加：

@@ -14666,49 +14666,65 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-// === v8.9.3 Stable lesson layout + targeted fixes ===
-// v8.9.2 sorting was correct but the rendered table layout was broken.
-// This version returns to the v8.8.13 stable lesson table renderer and only patches:
-// - lesson sorting
-// - saveForm event parameter
-// - modal native submit guard
+// === v8.9.4 stable lesson patch ===
+// Important: v8.9.1-v8.9.3 introduced bad save click handlers and unstable lesson table rendering.
+// This version is based on the stable v8.8.13 code line and only applies two targeted fixes:
+// 1) lesson ordering inside the stable v8.8.x table layout
+// 2) saveForm missing event argument safety
 
-function lessonCountNumberV893(row) {
+function saveEventStubV894() {
+  return {
+    preventDefault() {},
+    stopPropagation() {},
+    stopImmediatePropagation() {},
+  };
+}
+
+// Safety: if any caller invokes saveForm() without event, supply a stub.
+const saveFormBeforeV894 = typeof saveForm === "function" ? saveForm : null;
+if (saveFormBeforeV894) {
+  saveForm = async function(e, ...args) {
+    return saveFormBeforeV894.call(this, e || saveEventStubV894(), ...args);
+  };
+}
+
+function lessonCountNumberV894(row) {
   if (row?.lesson_count === null || row?.lesson_count === undefined || row?.lesson_count === "") return null;
   const n = Number(String(row.lesson_count).replace(/[^\d.-]/g, ""));
   return Number.isFinite(n) ? n : null;
 }
 
-function lessonSubjectPriorityV893(row) {
+function lessonSubjectPriorityV894(row) {
   const name = row?.subject?.name || row?.subject_name || "";
   const order = ["日语", "数学", "物理", "化学", "生物", "文综"];
   const idx = order.findIndex(x => name.includes(x));
   return idx < 0 ? 99 : idx;
 }
 
-function lessonTeacherNameV893(row) {
+function lessonTeacherNameV894(row) {
   return row?.teacher?.display_name || row?.teacher?.name || row?.teacher_name || row?.teacher_id || "";
 }
 
-// Same visual order that was confirmed correct in v8.9.2.
-function compareLessonsV893(a, b) {
+// Desired visual grouping/order:
+// month -> subject priority -> teacher -> date -> lesson_count -> start_time
+function compareLessonsV894(a, b) {
   const month = String(a?.year_month || "").localeCompare(String(b?.year_month || ""));
   if (month) return month;
 
-  const subject = lessonSubjectPriorityV893(a) - lessonSubjectPriorityV893(b);
+  const subject = lessonSubjectPriorityV894(a) - lessonSubjectPriorityV894(b);
   if (subject) return subject;
 
   const subjectName = String(a?.subject?.name || "").localeCompare(String(b?.subject?.name || ""), "zh-Hans-CN");
   if (subjectName) return subjectName;
 
-  const teacher = String(lessonTeacherNameV893(a)).localeCompare(String(lessonTeacherNameV893(b)), "zh-Hans-CN");
+  const teacher = String(lessonTeacherNameV894(a)).localeCompare(String(lessonTeacherNameV894(b)), "zh-Hans-CN");
   if (teacher) return teacher;
 
   const date = String(a?.lesson_date || "").localeCompare(String(b?.lesson_date || ""));
   if (date) return date;
 
-  const ac = lessonCountNumberV893(a);
-  const bc = lessonCountNumberV893(b);
+  const ac = lessonCountNumberV894(a);
+  const bc = lessonCountNumberV894(b);
   if (ac !== null || bc !== null) {
     if (ac === null) return 1;
     if (bc === null) return -1;
@@ -14724,137 +14740,135 @@ function compareLessonsV893(a, b) {
   return String(a?.id || "").localeCompare(String(b?.id || ""));
 }
 
-compareLessonsV77 = compareLessonsV893;
-compareLessonsV78 = compareLessonsV893;
-compareLessonsV83 = compareLessonsV893;
-compareLessonsV872 = compareLessonsV893;
-compareLessonsV8813 = compareLessonsV893;
+compareLessonsV77 = compareLessonsV894;
+compareLessonsV78 = compareLessonsV894;
+compareLessonsV83 = compareLessonsV894;
+compareLessonsV872 = compareLessonsV894;
+compareLessonsV8813 = compareLessonsV894;
 
-// Keep v8.8.x stable table renderer.
-function renderLessonsV893() {
+// Hard-patch only the stable row builder. Keep v8.8.x table HTML/CSS/classes.
+function renderLessonRowsV894(rows) {
+  const plannedRows = rows.filter(x => x.lesson_type === "planned").sort(compareLessonsV894);
+  const actualRows = rows.filter(x => x.lesson_type === "actual").sort(compareLessonsV894);
+
+  const actualByPlan = new Map();
+  const unlinkedActual = [];
+
+  actualRows.forEach(actual => {
+    let planId = actual.planned_lesson_id;
+
+    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
+      const matched = schoolStableFindMatchingPlannedLessonV70(actual);
+      if (matched) planId = matched.id;
+    }
+
+    if (!planId && typeof findMatchingPlannedLesson === "function") {
+      const matched = findMatchingPlannedLesson(actual);
+      if (matched) planId = matched.id;
+    }
+
+    if (planId) {
+      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
+      actualByPlan.get(planId).push(actual);
+    } else {
+      unlinkedActual.push(actual);
+    }
+  });
+
+  for (const list of actualByPlan.values()) list.sort(compareLessonsV894);
+
+  const html = [];
+  let lastMonth = "";
+
+  function addMonthRow(ym) {
+    if (ym !== lastMonth) {
+      lastMonth = ym;
+      html.push(`<tr class="month-group-row"><td colspan="12">${esc(expenseMonthLabel(ym))}</td></tr>`);
+      html.push(`<tr class="lesson-sub-head-body">
+        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容/操作</th>
+        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容/操作</th>
+      </tr>`);
+    }
+  }
+
+  const cells = typeof lessonPairCellsV837 === "function"
+    ? lessonPairCellsV837
+    : (typeof lessonPairCellsFinalV835 === "function" ? lessonPairCellsFinalV835 : lessonPairCells);
+
+  plannedRows.forEach(plan => {
+    const ym = plan.year_month || "未归属月份";
+    addMonthRow(ym);
+
+    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(compareLessonsV894);
+    if (!actuals.length) {
+      html.push(`<tr class="lesson-pair-row v837">${cells(plan, "planned")}${cells(null, "actual")}</tr>`);
+    } else {
+      actuals.forEach((actual, index) => {
+        const left = index === 0
+          ? cells(plan, "planned")
+          : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
+        html.push(`<tr class="lesson-pair-row v837">${left}${cells(actual, "actual")}</tr>`);
+      });
+    }
+  });
+
+  unlinkedActual.slice().sort(compareLessonsV894).forEach(actual => {
+    const ym = actual.year_month || "未归属月份";
+    addMonthRow(ym);
+    html.push(`<tr class="lesson-pair-row v837">${cells(null, "planned")}${cells(actual, "actual")}</tr>`);
+  });
+
+  return html.join("");
+}
+
+renderLessonRowsV837 = renderLessonRowsV894;
+
+// Stable render, no new table HTML.
+function renderLessonsV894() {
   const tbody = document.getElementById("lessonsTable");
   if (!tbody) return;
 
-  if (typeof updateLessonFilters === "function") updateLessonFilters();
-
-  const rows = (typeof filterLessons === "function"
-    ? filterLessons().slice()
-    : (state.lessonRecords || []).slice()
-  ).sort(compareLessonsV893);
+  updateLessonFilters();
+  const rows = filterLessons().slice().sort(compareLessonsV894);
 
   if (typeof renderLessonStatsV8813 === "function") renderLessonStatsV8813(rows);
   else if (typeof renderLessonStatsV8812 === "function") renderLessonStatsV8812(rows);
   else if (typeof renderLessonStats === "function") renderLessonStats(rows);
 
-  // renderLessonRowsV837 is the stable visual structure: sub headers, 12 columns, correct cell classes.
-  if (typeof renderLessonRowsV837 === "function") {
-    tbody.innerHTML = renderLessonRowsV837(rows) || `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-    if (typeof bindLessonButtonsV837 === "function") bindLessonButtonsV837();
-    if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-    if (typeof patchLessonCountDisplayV886 === "function") patchLessonCountDisplayV886();
-    if (typeof patchActualTimeDisplayV888 === "function") patchActualTimeDisplayV888();
-    if (typeof updateLessonButtonsDisabledV891 === "function") updateLessonButtonsDisabledV891();
-    return;
-  }
+  tbody.innerHTML = renderLessonRowsV894(rows) || `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
 
-  // Fallback to current renderer if the stable function is unavailable.
-  if (typeof renderLessonsV837 === "function") return renderLessonsV837();
+  if (typeof bindLessonButtonsV837 === "function") bindLessonButtonsV837();
+  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
+  if (typeof patchLessonCountDisplayV886 === "function") patchLessonCountDisplayV886();
+  if (typeof patchActualTimeDisplayV888 === "function") patchActualTimeDisplayV888();
+  if (typeof updateLessonButtonsDisabledV891 === "function") updateLessonButtonsDisabledV891();
+  if (typeof updateLessonButtonsDisabledV887 === "function") updateLessonButtonsDisabledV887();
 }
 
-renderLessons = renderLessonsV893;
+renderLessons = renderLessonsV894;
+renderLessonsV837 = renderLessonsV894;
 
-// Make actual generation use stable function.
-if (typeof makeActualFromPlannedV837 === "function") {
-  makeActualFromPlanned = makeActualFromPlannedV837;
-}
-
-// Fix saveForm event issue: old saveForm expects an event parameter.
-function saveEventStubV893() {
-  return {
-    preventDefault() {},
-    stopPropagation() {},
-    stopImmediatePropagation() {},
-  };
-}
-
-function bindModalSubmitGuardV893() {
-  const form = document.getElementById("modalForm");
-  if (!form || form.dataset.submitGuardV893 === "true") return;
-  form.dataset.submitGuardV893 = "true";
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    if (typeof saveForm === "function") {
-      await saveForm(e || saveEventStubV893());
-    }
-    return false;
-  }, true);
-}
-
-document.addEventListener("click", async (e) => {
-  const btn = e.target?.closest?.("#saveModalBtn, [data-save-modal], button[type='submit']");
-  if (!btn) return;
-  const form = document.getElementById("modalForm");
-  if (!form) return;
-
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
-
-  if (typeof saveForm === "function") {
-    await saveForm(e || saveEventStubV893());
-  }
-  return false;
-}, true);
-
-const openCreateModalBeforeV893 = typeof openCreateModal === "function" ? openCreateModal : null;
-if (openCreateModalBeforeV893) {
-  openCreateModal = function(type, prefill = {}) {
-    openCreateModalBeforeV893(type, prefill);
-    setTimeout(() => {
-      bindModalSubmitGuardV893();
-      if (typeof patchLessonStatusSelectV891 === "function" && type === "lesson") patchLessonStatusSelectV891();
-      else if (typeof patchLessonStatusSelectV8810 === "function" && type === "lesson") patchLessonStatusSelectV8810();
-    }, 0);
-  };
-}
-
-const openEditModalBeforeV893 = typeof openEditModal === "function" ? openEditModal : null;
-if (openEditModalBeforeV893) {
-  openEditModal = function(type, id) {
-    openEditModalBeforeV893(type, id);
-    setTimeout(() => {
-      bindModalSubmitGuardV893();
-      if (typeof patchLessonStatusSelectV891 === "function" && type === "lesson") patchLessonStatusSelectV891();
-      else if (typeof patchLessonStatusSelectV8810 === "function" && type === "lesson") patchLessonStatusSelectV8810();
-    }, 0);
-  };
-}
-
-const switchPageBeforeV893 = typeof switchPage === "function" ? switchPage : null;
-if (switchPageBeforeV893) {
+const switchPageBeforeV894 = typeof switchPage === "function" ? switchPage : null;
+if (switchPageBeforeV894) {
   switchPage = function(page) {
-    switchPageBeforeV893(page);
-    if (page === "lessons") setTimeout(renderLessonsV893, 0);
+    switchPageBeforeV894(page);
+    if (page === "lessons") setTimeout(renderLessonsV894, 0);
   };
 }
 
-const renderAllBeforeV893 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV893) {
+const renderAllBeforeV894 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV894) {
   renderAll = function() {
-    renderAllBeforeV893();
+    renderAllBeforeV894();
     if (document.getElementById("page-lessons")?.classList.contains("active")) {
-      setTimeout(renderLessonsV893, 0);
+      setTimeout(renderLessonsV894, 0);
     }
   };
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    bindModalSubmitGuardV893();
-    if (document.getElementById("page-lessons")?.classList.contains("active")) renderLessonsV893();
+    if (document.getElementById("page-lessons")?.classList.contains("active")) renderLessonsV894();
   }, 1000);
 });
 

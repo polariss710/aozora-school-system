@@ -1,8 +1,4 @@
-// === v9.1 teacher wage settlement basic module ===
-// 基础版：只计算，不锁定、不写入支出。
-// 规则：实际授课分钟按老师 + 科目 + 月份汇总，再按30分钟向下取整。
-// 例：135分钟 → 老师工资课时 2.0H；150分钟 → 2.5H。
-
+// === v9.1.1 teacher wage settlement basic module ===
 (function () {
   function n(value) {
     const x = Number(value || 0);
@@ -29,7 +25,7 @@
 
   function hourlyRate(row) {
     const teacher = teacherOf(row);
-    return n(teacher.default_hourly_rate);
+    return n(teacher.default_hourly_rate || teacher.hourly_rate || teacher.unit_price);
   }
 
   function teacherCurrency(row) {
@@ -57,10 +53,8 @@
   function actualMinutes(row) {
     const fromField = n(row.actual_minutes);
     if (fromField > 0) return fromField;
-
     const fromTime = minutesBetween(row.start_time, row.end_time);
     if (fromTime !== null && fromTime > 0) return fromTime;
-
     return Math.round(n(row.duration_hours) * 60);
   }
 
@@ -263,10 +257,10 @@
     renderTeacherWages();
   }
 
-  const switchPageBeforeV91 = typeof switchPage === "function" ? switchPage : null;
-  if (switchPageBeforeV91) {
+  const switchPageBeforeV911 = typeof switchPage === "function" ? switchPage : null;
+  if (switchPageBeforeV911) {
     window.switchPage = function(page) {
-      switchPageBeforeV91(page);
+      switchPageBeforeV911(page);
       if (page === "teacher-wages") {
         const titleEl = document.getElementById("pageTitle");
         const subtitleEl = document.getElementById("pageSubtitle");
@@ -277,10 +271,10 @@
     };
   }
 
-  const renderAllBeforeV91 = typeof renderAll === "function" ? renderAll : null;
-  if (renderAllBeforeV91) {
+  const renderAllBeforeV911 = typeof renderAll === "function" ? renderAll : null;
+  if (renderAllBeforeV911) {
     window.renderAll = function() {
-      renderAllBeforeV91();
+      renderAllBeforeV911();
       if (document.getElementById("page-teacher-wages")?.classList.contains("active")) {
         setTimeout(bindTeacherWages, 0);
       }
@@ -296,7 +290,7 @@
   });
 
   window.SchoolTeacherWagesModule = {
-    version: "9.1",
+    version: "9.1.1",
     render: renderTeacherWages,
     summarize,
     targetLessons,

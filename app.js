@@ -13919,3 +13919,333 @@ function debugSettlementLessonsV889(studentId, month) {
   return { planned, actual };
 }
 
+
+
+// === v8.8.10 lesson billing/status + tuition income validation + settlement reason fix ===
+
+// 1) 课时状态增加“取消课”
+function lessonStatusOptionsV8810() {
+  return [
+    { value: "completed", label: "已上课" },
+    { value: "pending_makeup", label: "待补课" },
+    { value: "makeup_completed", label: "已补课" },
+    { value: "cancelled", label: "取消课" },
+  ];
+}
+
+function lessonStatusLabelV8810(status) {
+  const map = {
+    completed: "已上课",
+    pending_makeup: "待补课",
+    makeup_completed: "已补课",
+    cancelled: "取消课",
+    planned: "预定",
+    makeup: "已补课",
+  };
+  return map[status] || status || "";
+}
+
+function normalizeLessonStatusTextV8810(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (/取消|请假|休|放假|不上|不补/.test(text)) return "cancelled";
+  if (/待补|未补/.test(text)) return "pending_makeup";
+  if (/已补|補完|补课完成/.test(text)) return "makeup_completed";
+  if (/已上|上课|已上课|済|completed/.test(text)) return "completed";
+  return "";
+}
+
+lessonStatusOptions = lessonStatusOptionsV8810;
+lessonStatusLabel = lessonStatusLabelV8810;
+normalizeLessonStatusTextV885 = normalizeLessonStatusTextV8810;
+
+function parseBillableTextV8810(value, defaultValue = true) {
+  const text = String(value ?? "").trim();
+  if (!text) return defaultValue;
+  if (/^(否|不|不要|不计费|免費|免费|no|false|0)$/i.test(text)) return false;
+  if (/^(是|要|计费|收費|收费|yes|true|1)$/i.test(text)) return true;
+  return defaultValue;
+}
+
+function defaultBillableByStatusV8810(status) {
+  if (status === "makeup_completed") return false;
+  if (status === "cancelled") return false;
+  return true; // 已上课、待补课默认计费
+}
+
+// Header map override: support 计费 column
+const headerMapBeforeV8810 = typeof headerMap88 === "function" ? headerMap88 : null;
+if (headerMapBeforeV8810) {
+  headerMap88 = function(header) {
+    const map = headerMapBeforeV8810(header);
+    (header || []).forEach((cell, idx) => {
+      const key = tx88(cell);
+      if (/^计费$|^是否计费$|^收费$|^是否收费$|^請求$|^請求対象$/.test(key) && map.billable === undefined) {
+        map.billable = idx;
+      }
+      if (/^开始时间$|^開始時間$|^实际开始时间$|^実際開始時間$/.test(key)) map.start = idx;
+      if (/^结束时间$|^終了時間$|^实际结束时间$|^実際終了時間$/.test(key)) map.end = idx;
+    });
+    return map;
+  };
+}
+
+// 2) 完整课时导入读取“计费”列，并支持取消课
+async function importCompletedLessonExcelV8810(file) {
+  if (!lessonExcelRequireXLSX()) return;
+
+  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  if (!studentId) {
+    showMessage("请先选择学生。", "error");
+    return;
+  }
+
+  const student = (state.students || []).find(x => x.id === studentId);
+  const studentName = document.getElementById("lessonStudentFilter")?.selectedOptions?.[0]?.textContent || student?.display_name || student?.name || "";
+  const businessEntityId = student?.business_entity_id || state.businessEntities?.[0]?.id || null;
+  const batchId = typeof newImportBatchIdV871 === "function" ? newImportBatchIdV871() : `completed_import_${Date.now()}`;
+  const importedAt = new Date().toISOString();
+
+  const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+  const sheetName = wb.SheetNames[0];
+  const sheet = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
+
+  const hi = findHeader88(rows);
+  if (hi < 0) {
+    showMessage("没有找到完整课时模板表头。请确认包含科目、日期、回数、时长、单价等列。", "error");
+    return;
+  }
+
+  const col = headerMap88(rows[hi]);
+  const records = [];
+  let curT = "";
+  let curS = "";
+  let skipped = 0;
+  let actualSkipped = 0;
+  const baseYear = Number(document.getElementById("lessonMonthFilter")?.value?.slice(0, 4) || new Date().getFullYear());
+
+  for (let r = hi + 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const line = row.map(x => String(x || "").trim()).join("");
+    if (!line || /合计|总计|總計|小计|小計/.test(line)) continue;
+
+    const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
+    const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
+    if (teacherCell) curT = teacherCell;
+    if (subjectCell) curS = subjectCell;
+
+    const plannedDate = dt88(col.plannedDate !== undefined ? row[col.plannedDate] : row[col.actualDate], baseYear);
+    const rawActualDate = col.actualDate !== undefined ? row[col.actualDate] : "";
+    const actualDate = dt88(rawActualDate, baseYear);
+
+    const duration = num88(col.duration !== undefined ? row[col.duration] : "");
+    const subjectId = subjectIdFromExcelName(curS) || document.getElementById("lessonSubjectFilter")?.value || "";
+    const teacherId = teacherIdFromExcelName(curT) || document.getElementById("lessonTeacherFilter")?.value || "";
+
+    if (!plannedDate || !duration || !subjectId || !teacherId) {
+      skipped++;
+      continue;
+    }
+
+    const tr = timeRange88(col.timeRange !== undefined ? row[col.timeRange] : "");
+    const start = col.start !== undefined ? cleanTimeForDisplayV888(row[col.start]) : tr.start;
+    const end = col.end !== undefined ? cleanTimeForDisplayV888(row[col.end]) : tr.end;
+    const actualMinutes = typeof minutesBetweenV887 === "function" ? minutesBetweenV887(start, end) : null;
+    const actualDuration = actualMinutes ? hoursFromMinutesExactV887(actualMinutes) : duration;
+
+    const unit = num88(col.unitPrice !== undefined ? row[col.unitPrice] : "");
+    const plannedFee = num88(col.lessonFee !== undefined ? row[col.lessonFee] : "") || (unit && duration ? unit * duration : 0);
+    const actualFee = unit && actualDuration ? Math.round(unit * actualDuration) : plannedFee;
+
+    const plannedContent = String((col.plannedContent !== undefined ? row[col.plannedContent] : row[col.content]) || "");
+    const actualContent = String((col.actualContent !== undefined ? row[col.actualContent] : row[col.content]) || "");
+    const count = normalizeLessonCountV886(col.count !== undefined ? row[col.count] : null);
+    const normalNote = String(col.note !== undefined ? row[col.note] || "" : "");
+    const salaryNote = String(col.salaryNote !== undefined ? row[col.salaryNote] || "" : "");
+    const status = normalizeLessonStatusTextV8810(col.status !== undefined ? row[col.status] : "");
+    const explicitBillable = col.billable !== undefined ? row[col.billable] : "";
+    const billable = parseBillableTextV8810(explicitBillable, defaultBillableByStatusV8810(status || "completed"));
+
+    const plannedId = uuidV884("planned");
+    const actualId = uuidV884("actual");
+    const plannedYm = plannedDate.slice(0, 7);
+    const baseNote = `完整课时导入：${sheetName}`;
+    const mergedNote = buildCompletedLessonNoteV885(baseNote, "", normalNote, salaryNote);
+
+    const common = {
+      student_id: studentId,
+      teacher_id: teacherId,
+      subject_id: subjectId,
+      business_entity_id: businessEntityId,
+      start_time: start || "",
+      end_time: end || "",
+      unit_price: unit || 0,
+      lesson_count: count,
+      is_billable: billable,
+      note: mergedNote,
+      import_batch_id: batchId,
+      import_source: file.name || sheetName,
+      imported_at: importedAt,
+    };
+
+    records.push({
+      id: plannedId,
+      lesson_type: "planned",
+      lesson_date: plannedDate,
+      year_month: plannedYm,
+      lesson_content: plannedContent,
+      status: status || "completed",
+      planned_lesson_id: null,
+      duration_hours: duration,
+      lesson_fee: plannedFee || 0,
+      actual_minutes: null,
+      ...common,
+    });
+
+    const shouldCreateActual =
+      actualDate &&
+      status !== "pending_makeup" &&
+      status !== "cancelled" &&
+      (!status || status === "completed" || status === "makeup_completed");
+
+    if (shouldCreateActual) {
+      records.push({
+        id: actualId,
+        lesson_type: "actual",
+        planned_lesson_id: plannedId,
+        lesson_date: actualDate,
+        year_month: plannedYm,
+        lesson_content: actualContent,
+        status: status || "completed",
+        duration_hours: actualDuration || duration,
+        lesson_fee: actualFee || 0,
+        actual_minutes: actualMinutes,
+        ...common,
+      });
+    } else {
+      actualSkipped++;
+    }
+  }
+
+  if (!records.length) {
+    showMessage("没有读取到可导入的完整课时记录。", "error");
+    return;
+  }
+
+  const plannedCount = records.filter(x => x.lesson_type === "planned").length;
+  const actualCount = records.filter(x => x.lesson_type === "actual").length;
+  const total = records.filter(x => x.lesson_type === "actual").reduce((s, x) => s + Number(x.lesson_fee || 0), 0);
+  const billableCount = records.filter(x => x.lesson_type === "planned" && x.is_billable !== false).length;
+  const nonBillableCount = records.filter(x => x.lesson_type === "planned" && x.is_billable === false).length;
+
+  const ok = confirm(`即将导入完整课时记录：\n\n学生：${studentName}\n文件：${file.name}\n预定课时：${plannedCount} 条\n实际课时：${actualCount} 条\n实际课时费合计：${total.toLocaleString()} JPY\n计费预定：${billableCount} 条\n不计费预定：${nonBillableCount} 条\n跳过行数：${skipped}\n未生成实际课时：${actualSkipped} 条\n\n确认导入吗？`);
+  if (!ok) return;
+
+  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
+  const { error } = await client.from(tables.lessons).insert(records);
+  if (error) {
+    showMessage(`导入失败：${error.message}`, "error");
+    return;
+  }
+
+  if (typeof saveLastImportBatchV871 === "function") {
+    saveLastImportBatchV871({ batchId, studentId, studentName, fileName: file.name, count: records.length, importedAt });
+  }
+
+  await loadAll();
+  renderAll();
+  showMessage(`已导入完整课时记录：预定 ${plannedCount} 条 / 实际 ${actualCount} 条。`, "ok");
+}
+
+importCompletedLessonExcelV88 = importCompletedLessonExcelV8810;
+importCompletedLessonExcelV884 = importCompletedLessonExcelV8810;
+importCompletedLessonExcelV885 = importCompletedLessonExcelV8810;
+importCompletedLessonExcelV886 = importCompletedLessonExcelV8810;
+importCompletedLessonExcelV887 = importCompletedLessonExcelV8810;
+
+// 3) 新增/编辑课时状态下拉增加取消课
+function patchLessonStatusSelectV8810() {
+  const form = document.getElementById("modalForm");
+  if (!form || state.editing?.type !== "lesson") return;
+  const select = form.querySelector('[name="status"]');
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = lessonStatusOptionsV8810().map(opt => `<option value="${escAttr(opt.value)}">${esc(opt.label)}</option>`).join("");
+  select.value = ["completed", "pending_makeup", "makeup_completed", "cancelled"].includes(current) ? current : "completed";
+}
+
+// 4) 收入分类为学费时，必须指定学生
+const saveFormBeforeV8810 = typeof saveForm === "function" ? saveForm : null;
+if (saveFormBeforeV8810) {
+  saveForm = async function() {
+    const form = document.getElementById("modalForm");
+    const type = state.editing?.type;
+    if (form && type === "income") {
+      const category = form.querySelector('[name="income_category"]')?.value || "";
+      const studentId = form.querySelector('[name="student_id"]')?.value || "";
+      if (category === "tuition" && !studentId) {
+        showMessage("收入分类为学费时，必须指定学生。", "error");
+        return;
+      }
+    }
+    return saveFormBeforeV8810();
+  };
+}
+
+// 5) 结算调整原因允许清空。
+// 之前出现“删到最后一个字自动回到初始状态”，不是业务设置，属于预览刷新时回填的问题。
+const updateSettlementLockPreviewBeforeV8810 = typeof updateSettlementLockPreviewV87 === "function" ? updateSettlementLockPreviewV87 : null;
+if (updateSettlementLockPreviewBeforeV8810) {
+  updateSettlementLockPreviewV87 = function() {
+    const reasonInput = document.getElementById("settlementAdjustmentReasonV87");
+    const userReason = reasonInput ? reasonInput.value : "";
+    updateSettlementLockPreviewBeforeV8810();
+    if (reasonInput) {
+      reasonInput.value = userReason;
+    }
+  };
+}
+
+const adjustmentFromPanelBeforeV8810 = typeof adjustmentFromPanelV87 === "function" ? adjustmentFromPanelV87 : null;
+if (adjustmentFromPanelBeforeV8810) {
+  adjustmentFromPanelV87 = function() {
+    const result = adjustmentFromPanelBeforeV8810();
+    const reasonInput = document.getElementById("settlementAdjustmentReasonV87");
+    if (reasonInput) {
+      result.reason = reasonInput.value || "";
+    }
+    return result;
+  };
+}
+
+document.addEventListener("input", (e) => {
+  if (e.target?.id === "settlementAdjustmentReasonV87") {
+    e.target.dataset.userEditedV8810 = "true";
+  }
+});
+
+const renderAllBeforeV8810 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV8810) {
+  renderAll = function() {
+    renderAllBeforeV8810();
+    setTimeout(patchLessonStatusSelectV8810, 0);
+  };
+}
+
+const openCreateModalBeforeV8810 = typeof openCreateModal === "function" ? openCreateModal : null;
+if (openCreateModalBeforeV8810) {
+  openCreateModal = function(type, prefill = {}) {
+    openCreateModalBeforeV8810(type, prefill);
+    if (type === "lesson") setTimeout(patchLessonStatusSelectV8810, 0);
+  };
+}
+
+const openEditModalBeforeV8810 = typeof openEditModal === "function" ? openEditModal : null;
+if (openEditModalBeforeV8810) {
+  openEditModal = function(type, id) {
+    openEditModalBeforeV8810(type, id);
+    if (type === "lesson") setTimeout(patchLessonStatusSelectV8810, 0);
+  };
+}
+

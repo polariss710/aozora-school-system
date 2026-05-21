@@ -1,6 +1,7 @@
-// === v9.1.8.1 teacher wage rules module ===
-// 基础版：维护老师 + 学生 + 科目 + 业务归属的工资规则。
-// 本版只做规则维护，不改老师工资结算计算逻辑；下一版再把规则接入工资结算明细。
+// === v9.1.8.2 teacher wage rules module ===
+// 老师工资规则只维护相对稳定的内容。
+// 交通费、教室费属于每节课可能变化的费用，不再写入规则。
+// 后续在老师工资结算明细中逐行维护交通费/教室费。
 
 (function () {
   const TABLE = "school_teacher_wage_rules";
@@ -101,8 +102,6 @@
       "teacherWageRuleHourlyJpy",
       "teacherWageRuleHourlyCny",
       "teacherWageRuleExchangeRate",
-      "teacherWageRuleTransportJpy",
-      "teacherWageRuleClassroomJpy",
       "teacherWageRuleNote"
     ].forEach(id => {
       const el = document.getElementById(id);
@@ -137,8 +136,6 @@
       hourly_rate_jpy: n(formValue("teacherWageRuleHourlyJpy")),
       hourly_rate_cny: n(formValue("teacherWageRuleHourlyCny")),
       exchange_rate: n(formValue("teacherWageRuleExchangeRate")),
-      transport_fee_jpy: n(formValue("teacherWageRuleTransportJpy")),
-      classroom_fee_jpy: n(formValue("teacherWageRuleClassroomJpy")),
       is_active: formValue("teacherWageRuleActive") !== "false",
       note: formValue("teacherWageRuleNote"),
       updated_at: new Date().toISOString(),
@@ -186,8 +183,6 @@
     document.getElementById("teacherWageRuleHourlyJpy").value = item.hourly_rate_jpy || "";
     document.getElementById("teacherWageRuleHourlyCny").value = item.hourly_rate_cny || "";
     document.getElementById("teacherWageRuleExchangeRate").value = item.exchange_rate || "";
-    document.getElementById("teacherWageRuleTransportJpy").value = item.transport_fee_jpy || "";
-    document.getElementById("teacherWageRuleClassroomJpy").value = item.classroom_fee_jpy || "";
     document.getElementById("teacherWageRuleActive").value = item.is_active === false ? "false" : "true";
     document.getElementById("teacherWageRuleNote").value = item.note || "";
   }
@@ -227,8 +222,6 @@
         <td>${moneyText(item.hourly_rate_jpy, "JPY")}</td>
         <td>${moneyText(item.hourly_rate_cny, "CNY")}</td>
         <td>${item.exchange_rate ? esc(String(item.exchange_rate)) : ""}</td>
-        <td>${moneyText(item.transport_fee_jpy, "JPY")}</td>
-        <td>${moneyText(item.classroom_fee_jpy, "JPY")}</td>
         <td>${item.is_active === false ? badge("停用", "gray") : badge("启用")}</td>
         <td>${esc(short(item.note || "", 18))}</td>
         <td>
@@ -236,7 +229,7 @@
           <button type="button" class="danger-btn teacher-rule-mini-btn" data-rule-delete="${escAttr(item.id)}">删除</button>
         </td>
       </tr>
-    `).join("") : `<tr><td colspan="13" class="empty-row">暂无老师工资规则</td></tr>`;
+    `).join("") : `<tr><td colspan="11" class="empty-row">暂无老师工资规则</td></tr>`;
 
     tbody.querySelectorAll("[data-rule-edit]").forEach(btn => {
       btn.onclick = () => editRule(btn.dataset.ruleEdit);
@@ -271,24 +264,24 @@
     loadRules();
   }
 
-  const switchPageBeforeV9181 = typeof switchPage === "function" ? switchPage : null;
-  if (switchPageBeforeV9181) {
+  const switchPageBeforeV9182 = typeof switchPage === "function" ? switchPage : null;
+  if (switchPageBeforeV9182) {
     window.switchPage = function(page) {
-      switchPageBeforeV9181(page);
+      switchPageBeforeV9182(page);
       if (page === "teacher-wage-rules") {
         const titleEl = document.getElementById("pageTitle");
         const subtitleEl = document.getElementById("pageSubtitle");
         if (titleEl) titleEl.textContent = "老师工资规则";
-        if (subtitleEl) subtitleEl.textContent = "维护老师、学生、科目、业务归属对应的时给、交通费、教室费与结算方式";
+        if (subtitleEl) subtitleEl.textContent = "维护老师、学生、科目、业务归属对应的时给、汇率与结算方式";
         setTimeout(bindTeacherWageRules, 0);
       }
     };
   }
 
-  const renderAllBeforeV9181 = typeof renderAll === "function" ? renderAll : null;
-  if (renderAllBeforeV9181) {
+  const renderAllBeforeV9182 = typeof renderAll === "function" ? renderAll : null;
+  if (renderAllBeforeV9182) {
     window.renderAll = function() {
-      renderAllBeforeV9181();
+      renderAllBeforeV9182();
       if (document.getElementById("page-teacher-wage-rules")?.classList.contains("active")) {
         setTimeout(bindTeacherWageRules, 0);
       }
@@ -302,7 +295,7 @@
   });
 
   window.SchoolTeacherWageRulesModule = {
-    version: "9.1.8.1",
+    version: "9.1.8.2",
     load: loadRules,
     render: renderRules,
   };

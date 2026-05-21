@@ -1595,6 +1595,7 @@ function resetFormSavingStateV71(form, submitButton) {
 }
 
 async function saveForm(e) {
+  e = e || { preventDefault(){}, stopPropagation(){}, stopImmediatePropagation(){}, target: document.getElementById("modalForm") };
   e.preventDefault();
   const form = e.target;
   const submitButton = form?.querySelector('button[type="submit"], .primary-btn');
@@ -14178,7 +14179,7 @@ function patchLessonStatusSelectV8810() {
 // 4) 收入分类为学费时，必须指定学生
 const saveFormBeforeV8810 = typeof saveForm === "function" ? saveForm : null;
 if (saveFormBeforeV8810) {
-  saveForm = async function() {
+  saveForm = async function(e) {
     const form = document.getElementById("modalForm");
     const type = state.editing?.type;
     if (form && type === "income") {
@@ -14189,7 +14190,7 @@ if (saveFormBeforeV8810) {
         return;
       }
     }
-    return saveFormBeforeV8810();
+    return saveFormBeforeV8810(e);
   };
 }
 
@@ -14323,6 +14324,7 @@ const saveFormBeforeV8811 = typeof saveForm === "function" ? saveForm : null;
 if (saveFormBeforeV8811) {
   saveForm = async function(...args) {
     if (!validateIncomeTuitionStudentV8811()) return;
+    if (!args.length || !args[0]) args = [{ preventDefault(){}, stopPropagation(){}, stopImmediatePropagation(){}, target: document.getElementById("modalForm") }];
     return saveFormBeforeV8811.apply(this, args);
   };
 }
@@ -14663,62 +14665,4 @@ document.addEventListener("DOMContentLoaded", () => {
     if (typeof filterLessons === "function") renderLessonStatsV8813(filterLessons().slice());
   }, 1000);
 });
-
-
-
-// === v8.8.13.1 save event minimal fix ===
-// 基于 v8.8.13 稳定画面，仅修复保存/新增课时无法登录的问题。
-// 不改课时表格渲染，不改排序，不改导入逻辑。
-(function () {
-  const originalSaveFormV88131 = typeof saveForm === "function" ? saveForm : null;
-  if (!originalSaveFormV88131 || originalSaveFormV88131.__v88131Wrapped) return;
-
-  function safeEventV88131() {
-    return {
-      preventDefault() {},
-      stopPropagation() {},
-      stopImmediatePropagation() {},
-    };
-  }
-
-  async function saveFormV88131(e) {
-    return originalSaveFormV88131.call(this, e || safeEventV88131());
-  }
-  saveFormV88131.__v88131Wrapped = true;
-  saveForm = saveFormV88131;
-
-  function bindModalSubmitGuardV88131() {
-    const form = document.getElementById("modalForm");
-    if (!form || form.dataset.submitGuardV88131 === "true") return;
-    form.dataset.submitGuardV88131 = "true";
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      await saveForm(e);
-      return false;
-    }, true);
-  }
-
-  const openCreateModalBeforeV88131 = typeof openCreateModal === "function" ? openCreateModal : null;
-  if (openCreateModalBeforeV88131) {
-    openCreateModal = function(type, prefill = {}) {
-      openCreateModalBeforeV88131(type, prefill);
-      setTimeout(bindModalSubmitGuardV88131, 0);
-    };
-  }
-
-  const openEditModalBeforeV88131 = typeof openEditModal === "function" ? openEditModal : null;
-  if (openEditModalBeforeV88131) {
-    openEditModal = function(type, id) {
-      openEditModalBeforeV88131(type, id);
-      setTimeout(bindModalSubmitGuardV88131, 0);
-    };
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    setTimeout(bindModalSubmitGuardV88131, 800);
-  });
-})();
 

@@ -127,12 +127,18 @@
 
 
 
-### v8.8.13.1
+### v8.8.13.2
 - 基于 v8.8.13 稳定版制作。
 - 不修改课时管理画面输出。
 - 不修改课时排序。
-- 不修改导入逻辑。
-- 仅修复新增课时/保存时 `saveForm` 没有 event 参数导致无法保存的问题。
+- 修复新增课时保存时报错：
+  - `Cannot read properties of undefined (reading 'preventDefault')`
+- 原因：
+  - v8.8.10 的保存校验包装函数没有把 event 继续传给旧版 `saveForm(e)`。
+- 本版修复保存函数链路：
+  - 基础 `saveForm(e)` 支持 event 兜底。
+  - v8.8.10 校验包装函数改为 `saveForm(e)` 并继续传递 event。
+  - v8.8.11 包装函数在无 event 时补安全 event。
 - 本版无 SQL 修改。
 
 ### v8.8.13

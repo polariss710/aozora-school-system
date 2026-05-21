@@ -1,4 +1,4 @@
-// === v9.1.10.3 teacher wage rule matching fix ===
+// === v9.1.10.4 teacher wage rule matching name fallback ===
 // 改善工资结算显示：
 // 1. 汇总表显示业务归属、学生、规则状态。
 // 2. 排序优先级：业务归属 → 老师 → 学生 → 科目 → 日期 → 时间。
@@ -126,8 +126,25 @@
       String(rule.business_entity_id || "") === lessonBusinessId(row);
   }
 
+  function ruleMatchesByLabel(rule, row) {
+    return normText(ruleTeacherName(rule)) === normText(teacherName(row)) &&
+      normText(ruleStudentName(rule)) === normText(studentName(row)) &&
+      normText(ruleSubjectName(rule)) === normText(subjectName(row)) &&
+      normText(ruleBusinessName(rule)) === normText(businessNameForRule(row) || businessName(row));
+  }
+
   function findRule(row) {
-    return wageRules.find(ruleMatches) || null;
+    return wageRules.find(rule => ruleMatches(rule, row)) ||
+      wageRules.find(rule => ruleMatchesByLabel(rule, row)) ||
+      null;
+  }
+
+  function ruleMatchMode(row) {
+    const exact = wageRules.find(rule => ruleMatches(rule, row));
+    if (exact) return "exact";
+    const label = wageRules.find(rule => ruleMatchesByLabel(rule, row));
+    if (label) return "label";
+    return "missing";
   }
 
   function missingRuleText(row) {
@@ -138,6 +155,34 @@
       subjectName(row) || "科目未定",
       businessLabel,
     ].join(" / ");
+  }
+
+  function missingRuleHelp(row) {
+    return `请在工资规则中新增：${missingRuleText(row)}`;
+  }
+
+  function ruleTeacherName(rule) {
+    const item = (state.teachers || []).find(x => String(x.id) === String(rule?.teacher_id || ""));
+    return item?.display_name || item?.name || "";
+  }
+
+  function ruleStudentName(rule) {
+    const item = (state.students || []).find(x => String(x.id) === String(rule?.student_id || ""));
+    return item?.display_name || item?.name || "";
+  }
+
+  function ruleSubjectName(rule) {
+    const item = (state.subjects || []).find(x => String(x.id) === String(rule?.subject_id || ""));
+    return item?.name || "";
+  }
+
+  function ruleBusinessName(rule) {
+    const item = (state.businessEntities || []).find(x => String(x.id) === String(rule?.business_entity_id || ""));
+    return item?.name || "";
+  }
+
+  function normText(value) {
+    return String(value || "").trim();
   }
 
   function settlementTypeLabel(value) {
@@ -201,7 +246,9 @@
       jpyAmount,
       cnyAmount,
       hasRule: !!rule,
+      matchMode: rule ? ruleMatchMode(row) : "missing",
       missingRuleText: rule ? "" : missingRuleText(row),
+      missingRuleHelp: rule ? "" : missingRuleHelp(row),
     };
   }
 
@@ -266,7 +313,9 @@
           rateCny: wage.rateCny,
           exchangeRate: wage.exchangeRate,
           hasRule: wage.hasRule,
+          matchMode: wage.matchMode,
           missingRuleText: wage.missingRuleText,
+          missingRuleHelp: wage.missingRuleHelp,
           minutes: 0,
           hours: 0,
           jpyAmount: 0,
@@ -320,7 +369,7 @@
             <td>${rateText}</td>
             <td><strong>${fmtAmount(x.jpyAmount, "JPY")}</strong><br><span class="muted-small">${fmtAmount(x.cnyAmount, "CNY")}</span></td>
             <td>${x.count}</td>
-            <td>${x.hasRule ? badge("已匹配") : `${badge("未设置", "red")}<br><span class="muted-small">缺少：${esc(x.missingRuleText)}</span>`}</td>
+            <td>${x.hasRule ? `${badge("已匹配")}${x.matchMode === "label" ? `<br><span class="muted-small">名称匹配</span>` : ""}` : `${badge("未设置", "red")}<br><span class="muted-small">${esc(x.missingRuleHelp || ("缺少：" + x.missingRuleText))}</span>`}</td>
           </tr>
         `;
       }).join("") : `<tr><td colspan="11" class="empty-row">当前条件下没有可计算工资的实际课时</td></tr>`;
@@ -363,7 +412,7 @@
             <td>${rateText}</td>
             <td><strong>${fmtAmount(wage.jpyAmount, "JPY")}</strong></td>
             <td>${fmtAmount(wage.cnyAmount, "CNY")}</td>
-            <td>${wage.hasRule ? badge("已匹配") : `${badge("未设置", "red")}<br><span class="muted-small">缺少：${esc(wage.missingRuleText)}</span>`}</td>
+            <td>${wage.hasRule ? `${badge("已匹配")}${wage.matchMode === "label" ? `<br><span class="muted-small">名称匹配</span>` : ""}` : `${badge("未设置", "red")}<br><span class="muted-small">${esc(wage.missingRuleHelp || ("缺少：" + wage.missingRuleText))}</span>`}</td>
             <td>${badge(lessonStatusLabel(r.status),"")}</td>
             <td>${esc(short(r.lesson_content || r.note, 32))}</td>
           </tr>
@@ -480,11 +529,19 @@
       business_entity_id: lessonBusinessId(row),
       display: missingRuleText(row),
       matched_rule: findRule(row),
+      match_mode: ruleMatchMode(row),
+      loaded_rules_count: wageRules.length,
+      target_labels: {
+        teacher: teacherName(row),
+        student: studentName(row),
+        subject: subjectName(row),
+        business: businessNameForRule(row) || businessName(row),
+      },
     };
   };
 
   window.SchoolTeacherWagesModule = {
-    version: "9.1.10.3",
+    version: "9.1.10.4",
     render,
     summarize,
     targetLessons,

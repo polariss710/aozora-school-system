@@ -14666,54 +14666,49 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-// === v8.9.1 lesson stable rebuild ===
-// This version intentionally restores the v8.8.13 visual/table baseline.
-// It does NOT hard-rewrite the lesson table HTML.
-// It only patches:
-// - sorting by subject/date/count
-// - create-actual/save modal submit safety
-// - lesson status labels/options
-// - button disabled state
+// === v8.9.3 Stable lesson layout + targeted fixes ===
+// v8.9.2 sorting was correct but the rendered table layout was broken.
+// This version returns to the v8.8.13 stable lesson table renderer and only patches:
+// - lesson sorting
+// - saveForm event parameter
+// - modal native submit guard
 
-function lessonCountNumberV891(row) {
+function lessonCountNumberV893(row) {
   if (row?.lesson_count === null || row?.lesson_count === undefined || row?.lesson_count === "") return null;
   const n = Number(String(row.lesson_count).replace(/[^\d.-]/g, ""));
   return Number.isFinite(n) ? n : null;
 }
 
-function lessonSubjectNameV891(row) {
-  return row?.subject?.name || row?.subject_name || "";
-}
-
-function lessonSubjectPriorityV891(row) {
-  const name = lessonSubjectNameV891(row);
+function lessonSubjectPriorityV893(row) {
+  const name = row?.subject?.name || row?.subject_name || "";
   const order = ["日语", "数学", "物理", "化学", "生物", "文综"];
   const idx = order.findIndex(x => name.includes(x));
   return idx < 0 ? 99 : idx;
 }
 
-function lessonTeacherNameV891(row) {
+function lessonTeacherNameV893(row) {
   return row?.teacher?.display_name || row?.teacher?.name || row?.teacher_name || row?.teacher_id || "";
 }
 
-function compareLessonsV891(a, b) {
+// Same visual order that was confirmed correct in v8.9.2.
+function compareLessonsV893(a, b) {
   const month = String(a?.year_month || "").localeCompare(String(b?.year_month || ""));
   if (month) return month;
+
+  const subject = lessonSubjectPriorityV893(a) - lessonSubjectPriorityV893(b);
+  if (subject) return subject;
+
+  const subjectName = String(a?.subject?.name || "").localeCompare(String(b?.subject?.name || ""), "zh-Hans-CN");
+  if (subjectName) return subjectName;
+
+  const teacher = String(lessonTeacherNameV893(a)).localeCompare(String(lessonTeacherNameV893(b)), "zh-Hans-CN");
+  if (teacher) return teacher;
 
   const date = String(a?.lesson_date || "").localeCompare(String(b?.lesson_date || ""));
   if (date) return date;
 
-  const subject = lessonSubjectPriorityV891(a) - lessonSubjectPriorityV891(b);
-  if (subject) return subject;
-
-  const subjectName = String(lessonSubjectNameV891(a)).localeCompare(String(lessonSubjectNameV891(b)), "zh-Hans-CN");
-  if (subjectName) return subjectName;
-
-  const teacher = String(lessonTeacherNameV891(a)).localeCompare(String(lessonTeacherNameV891(b)), "zh-Hans-CN");
-  if (teacher) return teacher;
-
-  const ac = lessonCountNumberV891(a);
-  const bc = lessonCountNumberV891(b);
+  const ac = lessonCountNumberV893(a);
+  const bc = lessonCountNumberV893(b);
   if (ac !== null || bc !== null) {
     if (ac === null) return 1;
     if (bc === null) return -1;
@@ -14729,177 +14724,52 @@ function compareLessonsV891(a, b) {
   return String(a?.id || "").localeCompare(String(b?.id || ""));
 }
 
-compareLessonsV77 = compareLessonsV891;
-compareLessonsV78 = compareLessonsV891;
-compareLessonsV83 = compareLessonsV891;
-compareLessonsV872 = compareLessonsV891;
-compareLessonsV8813 = compareLessonsV891;
+compareLessonsV77 = compareLessonsV893;
+compareLessonsV78 = compareLessonsV893;
+compareLessonsV83 = compareLessonsV893;
+compareLessonsV872 = compareLessonsV893;
+compareLessonsV8813 = compareLessonsV893;
 
-// Status labels/options stay aligned with the current business rules.
-function lessonStatusOptionsV891() {
-  return [
-    { value: "completed", label: "已上课" },
-    { value: "pending_makeup", label: "待补课" },
-    { value: "makeup_completed", label: "已补课" },
-    { value: "cancelled", label: "取消课" },
-  ];
-}
+// Keep v8.8.x stable table renderer.
+function renderLessonsV893() {
+  const tbody = document.getElementById("lessonsTable");
+  if (!tbody) return;
 
-function lessonStatusLabelV891(status) {
-  const map = {
-    completed: "已上课",
-    pending_makeup: "待补课",
-    makeup_completed: "已补课",
-    cancelled: "取消课",
-    makeup: "已补课",
-    planned: "预定",
-  };
-  return map[status] || status || "";
-}
+  if (typeof updateLessonFilters === "function") updateLessonFilters();
 
-lessonStatusOptions = lessonStatusOptionsV891;
-lessonStatusLabel = lessonStatusLabelV891;
+  const rows = (typeof filterLessons === "function"
+    ? filterLessons().slice()
+    : (state.lessonRecords || []).slice()
+  ).sort(compareLessonsV893);
 
-function patchLessonStatusSelectV891() {
-  const form = document.getElementById("modalForm");
-  if (!form || state.editing?.type !== "lesson") return;
-  const select = form.querySelector('[name="status"]');
-  if (!select) return;
+  if (typeof renderLessonStatsV8813 === "function") renderLessonStatsV8813(rows);
+  else if (typeof renderLessonStatsV8812 === "function") renderLessonStatsV8812(rows);
+  else if (typeof renderLessonStats === "function") renderLessonStats(rows);
 
-  const current = select.value;
-  select.innerHTML = lessonStatusOptionsV891()
-    .map(opt => `<option value="${escAttr(opt.value)}">${esc(opt.label)}</option>`)
-    .join("");
-  select.value = lessonStatusOptionsV891().some(x => x.value === current) ? current : "completed";
-}
-
-// Keep the existing v8.8.13 renderer; only force it to rerender after sort function replacement.
-function rerenderLessonsV891() {
-  if (typeof renderLessons === "function") {
-    renderLessons();
+  // renderLessonRowsV837 is the stable visual structure: sub headers, 12 columns, correct cell classes.
+  if (typeof renderLessonRowsV837 === "function") {
+    tbody.innerHTML = renderLessonRowsV837(rows) || `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
+    if (typeof bindLessonButtonsV837 === "function") bindLessonButtonsV837();
+    if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
+    if (typeof patchLessonCountDisplayV886 === "function") patchLessonCountDisplayV886();
+    if (typeof patchActualTimeDisplayV888 === "function") patchActualTimeDisplayV888();
+    if (typeof updateLessonButtonsDisabledV891 === "function") updateLessonButtonsDisabledV891();
+    return;
   }
+
+  // Fallback to current renderer if the stable function is unavailable.
+  if (typeof renderLessonsV837 === "function") return renderLessonsV837();
 }
 
-// Prevent modal form from doing native GET navigation.
-// This is the likely source of "生成实际课时后回到系统首页 / URL变成 query params".
-function bindModalSubmitGuardV891() {
-  const form = document.getElementById("modalForm");
-  if (!form || form.dataset.submitGuardV891 === "true") return;
-  form.dataset.submitGuardV891 = "true";
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    if (typeof saveForm === "function") {
-      await saveForm();
-    }
-    return false;
-  }, true);
+renderLessons = renderLessonsV893;
+
+// Make actual generation use stable function.
+if (typeof makeActualFromPlannedV837 === "function") {
+  makeActualFromPlanned = makeActualFromPlannedV837;
 }
 
-document.addEventListener("click", async (e) => {
-  const btn = e.target?.closest?.("#saveModalBtn, [data-save-modal], button[type='submit']");
-  if (!btn) return;
-  const form = document.getElementById("modalForm");
-  if (!form) return;
-
-  // Do not let any modal save button trigger native form submission.
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
-  if (typeof saveForm === "function") {
-    await saveForm();
-  }
-  return false;
-}, true);
-
-const openCreateModalBeforeV891 = typeof openCreateModal === "function" ? openCreateModal : null;
-if (openCreateModalBeforeV891) {
-  openCreateModal = function(type, prefill = {}) {
-    openCreateModalBeforeV891(type, prefill);
-    setTimeout(() => {
-      bindModalSubmitGuardV891();
-      if (type === "lesson") patchLessonStatusSelectV891();
-    }, 0);
-  };
-}
-
-const openEditModalBeforeV891 = typeof openEditModal === "function" ? openEditModal : null;
-if (openEditModalBeforeV891) {
-  openEditModal = function(type, id) {
-    openEditModalBeforeV891(type, id);
-    setTimeout(() => {
-      bindModalSubmitGuardV891();
-      if (type === "lesson") patchLessonStatusSelectV891();
-    }, 0);
-  };
-}
-
-// Student must be selected before adding/importing lessons.
-function lessonStudentSelectedV891() {
-  return Boolean(document.getElementById("lessonStudentFilter")?.value || "");
-}
-
-function updateLessonButtonsDisabledV891() {
-  const disabled = !lessonStudentSelectedV891();
-  ["lessonImportCompletedExcelBtnV88", "lessonImportExcelBtn", "addLessonBtn", "newLessonBtn", "createLessonBtn"].forEach(id => {
-    const btn = document.getElementById(id);
-    if (!btn) return;
-    btn.disabled = disabled;
-    btn.classList.toggle("disabled", disabled);
-    if (disabled) btn.title = "请先选择学生";
-    else btn.removeAttribute("title");
-  });
-}
-
-document.addEventListener("change", (e) => {
-  if (e.target?.id === "lessonStudentFilter") updateLessonButtonsDisabledV891();
-});
-
-const switchPageBeforeV891 = typeof switchPage === "function" ? switchPage : null;
-if (switchPageBeforeV891) {
-  switchPage = function(page) {
-    switchPageBeforeV891(page);
-    if (page === "lessons") {
-      setTimeout(() => {
-        if (typeof renderLessons === "function") renderLessons();
-        updateLessonButtonsDisabledV891();
-      }, 0);
-    }
-  };
-}
-
-const renderAllBeforeV891 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV891) {
-  renderAll = function() {
-    renderAllBeforeV891();
-    if (document.getElementById("page-lessons")?.classList.contains("active")) {
-      setTimeout(() => {
-        if (typeof renderLessons === "function") renderLessons();
-        updateLessonButtonsDisabledV891();
-      }, 0);
-    }
-  };
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    bindModalSubmitGuardV891();
-    if (document.getElementById("page-lessons")?.classList.contains("active") && typeof renderLessons === "function") {
-      renderLessons();
-    }
-    updateLessonButtonsDisabledV891();
-  }, 1000);
-});
-
-
-
-// === v8.9.2 lesson sort + save event fix ===
-// 修复：
-// 1. v8.9.1 保存按钮直接调用 saveForm()，但旧 saveForm 需要 event 参数，导致 preventDefault 报错。
-// 2. 课时排序仍被旧 renderLessonsV837 的排序链影响。本版用稳定旧布局 + 新排序重渲染，不硬改表格结构。
-
-function noopSubmitEventV892() {
+// Fix saveForm event issue: old saveForm expects an event parameter.
+function saveEventStubV893() {
   return {
     preventDefault() {},
     stopPropagation() {},
@@ -14907,164 +14777,22 @@ function noopSubmitEventV892() {
   };
 }
 
-function lessonSubjectPriorityV892(row) {
-  const name = row?.subject?.name || row?.subject_name || "";
-  const order = ["日语", "数学", "物理", "化学", "生物", "文综"];
-  const idx = order.findIndex(x => name.includes(x));
-  return idx < 0 ? 99 : idx;
-}
-
-function lessonTeacherNameV892(row) {
-  return row?.teacher?.display_name || row?.teacher?.name || row?.teacher_name || row?.teacher_id || "";
-}
-
-function lessonCountNumberV892(row) {
-  if (row?.lesson_count === null || row?.lesson_count === undefined || row?.lesson_count === "") return null;
-  const n = Number(String(row.lesson_count).replace(/[^\d.-]/g, ""));
-  return Number.isFinite(n) ? n : null;
-}
-
-// 课时管理视觉顺序：月份 → 科目优先级 → 老师 → 日期 → 回数 → 开始时间
-// 这样同一科目的整月课程会连续显示，同时同一周内第1回在第2回上面。
-function compareLessonsV892(a, b) {
-  const month = String(a?.year_month || "").localeCompare(String(b?.year_month || ""));
-  if (month) return month;
-
-  const subject = lessonSubjectPriorityV892(a) - lessonSubjectPriorityV892(b);
-  if (subject) return subject;
-
-  const subjectName = String(a?.subject?.name || "").localeCompare(String(b?.subject?.name || ""), "zh-Hans-CN");
-  if (subjectName) return subjectName;
-
-  const teacher = String(lessonTeacherNameV892(a)).localeCompare(String(lessonTeacherNameV892(b)), "zh-Hans-CN");
-  if (teacher) return teacher;
-
-  const date = String(a?.lesson_date || "").localeCompare(String(b?.lesson_date || ""));
-  if (date) return date;
-
-  const ac = lessonCountNumberV892(a);
-  const bc = lessonCountNumberV892(b);
-  if (ac !== null || bc !== null) {
-    if (ac === null) return 1;
-    if (bc === null) return -1;
-    if (ac !== bc) return ac - bc;
-  }
-
-  const start = String(a?.start_time || "").localeCompare(String(b?.start_time || ""));
-  if (start) return start;
-
-  const created = String(a?.created_at || "").localeCompare(String(b?.created_at || ""));
-  if (created) return created;
-
-  return String(a?.id || "").localeCompare(String(b?.id || ""));
-}
-
-compareLessonsV77 = compareLessonsV892;
-compareLessonsV78 = compareLessonsV892;
-compareLessonsV83 = compareLessonsV892;
-compareLessonsV872 = compareLessonsV892;
-compareLessonsV8813 = compareLessonsV892;
-compareLessonsV891 = compareLessonsV892;
-
-// 使用 v8.8.x 的稳定 paired row 组件，只替换排序和配对顺序。
-function renderLessonsV892() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-
-  if (typeof updateLessonFilters === "function") updateLessonFilters();
-
-  const rows = (typeof filterLessons === "function" ? filterLessons().slice() : (state.lessonRecords || []).slice()).sort(compareLessonsV892);
-
-  if (typeof renderLessonStatsV8813 === "function") renderLessonStatsV8813(rows);
-  else if (typeof renderLessonStatsV8812 === "function") renderLessonStatsV8812(rows);
-  else if (typeof renderLessonStats === "function") renderLessonStats(rows);
-
-  const plannedRows = rows.filter(x => x.lesson_type === "planned").sort(compareLessonsV892);
-  const actualRows = rows.filter(x => x.lesson_type === "actual").sort(compareLessonsV892);
-
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actualRows.forEach(actual => {
-    const planId = actual.planned_lesson_id;
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(actual);
-    } else {
-      unlinkedActual.push(actual);
-    }
-  });
-
-  for (const list of actualByPlan.values()) list.sort(compareLessonsV892);
-  unlinkedActual.sort(compareLessonsV892);
-
-  const html = [];
-  let lastMonth = "";
-
-  function addMonthRow(ym) {
-    const label = ym || "未归属月份";
-    if (label !== lastMonth) {
-      lastMonth = label;
-      html.push(`<tr class="month-group-row"><td colspan="12">${esc(typeof expenseMonthLabel === "function" ? expenseMonthLabel(label) : label)}</td></tr>`);
-    }
-  }
-
-  const cells = typeof lessonPairCellsFinalV835 === "function"
-    ? lessonPairCellsFinalV835
-    : (typeof lessonPairCellsV837 === "function" ? lessonPairCellsV837 : lessonPairCells);
-
-  plannedRows.forEach(plan => {
-    addMonthRow(plan.year_month);
-    const actuals = actualByPlan.get(plan.id) || [];
-
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row">${cells(plan, "planned")}${cells(null, "actual")}</tr>`);
-    } else {
-      actuals.forEach((actual, index) => {
-        const left = index === 0 ? cells(plan, "planned") : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row">${left}${cells(actual, "actual")}</tr>`);
-      });
-    }
-  });
-
-  unlinkedActual.forEach(actual => {
-    addMonthRow(actual.year_month);
-    html.push(`<tr class="lesson-pair-row">${cells(null, "planned")}${cells(actual, "actual")}</tr>`);
-  });
-
-  tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-
-  if (typeof bindLessonButtonsV837 === "function") bindLessonButtonsV837();
-  else if (typeof bindLessonPairButtonsV59 === "function") bindLessonPairButtonsV59();
-
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-  if (typeof patchLessonCountDisplayV886 === "function") patchLessonCountDisplayV886();
-  if (typeof patchActualTimeDisplayV888 === "function") patchActualTimeDisplayV888();
-  if (typeof updateLessonButtonsDisabledV891 === "function") updateLessonButtonsDisabledV891();
-}
-
-// 覆盖所有旧入口，避免旧排序链再次接管。
-renderLessons = renderLessonsV892;
-renderLessonsV837 = renderLessonsV892;
-renderLessonsV8814 = renderLessonsV892;
-renderLessonsV89 = renderLessonsV892;
-
-// 保存按钮修复：传入事件对象，避免旧 saveForm 读取 undefined.preventDefault。
-function bindModalSubmitGuardV892() {
+function bindModalSubmitGuardV893() {
   const form = document.getElementById("modalForm");
-  if (!form || form.dataset.submitGuardV892 === "true") return;
-  form.dataset.submitGuardV892 = "true";
+  if (!form || form.dataset.submitGuardV893 === "true") return;
+  form.dataset.submitGuardV893 = "true";
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();
-    if (typeof saveForm === "function") await saveForm(e);
+    if (typeof saveForm === "function") {
+      await saveForm(e || saveEventStubV893());
+    }
     return false;
   }, true);
 }
 
-// 覆盖 v8.9.1 的 document click 兜底：阻止原生提交，但调用 saveForm(e) 而不是 saveForm()。
 document.addEventListener("click", async (e) => {
   const btn = e.target?.closest?.("#saveModalBtn, [data-save-modal], button[type='submit']");
   if (!btn) return;
@@ -15076,55 +14804,57 @@ document.addEventListener("click", async (e) => {
   e.stopImmediatePropagation();
 
   if (typeof saveForm === "function") {
-    await saveForm(e || noopSubmitEventV892());
+    await saveForm(e || saveEventStubV893());
   }
   return false;
 }, true);
 
-const openCreateModalBeforeV892 = typeof openCreateModal === "function" ? openCreateModal : null;
-if (openCreateModalBeforeV892) {
+const openCreateModalBeforeV893 = typeof openCreateModal === "function" ? openCreateModal : null;
+if (openCreateModalBeforeV893) {
   openCreateModal = function(type, prefill = {}) {
-    openCreateModalBeforeV892(type, prefill);
+    openCreateModalBeforeV893(type, prefill);
     setTimeout(() => {
-      bindModalSubmitGuardV892();
+      bindModalSubmitGuardV893();
       if (typeof patchLessonStatusSelectV891 === "function" && type === "lesson") patchLessonStatusSelectV891();
+      else if (typeof patchLessonStatusSelectV8810 === "function" && type === "lesson") patchLessonStatusSelectV8810();
     }, 0);
   };
 }
 
-const openEditModalBeforeV892 = typeof openEditModal === "function" ? openEditModal : null;
-if (openEditModalBeforeV892) {
+const openEditModalBeforeV893 = typeof openEditModal === "function" ? openEditModal : null;
+if (openEditModalBeforeV893) {
   openEditModal = function(type, id) {
-    openEditModalBeforeV892(type, id);
+    openEditModalBeforeV893(type, id);
     setTimeout(() => {
-      bindModalSubmitGuardV892();
+      bindModalSubmitGuardV893();
       if (typeof patchLessonStatusSelectV891 === "function" && type === "lesson") patchLessonStatusSelectV891();
+      else if (typeof patchLessonStatusSelectV8810 === "function" && type === "lesson") patchLessonStatusSelectV8810();
     }, 0);
   };
 }
 
-const switchPageBeforeV892 = typeof switchPage === "function" ? switchPage : null;
-if (switchPageBeforeV892) {
+const switchPageBeforeV893 = typeof switchPage === "function" ? switchPage : null;
+if (switchPageBeforeV893) {
   switchPage = function(page) {
-    switchPageBeforeV892(page);
-    if (page === "lessons") setTimeout(renderLessonsV892, 0);
+    switchPageBeforeV893(page);
+    if (page === "lessons") setTimeout(renderLessonsV893, 0);
   };
 }
 
-const renderAllBeforeV892 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV892) {
+const renderAllBeforeV893 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeV893) {
   renderAll = function() {
-    renderAllBeforeV892();
+    renderAllBeforeV893();
     if (document.getElementById("page-lessons")?.classList.contains("active")) {
-      setTimeout(renderLessonsV892, 0);
+      setTimeout(renderLessonsV893, 0);
     }
   };
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    bindModalSubmitGuardV892();
-    if (document.getElementById("page-lessons")?.classList.contains("active")) renderLessonsV892();
+    bindModalSubmitGuardV893();
+    if (document.getElementById("page-lessons")?.classList.contains("active")) renderLessonsV893();
   }, 1000);
 });
 

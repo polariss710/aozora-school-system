@@ -2364,3 +2364,26 @@ button:disabled {
   min-height: 26px;
   font-size: 12px;
 }
+
+/* === v9.1.8 teacher wage rules === */
+.teacher-wage-rule-form.rule-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.teacher-wage-rule-form .form-row.full {
+  grid-column: 1 / -1;
+}
+
+.teacher-wage-rule-actions {
+  margin-bottom: 16px;
+}
+
+.teacher-rule-mini-btn {
+  margin-right: 4px;
+  padding: 4px 8px;
+  min-height: 26px;
+  font-size: 12px;
+}

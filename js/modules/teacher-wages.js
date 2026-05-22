@@ -641,8 +641,26 @@
     });
   }
 
+
+  function applyFeeOverridesFromDutyImportV970(updates) {
+    if (!Array.isArray(updates)) return { applied: 0 };
+
+    let applied = 0;
+    updates.forEach(item => {
+      if (!item?.rowKey) return;
+      const current = rowFeeOverrides.get(item.rowKey) || {};
+      current.transport = Math.max(0, Math.round(n(item.transport)));
+      current.classroom = Math.max(0, Math.round(n(item.classroom)));
+      rowFeeOverrides.set(item.rowKey, current);
+      applied += 1;
+    });
+
+    render();
+    return { applied };
+  }
+
   window.SchoolTeacherWagesModule = {
-    version: "9.4.1",
+    version: "9.7.0",
     render,
     summarize,
     targetLessons,
@@ -651,5 +669,6 @@
     rowFeeOverrides,
     loadWageRules,
     currentWageRowsForLock: currentWageRowsForLockV920,
+    applyFeeOverridesFromDutyImport: applyFeeOverridesFromDutyImportV970,
   };
 })();

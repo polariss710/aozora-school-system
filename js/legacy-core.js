@@ -1620,6 +1620,139 @@ function resetFormSavingStateV71(form, submitButton) {
   if (submitButton) submitButton.disabled = false;
 }
 
+
+function lessonStudentSettlementMonthForLockV943(record) {
+  return record?.year_month || record?.settlement_month || String(record?.lesson_date || "").slice(0, 7) || "";
+}
+
+function lessonTeacherSettlementMonthForLockV943(record) {
+  return record?.teacher_settlement_month || String(record?.lesson_date || "").slice(0, 7) || record?.year_month || "";
+}
+
+function sameValueV943(a, b) {
+  const va = a === undefined || a === null ? "" : String(a);
+  const vb = b === undefined || b === null ? "" : String(b);
+  return va === vb;
+}
+
+function lessonChangedFieldsV943(oldRecord, newRecord, fields) {
+  return fields.filter(field => !sameValueV943(oldRecord?.[field], newRecord?.[field]));
+}
+
+async function hasLockedStudentSettlementV943(studentId, month) {
+  if (!studentId || !month) return false;
+  const { data, error } = await db
+    .from("school_student_monthly_settlements")
+    .select("id")
+    .eq("student_id", studentId)
+    .eq("year_month", month)
+    .eq("settlement_status", "locked")
+    .limit(1);
+
+  if (error) {
+    console.warn("student settlement edit-lock check failed", error);
+    return false;
+  }
+  return !!(data && data.length);
+}
+
+async function hasLockedTeacherWageV943(teacherId, month) {
+  if (!teacherId || !month) return false;
+  const { data, error } = await db
+    .from("school_teacher_wage_locks")
+    .select("id")
+    .eq("teacher_id", teacherId)
+    .eq("settlement_month", month)
+    .eq("status", "locked")
+    .limit(1);
+
+  if (error) {
+    console.warn("teacher wage edit-lock check failed", error);
+    return false;
+  }
+  return !!(data && data.length);
+}
+
+async function assertLessonEditAllowedV943(oldRecord, payload) {
+  if (!oldRecord || oldRecord.lesson_type !== "actual") return { ok: true };
+
+  const nextRecord = { ...oldRecord, ...payload };
+
+  const studentLockedMonths = new Set([
+    lessonStudentSettlementMonthForLockV943(oldRecord),
+    lessonStudentSettlementMonthForLockV943(nextRecord),
+  ].filter(Boolean));
+
+  const teacherLockedTargets = [
+    {
+      teacherId: oldRecord.teacher_id,
+      month: lessonTeacherSettlementMonthForLockV943(oldRecord),
+    },
+    {
+      teacherId: nextRecord.teacher_id,
+      month: lessonTeacherSettlementMonthForLockV943(nextRecord),
+    },
+  ].filter(x => x.teacherId && x.month);
+
+  const studentFields = [
+    "student_id",
+    "year_month",
+    "lesson_type",
+    "lesson_date",
+    "subject_id",
+    "duration_hours",
+    "unit_price",
+    "lesson_fee",
+    "is_billable",
+    "status",
+    "business_entity_id",
+    "settlement_month",
+  ];
+
+  const teacherFields = [
+    "teacher_id",
+    "teacher_settlement_month",
+    "lesson_date",
+    "start_time",
+    "end_time",
+    "duration_hours",
+    "actual_minutes",
+    "teacher_pay_hours",
+    "subject_id",
+    "student_id",
+    "business_entity_id",
+    "status",
+  ];
+
+  const changedStudentFields = lessonChangedFieldsV943(oldRecord, nextRecord, studentFields);
+  const changedTeacherFields = lessonChangedFieldsV943(oldRecord, nextRecord, teacherFields);
+
+  if (changedStudentFields.length) {
+    for (const month of studentLockedMonths) {
+      const studentId = oldRecord.student_id || nextRecord.student_id;
+      if (await hasLockedStudentSettlementV943(studentId, month)) {
+        return {
+          ok: false,
+          message: `该课时关联的学生 ${month} 月度结算已锁定，请先撤销学生月度结算锁定后再修改。`,
+        };
+      }
+    }
+  }
+
+  if (changedTeacherFields.length) {
+    for (const target of teacherLockedTargets) {
+      if (await hasLockedTeacherWageV943(target.teacherId, target.month)) {
+        return {
+          ok: false,
+          message: `该课时关联的老师 ${target.month} 工资已经锁定，请先撤销老师工资锁定后再修改。`,
+        };
+      }
+    }
+  }
+
+  return { ok: true };
+}
+
 async function saveForm(e) {
   e = e || { preventDefault(){}, stopPropagation(){}, stopImmediatePropagation(){}, target: document.getElementById("modalForm") };
   e.preventDefault();
@@ -1685,6 +1818,16 @@ async function saveForm(e) {
 
   const table = tableForType(type);
   const oldRecord = state.editing.id ? findLocal(type, state.editing.id) : null;
+
+  if (type === "lesson" && state.editing.id) {
+    const lockCheck = await assertLessonEditAllowedV943(oldRecord, payload);
+    if (!lockCheck.ok) {
+      resetFormSavingStateV71(form, submitButton);
+      showMessage(lockCheck.message, "error");
+      return;
+    }
+  }
+
   let result;
   if (state.editing.id) {
     result = await db.from(table).update(payload).eq("id", state.editing.id).select().single();

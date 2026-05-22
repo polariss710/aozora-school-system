@@ -1,4 +1,4 @@
-// === v9.3.0 payment management module ===
+// === v9.3.1 payment management module ===
 // 支付管理页面：显示 9.2 工资锁定后生成的支付要求。
 // 本版只管理支付要求状态，不生成实际账户流水；实际支付记录联动放到后续版本。
 
@@ -86,7 +86,7 @@
 
     return paymentRequests.filter(row =>
       (!month || row.request_month === month) &&
-      (!status || row.status === status) &&
+      (status ? row.status === status : row.status !== "void") &&
       (!sourceType || row.source_type === sourceType) &&
       (!businessId || row.business_entity_id === businessId) &&
       (!currency || row.currency === currency)
@@ -278,7 +278,7 @@
   });
 
   window.SchoolPaymentManagementV930 = {
-    version: "9.3.0",
+    version: "9.3.1",
     load: loadPaymentRequests,
     render: renderPayments,
     rows: () => paymentRequests,

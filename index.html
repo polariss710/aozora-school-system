@@ -4,10 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="icon" href="./favicon.ico?v=9.2.2" />
-  <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png?v=9.2.2" />
-  <link rel="apple-touch-icon" href="./assets/favicon-180.png?v=9.2.2" />
-  <link rel="stylesheet" href="./style.css?v=9.2.2" />
+  <link rel="icon" href="./favicon.ico?v=9.3.0" />
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png?v=9.3.0" />
+  <link rel="apple-touch-icon" href="./assets/favicon-180.png?v=9.3.0" />
+  <link rel="stylesheet" href="./style.css?v=9.3.0" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -26,7 +26,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./assets/logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v9.2.2</p>
+        <p>运营管理系统 v9.3.0</p>
       </div>
 
       <nav class="nav">
@@ -44,6 +44,7 @@
         <button class="nav-btn" data-page="expenses">支出记录</button>
         <button class="nav-btn" data-page="finance">收支汇总</button>
         <button class="nav-btn" data-page="reimbursements">报销管理</button>
+        <button class="nav-btn" data-page="payments">支付管理</button>
         <button class="nav-btn" data-page="backup">备份/恢复</button>
       </nav>
 
@@ -640,7 +641,71 @@
         </div>
       </section>
 
-      <section class="page" id="page-backup">
+      
+      <section class="page" id="page-payments">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>支付管理</h3>
+            <div class="panel-actions">
+              <button class="secondary-btn" id="paymentRefreshBtn" type="button">刷新支付要求</button>
+            </div>
+          </div>
+
+          <div class="toolbar finance-toolbar">
+            <input type="month" id="paymentMonthFilter" />
+            <select id="paymentStatusFilter">
+              <option value="">全部状态</option>
+              <option value="pending">待支付</option>
+              <option value="paid">已支付</option>
+              <option value="cancelled">已取消</option>
+              <option value="void">已作废</option>
+            </select>
+            <select id="paymentSourceTypeFilter">
+              <option value="">全部来源</option>
+              <option value="teacher_wage">老师工资</option>
+            </select>
+            <select id="paymentBusinessFilter"></select>
+            <select id="paymentCurrencyFilter">
+              <option value="">全部币种</option>
+              <option value="JPY">JPY</option>
+              <option value="CNY">CNY</option>
+            </select>
+            <button class="secondary-btn" id="paymentClearFilter" type="button">清除筛选</button>
+          </div>
+
+          <div class="cards-grid finance-mini-stats">
+            <div class="stat-card"><span>待支付合计</span><strong id="paymentPendingTotal">0</strong></div>
+            <div class="stat-card"><span>已支付合计</span><strong id="paymentPaidTotal">0</strong></div>
+            <div class="stat-card"><span>筛选合计</span><strong id="paymentFilteredTotal">0</strong></div>
+            <div class="stat-card"><span>记录数</span><strong id="paymentRecordCount">0</strong></div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>月份</th>
+                  <th>来源</th>
+                  <th>支付对象</th>
+                  <th>业务归属</th>
+                  <th>币种</th>
+                  <th>金额</th>
+                  <th>日元金额</th>
+                  <th>人民币金额</th>
+                  <th>状态</th>
+                  <th>支付时间</th>
+                  <th>备注</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="paymentRequestsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+
+<section class="page" id="page-backup">
         <div class="panel">
           <div class="panel-header">
             <h3>备份/恢复</h3>
@@ -673,19 +738,20 @@
     </div>
   </div>
 
-  <script src="js/legacy-core.js?v=9.2.2"></script>
-  <script src="js/modules/form-save-fix.js?v=9.2.2"></script>
-  <script src="js/modules/lessons.js?v=9.2.2"></script>
-  <script src="js/modules/lesson-import.js?v=9.2.2"></script>
-  <script src="js/modules/student-settlement.js?v=9.2.2"></script>
-  <script src="js/modules/income.js?v=9.2.2"></script>
-  <script src="js/modules/expense.js?v=9.2.2"></script>
-  <script src="js/modules/reimbursements.js?v=9.2.2"></script>
-  <script src="js/modules/teacher-wages.js?v=9.2.2"></script>
-  <script src="js/modules/teacher-wage-rules.js?v=9.2.2"></script>
-  <script src="js/modules/teacher-wage-locks.js?v=9.2.2"></script>
-  <script src="js/modules/table-selection.js?v=9.2.2"></script>
-  <script src="js/modules/record-copy.js?v=9.2.2"></script>
-  <script src="app.js?v=9.2.2"></script>
+  <script src="js/legacy-core.js?v=9.3.0"></script>
+  <script src="js/modules/form-save-fix.js?v=9.3.0"></script>
+  <script src="js/modules/lessons.js?v=9.3.0"></script>
+  <script src="js/modules/lesson-import.js?v=9.3.0"></script>
+  <script src="js/modules/student-settlement.js?v=9.3.0"></script>
+  <script src="js/modules/income.js?v=9.3.0"></script>
+  <script src="js/modules/expense.js?v=9.3.0"></script>
+  <script src="js/modules/reimbursements.js?v=9.3.0"></script>
+  <script src="js/modules/teacher-wages.js?v=9.3.0"></script>
+  <script src="js/modules/teacher-wage-rules.js?v=9.3.0"></script>
+  <script src="js/modules/teacher-wage-locks.js?v=9.3.0"></script>
+  <script src="js/modules/table-selection.js?v=9.3.0"></script>
+  <script src="js/modules/record-copy.js?v=9.3.0"></script>
+  <script src="js/modules/payment-management.js?v=9.3.0"></script>
+  <script src="app.js?v=9.3.0"></script>
 </body>
 </html>

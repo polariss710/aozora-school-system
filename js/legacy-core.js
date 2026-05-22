@@ -10609,7 +10609,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-// === v9.3.4 month-filtered options and manifest cache fix ===
+// === v9.4.2 student settlement switch lock display fix ===
 const SETTLEMENTS_TABLE_V87 = "school_student_monthly_settlements";
 
 function roundCnyV87(value) { return Math.round(Number(value || 0)); }
@@ -10799,6 +10799,19 @@ if (renderStudentSettlementBeforeV87) {
   };
 }
 document.addEventListener("DOMContentLoaded", () => {
+  document.body.addEventListener("change", (e) => {
+    if (e.target?.id === "settlementMonthFilter" || e.target?.id === "settlementStudentFilter") {
+      const history = document.getElementById("settlementLockHistoryV87");
+      if (history) history.innerHTML = `<div class="muted-small">正在切换结算月份...</div>`;
+      setStudentSettlementLockButtonStateV932(false);
+      setTimeout(() => {
+        updateSettlementLockPreviewV87();
+        fetchSettlementLockHistoryV87();
+        refreshStudentSettlementButtonStateV932();
+      }, 0);
+    }
+  }, true);
+
   setTimeout(() => { ensureSettlementPanelV87(); updateSettlementLockPreviewV87(); fetchSettlementLockHistoryV87(); refreshStudentSettlementButtonStateV932(); }, 1000);
 });
 const renderAllBeforeV87 = typeof renderAll === "function" ? renderAll : null;
@@ -10822,16 +10835,27 @@ function dbClientV871() {
 }
 
 // Fix v8.7 error: supabase.from is not a function. Use existing db client.
+let studentSettlementLockHistoryRequestV942 = 0;
+
 async function fetchSettlementLockHistoryV871() {
+  const requestId = ++studentSettlementLockHistoryRequestV942;
   const { month, studentId } = selectedSettlementContextV87 ? selectedSettlementContextV87() : { month: "", studentId: "" };
   const history = document.getElementById("settlementLockHistoryV87");
   if (!history) return;
+
+  const currentContextStillSame = () => {
+    const now = selectedSettlementContextV87 ? selectedSettlementContextV87() : { month: "", studentId: "" };
+    return requestId === studentSettlementLockHistoryRequestV942 && now.month === month && now.studentId === studentId;
+  };
 
   if (!studentId || !month) {
     setStudentSettlementLockButtonStateV932(false);
     history.innerHTML = `<div class="muted-small">请选择学生和月份。</div>`;
     return;
   }
+
+  setStudentSettlementLockButtonStateV932(false);
+  history.innerHTML = `<div class="muted-small">正在读取 ${esc(month)} 的锁定状态...</div>`;
 
   const client = dbClientV871();
   if (!client) {
@@ -10847,6 +10871,8 @@ async function fetchSettlementLockHistoryV871() {
       .eq("year_month", month)
       .eq("settlement_status", "locked")
       .maybeSingle();
+
+    if (!currentContextStillSame()) return;
 
     if (error && error.code !== "PGRST116") throw error;
 
@@ -10869,6 +10895,7 @@ async function fetchSettlementLockHistoryV871() {
       </div>
     `;
   } catch (error) {
+    if (!currentContextStillSame()) return;
     setStudentSettlementLockButtonStateV932(false);
     history.innerHTML = `<div class="error-text">读取结算锁定状态失败：${esc(error.message || error)}</div>`;
   }

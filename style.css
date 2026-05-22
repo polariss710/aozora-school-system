@@ -2446,3 +2446,13 @@ button:disabled {
   border-radius: 8px;
   font-size: 13px;
 }
+
+/* === v9.2.0 teacher wage lock === */
+.teacher-wage-lock-title {
+  margin-top: 22px;
+  margin-bottom: 8px;
+}
+
+.teacher-wage-lock-table-wrap {
+  margin-top: 8px;
+}

@@ -1,4 +1,4 @@
-// === v9.1.15 teacher wage variable fees ===
+// === v9.2.0 teacher wage variable fees + lock support ===
 // 改善工资结算显示：
 // 1. 汇总表显示业务归属、学生、规则状态。
 // 2. 排序优先级：业务归属 → 老师 → 学生 → 科目 → 日期 → 时间。
@@ -594,8 +594,32 @@
     };
   };
 
+  function currentWageRowsForLockV920() {
+    return targetLessons().map(row => {
+      const wage = calcRowWage(row);
+      return {
+        row,
+        wage,
+        rowKey: rowKey(row),
+        teacher_id: lessonTeacherId(row),
+        student_id: lessonStudentId(row),
+        subject_id: lessonSubjectId(row),
+        business_entity_id: lessonBusinessId(row),
+        teacher_name: teacherName(row),
+        student_name: studentName(row),
+        subject_name: subjectName(row),
+        business_name: businessNameForRule(row) || businessName(row),
+        lesson_date: row.lesson_date || "",
+        start_time: row.start_time || "",
+        end_time: row.end_time || "",
+        status: row.status || "",
+        lesson_content: row.lesson_content || row.note || "",
+      };
+    });
+  }
+
   window.SchoolTeacherWagesModule = {
-    version: "9.1.15",
+    version: "9.2.0",
     render,
     summarize,
     targetLessons,
@@ -603,5 +627,6 @@
     payHourOverrides,
     rowFeeOverrides,
     loadWageRules,
+    currentWageRowsForLock: currentWageRowsForLockV920,
   };
 })();

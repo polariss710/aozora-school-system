@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="stylesheet" href="./style.css?v=9.1.11" />
+  <link rel="stylesheet" href="./style.css?v=9.1.12" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
@@ -23,7 +23,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v9.1.11</p>
+        <p>运营管理系统 v9.1.12</p>
       </div>
 
       <nav class="nav">
@@ -321,7 +321,8 @@
           </div>
 
           <div class="form-actions teacher-wage-rule-actions">
-            <button class="secondary-btn" id="teacherWageRuleClearBtn" type="button">清空</button>
+            <button class="secondary-btn" id="teacherWageRuleClearBtn" type="button">清空输入内容</button>
+            <button class="danger-btn" id="teacherWageRuleDeleteSelectedBtn" type="button">删除选中记录</button>
             <button class="primary-btn" id="teacherWageRuleSaveBtn" type="button">保存规则</button>
           </div>
 
@@ -424,7 +425,8 @@
             <select id="incomeEntityFilter"></select>
             <select id="incomeAccountFilter"></select>
             <button class="secondary-btn" id="incomeClearFilter">清除筛选</button>
-            <button class="danger-btn" id="incomeDeleteFilteredBtn" type="button">删除筛选收入</button>
+            <button class="danger-btn" id="incomeDeleteSelectedBtn" type="button">删除选中记录</button>
+            <button class="danger-btn" id="incomeDeleteFilteredBtn" type="button">删除本月记录</button>
           </div>
           <div class="cards-grid finance-mini-stats">
             <div class="stat-card"><span>筛选收入合计</span><strong id="incomeTotalAmount">0</strong></div>
@@ -460,7 +462,8 @@
             <select id="expenseEntityFilter"></select>
             <select id="expenseAccountFilter"></select>
             <button class="secondary-btn" id="expenseClearFilter">清除筛选</button>
-            <button class="danger-btn" id="expenseDeleteFilteredBtn" type="button">删除筛选支出</button>
+            <button class="danger-btn" id="expenseDeleteSelectedBtn" type="button">删除选中记录</button>
+            <button class="danger-btn" id="expenseDeleteFilteredBtn" type="button">删除本月记录</button>
           </div>
           <div class="cards-grid finance-mini-stats">
             <div class="stat-card"><span>筛选支出合计</span><strong id="expenseTotalAmount">0</strong></div>
@@ -666,17 +669,17 @@
     </div>
   </div>
 
-  <script src="js/legacy-core.js?v=9.1.11"></script>
-  <script src="js/modules/form-save-fix.js?v=9.1.11"></script>
-  <script src="js/modules/lessons.js?v=9.1.11"></script>
-  <script src="js/modules/lesson-import.js?v=9.1.11"></script>
-  <script src="js/modules/student-settlement.js?v=9.1.11"></script>
-  <script src="js/modules/income.js?v=9.1.11"></script>
-  <script src="js/modules/expense.js?v=9.1.11"></script>
-  <script src="js/modules/reimbursements.js?v=9.1.11"></script>
-  <script src="js/modules/teacher-wages.js?v=9.1.11"></script>
-  <script src="js/modules/teacher-wage-rules.js?v=9.1.11"></script>
-  <script src="js/modules/table-selection.js?v=9.1.11"></script>
-  <script src="app.js?v=9.1.11"></script>
+  <script src="js/legacy-core.js?v=9.1.12"></script>
+  <script src="js/modules/form-save-fix.js?v=9.1.12"></script>
+  <script src="js/modules/lessons.js?v=9.1.12"></script>
+  <script src="js/modules/lesson-import.js?v=9.1.12"></script>
+  <script src="js/modules/student-settlement.js?v=9.1.12"></script>
+  <script src="js/modules/income.js?v=9.1.12"></script>
+  <script src="js/modules/expense.js?v=9.1.12"></script>
+  <script src="js/modules/reimbursements.js?v=9.1.12"></script>
+  <script src="js/modules/teacher-wages.js?v=9.1.12"></script>
+  <script src="js/modules/teacher-wage-rules.js?v=9.1.12"></script>
+  <script src="js/modules/table-selection.js?v=9.1.12"></script>
+  <script src="app.js?v=9.1.12"></script>
 </body>
 </html>

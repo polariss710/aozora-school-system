@@ -40,8 +40,8 @@
         </div>
         <div class="panel-actions">
           <button class="secondary-btn" id="teacherWageLockRefreshBtn" type="button">刷新锁定结果</button>
-          <button class="primary-btn" id="teacherWageLockBtn" type="button">锁定当前工资</button>
-          <button class="danger-btn" id="teacherWageUnlockBtn" type="button">撤销当前锁定</button>
+          <button class="primary-btn" id="teacherWageLockBtn" type="button">锁定当前显示工资</button>
+          <button class="danger-btn" id="teacherWageUnlockBtn" type="button">撤销当前显示锁定</button>
         </div>
       </div>
       <div class="table-wrap teacher-wage-lock-table-wrap">
@@ -144,18 +144,18 @@
     return data || [];
   }
 
-  function setTeacherWageLockButtonStateV932(hasLocked) {
+  function setTeacherWageLockButtonStateV932(hasLocked, hasUnlockable = hasLocked, hasLockable = !hasLocked) {
     const lockBtn = document.getElementById("teacherWageLockBtn");
     const unlockBtn = document.getElementById("teacherWageUnlockBtn");
 
     if (lockBtn) {
-      lockBtn.disabled = !!hasLocked;
-      lockBtn.title = hasLocked ? "当前条件下已有锁定结果，请先撤销后再重新锁定。" : "";
+      lockBtn.disabled = !hasLockable;
+      lockBtn.title = hasLockable ? "" : "当前显示范围已全部锁定，或没有可锁定工资。";
     }
 
     if (unlockBtn) {
-      unlockBtn.disabled = !hasLocked;
-      unlockBtn.title = hasLocked ? "" : "当前条件下没有可撤销的锁定结果。";
+      unlockBtn.disabled = !hasUnlockable;
+      unlockBtn.title = hasUnlockable ? "" : "当前显示范围没有可撤销的锁定结果。";
     }
   }
 
@@ -167,42 +167,55 @@
     return [group.teacher_id || "", group.business_entity_id || "", group.settlement_type || "", String(group.exchange_rate || 0)].join("|");
   }
 
+  function groupsFromCurrentRowsV945() {
+    const rows = wageRows();
+    const missing = rows.filter(x => !x.wage?.hasRule);
+    const groups = groupRows(rows);
+    return { rows, missing, groups };
+  }
+
+  function visibleLockKeysV945(groups) {
+    return new Set((groups || []).map(groupKey));
+  }
+
   async function lockCurrentWages() {
     ensureLockPanel();
 
     const month = currentMonth();
     const teacherId = currentTeacherId();
-    const rows = wageRows();
+    const { rows, missing, groups } = groupsFromCurrentRowsV945();
+
     if (!rows.length) {
-      showMessage("当前条件下没有可锁定的工资明细。", "error");
+      showMessage("当前显示范围没有可锁定的工资明细。", "error");
       return;
     }
 
-    const missing = rows.filter(x => !x.wage?.hasRule);
     if (missing.length) {
       showMessage(`还有 ${missing.length} 条明细未匹配工资规则，不能锁定。`, "error");
       return;
     }
 
-    const groups = groupRows(rows);
     if (!groups.length) {
-      showMessage("当前条件下没有可锁定的工资分组。", "error");
+      showMessage("当前显示范围没有可锁定的工资分组。", "error");
       return;
     }
 
     const existing = await existingLocks(month, teacherId);
     const existingKeys = new Set(existing.map(lockKey));
-    const conflict = groups.filter(g => existingKeys.has(groupKey(g)));
-    if (conflict.length) {
-      const ok = confirm(`当前月份已有 ${conflict.length} 个工资锁定结果。\n是否覆盖这些锁定结果？\n\n覆盖会先撤销旧锁定和对应待支付要求，再重新锁定。`);
-      if (!ok) return;
-      await voidLocks(existing.filter(l => conflict.some(g => groupKey(g) === lockKey(l))));
+    const targets = groups.filter(g => !existingKeys.has(groupKey(g)));
+    const skippedCount = groups.length - targets.length;
+
+    if (!targets.length) {
+      showMessage("当前显示范围的工资已经全部锁定。", "error");
+      await renderLocks();
+      return;
     }
 
-    const ok = confirm(`确定锁定 ${month} 的当前工资吗？\n将生成 ${groups.length} 个工资锁定结果，并为非“不计工资”的金额生成待支付数据。`);
+    const scopeText = teacherId ? "当前老师" : "当前月份所有未锁定老师";
+    const ok = confirm(`确定锁定 ${month} 的${scopeText}工资吗？\n\n将新增 ${targets.length} 个工资锁定结果。${skippedCount ? `\n已锁定的 ${skippedCount} 个结果会自动跳过。` : ""}`);
     if (!ok) return;
 
-    for (const group of groups) {
+    for (const group of targets) {
       const { data: lock, error } = await db.from(LOCK_TABLE).insert([{
         settlement_month: month,
         teacher_id: group.teacher_id,
@@ -298,7 +311,7 @@
 
     await renderLocks();
     if (window.SchoolPaymentManagementV930?.load) window.SchoolPaymentManagementV930.load();
-    showMessage("工资锁定完成。", "ok");
+    showMessage(`工资锁定完成。新增 ${targets.length} 个锁定结果${skippedCount ? `，跳过 ${skippedCount} 个已锁定结果` : ""}。`, "ok");
   }
 
   async function voidLocks(locks) {
@@ -312,15 +325,20 @@
     const month = currentMonth();
     const teacherId = currentTeacherId();
     const locks = await existingLocks(month, teacherId);
-    if (!locks.length) {
-      showMessage("当前条件下没有可撤销的工资锁定。", "error");
+    const { groups } = groupsFromCurrentRowsV945();
+    const keys = visibleLockKeysV945(groups);
+    const targets = keys.size ? locks.filter(item => keys.has(lockKey(item))) : locks;
+
+    if (!targets.length) {
+      showMessage("当前显示范围没有可撤销的工资锁定。", "error");
       return;
     }
 
-    const ok = confirm(`确定撤销当前条件下的 ${locks.length} 个工资锁定结果吗？\n对应待支付要求也会被作废。`);
+    const scopeText = teacherId ? "当前老师" : "当前月份当前显示范围";
+    const ok = confirm(`确定撤销 ${month} ${scopeText} 的 ${targets.length} 个工资锁定结果吗？\n对应待支付要求也会被作废。`);
     if (!ok) return;
 
-    await voidLocks(locks);
+    await voidLocks(targets);
     await renderLocks();
     if (window.SchoolPaymentManagementV930?.load) window.SchoolPaymentManagementV930.load();
     showMessage("已撤销工资锁定。", "ok");
@@ -341,16 +359,22 @@
     if (!tbody) return;
 
     const rows = await existingLocks(currentMonth(), currentTeacherId());
-    if (!rows.length) {
-      setTeacherWageLockButtonStateV932(false);
-      tbody.innerHTML = `<tr><td colspan="10" class="empty-row">当前条件下没有已锁定工资</td></tr>`;
+    const { groups } = groupsFromCurrentRowsV945();
+    const keys = visibleLockKeysV945(groups);
+    const visibleRows = keys.size ? rows.filter(item => keys.has(lockKey(item))) : rows;
+    const lockedKeys = new Set(visibleRows.map(lockKey));
+    const hasLockable = groups.some(g => !lockedKeys.has(groupKey(g)));
+    const hasUnlockable = visibleRows.length > 0;
+
+    setTeacherWageLockButtonStateV932(hasUnlockable, hasUnlockable, hasLockable);
+
+    if (!visibleRows.length) {
+      tbody.innerHTML = `<tr><td colspan="10" class="empty-row">当前显示范围没有已锁定工资</td></tr>`;
       return;
     }
 
-    setTeacherWageLockButtonStateV932(true);
-
-    const payReqs = await loadPaymentRequests(rows.map(x => x.id));
-    tbody.innerHTML = rows.map(item => {
+    const payReqs = await loadPaymentRequests(visibleRows.map(x => x.id));
+    tbody.innerHTML = visibleRows.map(item => {
       const pay = payReqs.filter(x => String(x.source_id) === String(item.id) && x.status !== "void");
       const payText = pay.length
         ? pay.map(x => `${fmtAmount(x.amount, x.currency)} / ${x.status === "pending" ? "待支付" : x.status}`).join("<br>")
@@ -592,7 +616,7 @@
   });
 
   window.SchoolTeacherWageLocksV920 = {
-    version: "9.4.1",
+    version: "9.4.5",
     lockCurrentWages,
     unlockCurrentWages,
     renderLocks,

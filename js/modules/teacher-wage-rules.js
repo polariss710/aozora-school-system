@@ -259,6 +259,7 @@
     const map = {
       jpy_hourly: "日元时薪",
       cny_hourly: "人民币时薪",
+      no_wage: "不计工资",
     };
     return map[value] || value || "";
   }

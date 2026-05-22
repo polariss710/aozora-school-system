@@ -1,4 +1,4 @@
-// === v9.1.10.4 teacher wage rule matching name fallback ===
+// === v9.1.13 teacher wage rule matching name fallback ===
 // 改善工资结算显示：
 // 1. 汇总表显示业务归属、学生、规则状态。
 // 2. 排序优先级：业务归属 → 老师 → 学生 → 科目 → 日期 → 时间。
@@ -189,6 +189,7 @@
     const map = {
       jpy_hourly: "日元时薪",
       cny_hourly: "人民币时薪",
+      no_wage: "不计工资",
     };
     return map[value] || value || "未设置";
   }
@@ -228,7 +229,10 @@
     let jpyAmount = 0;
     let cnyAmount = 0;
 
-    if (type === "cny_hourly") {
+    if (type === "no_wage") {
+      jpyAmount = 0;
+      cnyAmount = 0;
+    } else if (type === "cny_hourly") {
       cnyAmount = hours * rateCny;
       jpyAmount = exchangeRate > 0 ? cnyAmount / exchangeRate : 0;
     } else {
@@ -245,6 +249,7 @@
       exchangeRate,
       jpyAmount,
       cnyAmount,
+      isNoWage: type === "no_wage",
       hasRule: !!rule,
       matchMode: rule ? ruleMatchMode(row) : "missing",
       missingRuleText: rule ? "" : missingRuleText(row),
@@ -313,6 +318,7 @@
           rateCny: wage.rateCny,
           exchangeRate: wage.exchangeRate,
           hasRule: wage.hasRule,
+          isNoWage: wage.isNoWage,
           matchMode: wage.matchMode,
           missingRuleText: wage.missingRuleText,
           missingRuleHelp: wage.missingRuleHelp,
@@ -354,9 +360,9 @@
     const sumBody = document.getElementById("teacherWageSummaryTable");
     if (sumBody) {
       sumBody.innerHTML = summary.length ? summary.map(x => {
-        const rateText = x.settlementType === "cny_hourly"
-          ? fmtAmount(x.rateCny, "CNY")
-          : fmtAmount(x.rateJpy, "JPY");
+        const rateText = x.settlementType === "no_wage"
+          ? "-"
+          : (x.settlementType === "cny_hourly" ? fmtAmount(x.rateCny, "CNY") : fmtAmount(x.rateJpy, "JPY"));
         return `
           <tr>
             <td>${esc(x.business)}</td>
@@ -369,7 +375,7 @@
             <td>${rateText}</td>
             <td><strong>${fmtAmount(x.jpyAmount, "JPY")}</strong><br><span class="muted-small">${fmtAmount(x.cnyAmount, "CNY")}</span></td>
             <td>${x.count}</td>
-            <td>${x.hasRule ? `${badge("已匹配")}${x.matchMode === "label" ? `<br><span class="muted-small">名称匹配</span>` : ""}` : `${badge("未设置", "red")}<br><span class="muted-small">${esc(x.missingRuleHelp || ("缺少：" + x.missingRuleText))}</span>`}</td>
+            <td>${x.hasRule ? `${x.isNoWage ? badge("不计工资", "gray") : badge("已匹配")}${x.matchMode === "label" ? `<br><span class="muted-small">名称匹配</span>` : ""}` : `${badge("未设置", "red")}<br><span class="muted-small">${esc(x.missingRuleHelp || ("缺少：" + x.missingRuleText))}</span>`}</td>
           </tr>
         `;
       }).join("") : `<tr><td colspan="11" class="empty-row">当前条件下没有可计算工资的实际课时</td></tr>`;
@@ -384,7 +390,7 @@
         const wage = calcRowWage(r);
         const currentHours = wage.hours;
         const overridden = payHourOverrides.has(key);
-        const rateText = wage.type === "cny_hourly" ? fmtAmount(wage.rateCny, "CNY") : fmtAmount(wage.rateJpy, "JPY");
+        const rateText = wage.type === "no_wage" ? "-" : (wage.type === "cny_hourly" ? fmtAmount(wage.rateCny, "CNY") : fmtAmount(wage.rateJpy, "JPY"));
         return `
           <tr>
             <td>${esc(displayRecordDate(r.lesson_date||""))}</td>
@@ -412,7 +418,7 @@
             <td>${rateText}</td>
             <td><strong>${fmtAmount(wage.jpyAmount, "JPY")}</strong></td>
             <td>${fmtAmount(wage.cnyAmount, "CNY")}</td>
-            <td>${wage.hasRule ? `${badge("已匹配")}${wage.matchMode === "label" ? `<br><span class="muted-small">名称匹配</span>` : ""}` : `${badge("未设置", "red")}<br><span class="muted-small">${esc(wage.missingRuleHelp || ("缺少：" + wage.missingRuleText))}</span>`}</td>
+            <td>${wage.hasRule ? `${wage.isNoWage ? badge("不计工资", "gray") : badge("已匹配")}${wage.matchMode === "label" ? `<br><span class="muted-small">名称匹配</span>` : ""}` : `${badge("未设置", "red")}<br><span class="muted-small">${esc(wage.missingRuleHelp || ("缺少：" + wage.missingRuleText))}</span>`}</td>
             <td>${badge(lessonStatusLabel(r.status),"")}</td>
             <td>${esc(short(r.lesson_content || r.note, 32))}</td>
           </tr>
@@ -541,7 +547,7 @@
   };
 
   window.SchoolTeacherWagesModule = {
-    version: "9.1.10.4",
+    version: "9.1.13",
     render,
     summarize,
     targetLessons,

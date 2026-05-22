@@ -771,14 +771,16 @@ async function recalcAccountBalances() {
 
     for (const account of state.accounts) {
       const incomeTotal = (state.incomeRecords || [])
-        .filter(x => x.account_id === account.id && x.status === "received")
-        .reduce((sum, x) => sum + Number(x.amount || 0), 0);
+        .map(x => accountEffect("income", x))
+        .filter(x => x && x.accountId === account.id)
+        .reduce((sum, x) => sum + Number(x.delta || 0), 0);
 
       const expenseTotal = (state.expenseRecords || [])
-        .filter(x => x.account_id === account.id && (x.status === "paid" || x.status === "reimbursed"))
-        .reduce((sum, x) => sum + Number(x.amount || 0), 0);
+        .map(x => accountEffect("expense", x))
+        .filter(x => x && x.accountId === account.id)
+        .reduce((sum, x) => sum + Number(x.delta || 0), 0);
 
-      const nextBalance = Number(account.opening_balance || 0) + incomeTotal - expenseTotal;
+      const nextBalance = Number(account.opening_balance || 0) + incomeTotal + expenseTotal;
 
       const { error } = await db
         .from(tables.accounts)
@@ -10801,7 +10803,15 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 const renderAllBeforeV87 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV87) {
-  renderAll = function() { renderAllBeforeV87(); ensureSettlementPanelV87(); };
+  renderAll = function() {
+    renderAllBeforeV87();
+    ensureSettlementPanelV87();
+    if (document.getElementById("page-student-settlement")?.classList.contains("active")) {
+      updateSettlementLockPreviewV87();
+      fetchSettlementLockHistoryV87();
+      refreshStudentSettlementButtonStateV932();
+    }
+  };
 }
 
 
@@ -10815,9 +10825,17 @@ function dbClientV871() {
 async function fetchSettlementLockHistoryV871() {
   const { month, studentId } = selectedSettlementContextV87 ? selectedSettlementContextV87() : { month: "", studentId: "" };
   const history = document.getElementById("settlementLockHistoryV87");
-  if (!history || !studentId) return;
+  if (!history) return;
+
+  if (!studentId || !month) {
+    setStudentSettlementLockButtonStateV932(false);
+    history.innerHTML = `<div class="muted-small">请选择学生和月份。</div>`;
+    return;
+  }
+
   const client = dbClientV871();
   if (!client) {
+    setStudentSettlementLockButtonStateV932(false);
     history.innerHTML = `<div class="error-text">读取结算锁定状态失败：数据库客户端未初始化</div>`;
     return;
   }
@@ -10827,6 +10845,7 @@ async function fetchSettlementLockHistoryV871() {
       .select("*")
       .eq("student_id", studentId)
       .eq("year_month", month)
+      .eq("settlement_status", "locked")
       .maybeSingle();
 
     if (error && error.code !== "PGRST116") throw error;
@@ -10850,6 +10869,7 @@ async function fetchSettlementLockHistoryV871() {
       </div>
     `;
   } catch (error) {
+    setStudentSettlementLockButtonStateV932(false);
     history.innerHTML = `<div class="error-text">读取结算锁定状态失败：${esc(error.message || error)}</div>`;
   }
 }
@@ -10918,7 +10938,7 @@ async function unlockSettlementV932() {
     const { error } = await client
       .from(SETTLEMENTS_TABLE_V87)
       .update({
-        settlement_status: "void",
+        settlement_status: "unlocked",
         locked_at: null
       })
       .eq("id", lock.id);

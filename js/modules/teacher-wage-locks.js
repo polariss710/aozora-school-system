@@ -297,6 +297,7 @@
     }
 
     await renderLocks();
+    if (window.SchoolPaymentManagementV930?.load) window.SchoolPaymentManagementV930.load();
     showMessage("工资锁定完成。", "ok");
   }
 
@@ -321,7 +322,16 @@
 
     await voidLocks(locks);
     await renderLocks();
+    if (window.SchoolPaymentManagementV930?.load) window.SchoolPaymentManagementV930.load();
     showMessage("已撤销工资锁定。", "ok");
+  }
+
+  function refreshTeacherWageLocksSoonV941() {
+    setTimeout(() => {
+      if (document.getElementById("page-teacher-wages")?.classList.contains("active")) {
+        renderLocks();
+      }
+    }, 0);
   }
 
   async function renderLocks() {
@@ -544,7 +554,7 @@
         setTimeout(() => {
           ensureLockPanel();
           interceptLockedStudentActionsV921();
-          renderLocks();
+          refreshTeacherWageLocksSoonV941();
         }, 0);
       }
     };
@@ -558,13 +568,19 @@
         setTimeout(() => {
           ensureLockPanel();
           interceptLockedStudentActionsV921();
-          renderLocks();
+          refreshTeacherWageLocksSoonV941();
         }, 0);
       }
     };
   }
 
   document.addEventListener("DOMContentLoaded", () => {
+    document.body.addEventListener("change", (e) => {
+      if (e.target?.id === "teacherWageMonthFilter" || e.target?.id === "teacherWageTeacherFilter") {
+        refreshTeacherWageLocksSoonV941();
+      }
+    }, true);
+
     setTimeout(() => {
       interceptLockedStudentActionsV921();
       if (document.getElementById("page-teacher-wages")?.classList.contains("active")) {
@@ -576,7 +592,7 @@
   });
 
   window.SchoolTeacherWageLocksV920 = {
-    version: "9.3.2",
+    version: "9.4.1",
     lockCurrentWages,
     unlockCurrentWages,
     renderLocks,

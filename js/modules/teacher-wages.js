@@ -536,13 +536,19 @@
     const month = document.getElementById("teacherWageMonthFilter");
     if (month && month.dataset.boundTeacherWageV9110 !== "true") {
       month.dataset.boundTeacherWageV9110 = "true";
-      month.addEventListener("change", render);
+      month.addEventListener("change", () => {
+        render();
+        window.SchoolTeacherWageLocksV920?.renderLocks?.();
+      });
     }
 
     const teacher = document.getElementById("teacherWageTeacherFilter");
     if (teacher && teacher.dataset.boundTeacherWageV9110 !== "true") {
       teacher.dataset.boundTeacherWageV9110 = "true";
-      teacher.addEventListener("change", render);
+      teacher.addEventListener("change", () => {
+        render();
+        window.SchoolTeacherWageLocksV920?.renderLocks?.();
+      });
     }
 
     const clear = document.getElementById("teacherWageClearFilter");
@@ -636,7 +642,7 @@
   }
 
   window.SchoolTeacherWagesModule = {
-    version: "9.3.3",
+    version: "9.4.1",
     render,
     summarize,
     targetLessons,

@@ -2470,3 +2470,12 @@ button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* === v9.4.0 payment confirm modal === */
+.payment-confirm-card {
+  max-width: 920px;
+}
+
+.payment-confirm-card input[readonly] {
+  background: #f6f9fc;
+}

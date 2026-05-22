@@ -1,6 +1,6 @@
-// === v9.3.1 payment management module ===
+// === v9.4.1 payment management module ===
 // 支付管理页面：显示 9.2 工资锁定后生成的支付要求。
-// 本版只管理支付要求状态，不生成实际账户流水；实际支付记录联动放到后续版本。
+// 本版标记已支付时会生成支出记录，并联动账户余额。
 
 (function () {
   const TABLE = "school_payment_requests";
@@ -180,14 +180,223 @@
     await loadPaymentRequests();
   }
 
-  async function markPaymentPaid(id) {
-    const ok = confirm("确定将这条支付要求标记为已支付吗？\n\n本版只更新支付状态，实际账户流水联动将在后续版本处理。");
+  function activeAccountsForPayment(payment) {
+    const currency = payment?.currency || "";
+    const businessId = payment?.business_entity_id || "";
+    const active = (state.accounts || []).filter(x => x.is_active !== false);
+
+    const matched = active.filter(x =>
+      (!currency || x.currency === currency) &&
+      (!businessId || !x.business_entity_id || x.business_entity_id === businessId)
+    );
+
+    return matched.length ? matched : active.filter(x => !currency || x.currency === currency);
+  }
+
+  function inferExchangeRateForPayment(payment) {
+    const jpy = n(payment?.amount_jpy);
+    const cny = n(payment?.amount_cny);
+    if (jpy > 0 && cny > 0) return Math.round((cny / jpy) * 1000000) / 1000000;
+    return 0;
+  }
+
+  function ensurePaymentConfirmModal() {
+    if (document.getElementById("paymentConfirmModal")) return;
+
+    document.body.insertAdjacentHTML("beforeend", `
+      <div class="modal hidden" id="paymentConfirmModal">
+        <div class="modal-backdrop" id="paymentConfirmBackdrop"></div>
+        <div class="modal-card payment-confirm-card">
+          <div class="modal-header">
+            <h3>确认支付</h3>
+            <button type="button" class="icon-btn" id="paymentConfirmCloseBtn">×</button>
+          </div>
+          <form id="paymentConfirmForm" class="form-grid">
+            <input type="hidden" id="paymentConfirmId" />
+            <label>
+              <span>支付对象</span>
+              <input id="paymentConfirmPayee" type="text" readonly />
+            </label>
+            <label>
+              <span>业务归属</span>
+              <input id="paymentConfirmBusiness" type="text" readonly />
+            </label>
+            <label>
+              <span>支付账户</span>
+              <select id="paymentConfirmAccount" required></select>
+            </label>
+            <label>
+              <span>支付日期</span>
+              <input id="paymentConfirmDate" type="date" required />
+            </label>
+            <label>
+              <span>币种</span>
+              <input id="paymentConfirmCurrency" type="text" readonly />
+            </label>
+            <label>
+              <span>支付金额</span>
+              <input id="paymentConfirmAmount" type="number" step="0.01" required />
+            </label>
+            <label>
+              <span>日元金额</span>
+              <input id="paymentConfirmAmountJpy" type="number" step="1" readonly />
+            </label>
+            <label>
+              <span>人民币金额</span>
+              <input id="paymentConfirmAmountCny" type="number" step="0.01" readonly />
+            </label>
+            <label class="full">
+              <span>备注</span>
+              <textarea id="paymentConfirmNote" rows="3"></textarea>
+            </label>
+            <div class="modal-actions full">
+              <button type="button" class="secondary-btn" id="paymentConfirmCancelBtn">取消</button>
+              <button type="submit" class="primary-btn">确认支付并生成支出记录</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `);
+
+    document.getElementById("paymentConfirmCloseBtn")?.addEventListener("click", closePaymentConfirmModal);
+    document.getElementById("paymentConfirmCancelBtn")?.addEventListener("click", closePaymentConfirmModal);
+    document.getElementById("paymentConfirmBackdrop")?.addEventListener("click", closePaymentConfirmModal);
+    document.getElementById("paymentConfirmForm")?.addEventListener("submit", submitPaymentConfirm);
+  }
+
+  function openPaymentConfirmModal(id) {
+    const payment = paymentRequests.find(x => String(x.id) === String(id));
+    if (!payment) {
+      showMessage("找不到支付要求。", "error");
+      return;
+    }
+
+    ensurePaymentConfirmModal();
+
+    const accounts = activeAccountsForPayment(payment);
+    const accountSelect = document.getElementById("paymentConfirmAccount");
+    if (accountSelect) {
+      accountSelect.innerHTML = accounts.length
+        ? accounts.map(x => `<option value="${escAttr(x.id)}">${esc(x.name || "")} / ${esc(x.currency || "")}${x.business_entity?.name ? " / " + esc(x.business_entity.name) : ""}</option>`).join("")
+        : `<option value="">没有可用账户</option>`;
+    }
+
+    document.getElementById("paymentConfirmId").value = payment.id;
+    document.getElementById("paymentConfirmPayee").value = payment.payee_name || "";
+    document.getElementById("paymentConfirmBusiness").value = payment.business_name || "";
+    document.getElementById("paymentConfirmDate").value = new Date().toISOString().slice(0, 10);
+    document.getElementById("paymentConfirmCurrency").value = payment.currency || "";
+    document.getElementById("paymentConfirmAmount").value = String(n(payment.amount));
+    document.getElementById("paymentConfirmAmountJpy").value = String(Math.round(n(payment.amount_jpy)));
+    document.getElementById("paymentConfirmAmountCny").value = String(Math.round(n(payment.amount_cny) * 100) / 100);
+    document.getElementById("paymentConfirmNote").value = payment.note || "";
+
+    const modal = document.getElementById("paymentConfirmModal");
+    modal?.classList.remove("hidden");
+  }
+
+  function closePaymentConfirmModal() {
+    document.getElementById("paymentConfirmModal")?.classList.add("hidden");
+  }
+
+  function buildTeacherWageExpensePayload(payment, accountId, payDate, amount, note) {
+    const currency = payment.currency || "JPY";
+    const amountJpy = currency === "JPY" ? n(amount) : n(payment.amount_jpy);
+    const amountCny = currency === "CNY" ? n(amount) : n(payment.amount_cny);
+    const exchangeRate = inferExchangeRateForPayment(payment);
+
+    return {
+      expense_date: payDate,
+      year_month: payment.request_month || payDate.slice(0, 7),
+      settlement_month: payment.request_month || payDate.slice(0, 7),
+      payment_currency: currency,
+      include_in_student_settlement: false,
+      business_entity_id: payment.business_entity_id || null,
+      account_id: accountId,
+      expense_category: "teacher_wage",
+      description: `${payment.request_month || ""} ${payment.payee_name || ""} 老师工资`.trim(),
+      currency,
+      amount: n(amount),
+      amount_jpy: Math.round(amountJpy),
+      amount_cny: Math.round(amountCny * 100) / 100,
+      exchange_rate: exchangeRate,
+      payment_method: "bank_transfer",
+      status: "paid",
+      is_business_expense: true,
+      tax_category: "給与",
+      receipt_status: "无需收据",
+      note: `${note || ""}\n支付要求ID：${payment.id}`.trim(),
+    };
+  }
+
+  async function submitPaymentConfirm(e) {
+    e.preventDefault();
+
+    const id = document.getElementById("paymentConfirmId")?.value || "";
+    const payment = paymentRequests.find(x => String(x.id) === String(id));
+    if (!payment) {
+      showMessage("找不到支付要求。", "error");
+      return;
+    }
+
+    const accountId = document.getElementById("paymentConfirmAccount")?.value || "";
+    const payDate = document.getElementById("paymentConfirmDate")?.value || new Date().toISOString().slice(0, 10);
+    const amount = n(document.getElementById("paymentConfirmAmount")?.value);
+    const note = document.getElementById("paymentConfirmNote")?.value || "";
+
+    if (!accountId) {
+      showMessage("请选择支付账户。", "error");
+      return;
+    }
+    if (!amount) {
+      showMessage("支付金额不能为 0。", "error");
+      return;
+    }
+
+    const ok = confirm("确定支付并生成支出记录吗？\n\n保存后会减少所选账户余额。");
     if (!ok) return;
 
-    await updatePayment(id, {
-      status: "paid",
-      paid_at: new Date().toISOString(),
-    }, "已标记为已支付。");
+    const expensePayload = buildTeacherWageExpensePayload(payment, accountId, payDate, amount, note);
+    const expenseResult = await db
+      .from(tables.expenses)
+      .insert(expensePayload)
+      .select("*")
+      .single();
+
+    if (expenseResult.error) {
+      showMessage(`生成支出记录失败：${expenseResult.error.message}`, "error");
+      return;
+    }
+
+    if (typeof syncFinanceAccountEffect === "function") {
+      await syncFinanceAccountEffect("expense", null, expenseResult.data);
+    }
+
+    const { error } = await db
+      .from(TABLE)
+      .update({
+        status: "paid",
+        paid_at: new Date(payDate + "T00:00:00").toISOString(),
+        note: note || payment.note || "",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", payment.id);
+
+    if (error) {
+      showMessage(`支付状态更新失败：${error.message}`, "error");
+      await loadAll();
+      await loadPaymentRequests();
+      return;
+    }
+
+    closePaymentConfirmModal();
+    await loadAll();
+    await loadPaymentRequests();
+    showMessage("支付完成，已生成支出记录并更新账户余额。", "ok");
+  }
+
+  async function markPaymentPaid(id) {
+    openPaymentConfirmModal(id);
   }
 
   async function cancelPayment(id) {
@@ -278,7 +487,7 @@
   });
 
   window.SchoolPaymentManagementV930 = {
-    version: "9.3.1",
+    version: "9.4.1",
     load: loadPaymentRequests,
     render: renderPayments,
     rows: () => paymentRequests,

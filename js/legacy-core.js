@@ -518,26 +518,50 @@ function renderExpensesTable() {
 
 
 function updateLessonFilters() {
+  const month = document.getElementById("lessonMonthFilter")?.value || "";
   const studentEl = document.getElementById("lessonStudentFilter");
   const teacherEl = document.getElementById("lessonTeacherFilter");
   const subjectEl = document.getElementById("lessonSubjectFilter");
 
+  const monthLessons = month
+    ? (state.lessonRecords || []).filter(x => x.year_month === month)
+    : (state.lessonRecords || []);
+
+  const studentIds = new Set(monthLessons.filter(x => x.student_id).map(x => x.student_id));
+  const teacherIds = new Set(monthLessons.filter(x => x.teacher_id).map(x => x.teacher_id));
+  const subjectIds = new Set(monthLessons.filter(x => x.subject_id).map(x => x.subject_id));
+
   if (studentEl) {
     const old = studentEl.value;
-    studentEl.innerHTML = `<option value="">全部学生</option>` + state.students.map(x => `<option value="${escAttr(x.id)}">${esc(x.display_name || x.name)}</option>`).join("");
-    studentEl.value = old;
+    const students = (state.students || [])
+      .filter(x => !month || studentIds.has(x.id))
+      .sort((a, b) => (a.display_name || a.name || "").localeCompare((b.display_name || b.name || ""), "zh-Hans-CN"));
+
+    studentEl.innerHTML = `<option value="">${month && !students.length ? "该月无课时学生" : "全部学生"}</option>` +
+      students.map(x => `<option value="${escAttr(x.id)}">${esc(x.display_name || x.name)}</option>`).join("");
+    studentEl.value = students.some(x => x.id === old) ? old : "";
   }
 
   if (teacherEl) {
     const old = teacherEl.value;
-    teacherEl.innerHTML = `<option value="">全部老师</option>` + state.teachers.map(x => `<option value="${escAttr(x.id)}">${esc(x.display_name || x.name)}</option>`).join("");
-    teacherEl.value = old;
+    const teachers = (state.teachers || [])
+      .filter(x => !month || teacherIds.has(x.id))
+      .sort((a, b) => (a.display_name || a.name || "").localeCompare((b.display_name || b.name || ""), "zh-Hans-CN"));
+
+    teacherEl.innerHTML = `<option value="">${month && !teachers.length ? "该月无课时老师" : "全部老师"}</option>` +
+      teachers.map(x => `<option value="${escAttr(x.id)}">${esc(x.display_name || x.name)}</option>`).join("");
+    teacherEl.value = teachers.some(x => x.id === old) ? old : "";
   }
 
   if (subjectEl) {
     const old = subjectEl.value;
-    subjectEl.innerHTML = `<option value="">全部科目</option>` + state.subjects.map(x => `<option value="${escAttr(x.id)}">${esc(x.name)}</option>`).join("");
-    subjectEl.value = old;
+    const subjects = (state.subjects || [])
+      .filter(x => !month || subjectIds.has(x.id))
+      .sort((a, b) => (a.name || "").localeCompare((b.name || ""), "zh-Hans-CN"));
+
+    subjectEl.innerHTML = `<option value="">${month && !subjects.length ? "该月无课时科目" : "全部科目"}</option>` +
+      subjects.map(x => `<option value="${escAttr(x.id)}">${esc(x.name)}</option>`).join("");
+    subjectEl.value = subjects.some(x => x.id === old) ? old : "";
   }
 }
 
@@ -10583,7 +10607,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-// === v9.3.3 student settlement month-filtered student options ===
+// === v9.3.4 month-filtered options and manifest cache fix ===
 const SETTLEMENTS_TABLE_V87 = "school_student_monthly_settlements";
 
 function roundCnyV87(value) { return Math.round(Number(value || 0)); }

@@ -1,4 +1,4 @@
-// === v9.2.1 teacher wage lock module + student settlement protection ===
+// === v9.3.2 teacher wage lock module + lock button states ===
 // 工资锁定：保存当前老师工资结算快照，并生成待支付要求数据。
 // 9.2 只保存数据和显示锁定结果，不做完整支付管理页面。
 
@@ -68,6 +68,7 @@
     document.getElementById("teacherWageLockBtn")?.addEventListener("click", lockCurrentWages);
     document.getElementById("teacherWageUnlockBtn")?.addEventListener("click", unlockCurrentWages);
     document.getElementById("teacherWageLockRefreshBtn")?.addEventListener("click", renderLocks);
+    setTeacherWageLockButtonStateV932(false);
   }
 
   function wageRows() {
@@ -141,6 +142,21 @@
       return [];
     }
     return data || [];
+  }
+
+  function setTeacherWageLockButtonStateV932(hasLocked) {
+    const lockBtn = document.getElementById("teacherWageLockBtn");
+    const unlockBtn = document.getElementById("teacherWageUnlockBtn");
+
+    if (lockBtn) {
+      lockBtn.disabled = !!hasLocked;
+      lockBtn.title = hasLocked ? "当前条件下已有锁定结果，请先撤销后再重新锁定。" : "";
+    }
+
+    if (unlockBtn) {
+      unlockBtn.disabled = !hasLocked;
+      unlockBtn.title = hasLocked ? "" : "当前条件下没有可撤销的锁定结果。";
+    }
   }
 
   function lockKey(lock) {
@@ -316,9 +332,12 @@
 
     const rows = await existingLocks(currentMonth(), currentTeacherId());
     if (!rows.length) {
+      setTeacherWageLockButtonStateV932(false);
       tbody.innerHTML = `<tr><td colspan="10" class="empty-row">当前条件下没有已锁定工资</td></tr>`;
       return;
     }
+
+    setTeacherWageLockButtonStateV932(true);
 
     const payReqs = await loadPaymentRequests(rows.map(x => x.id));
     tbody.innerHTML = rows.map(item => {
@@ -557,7 +576,7 @@
   });
 
   window.SchoolTeacherWageLocksV920 = {
-    version: "9.2.1",
+    version: "9.3.2",
     lockCurrentWages,
     unlockCurrentWages,
     renderLocks,

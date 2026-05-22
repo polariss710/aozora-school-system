@@ -2464,3 +2464,9 @@ button:disabled {
   font-size: 12px;
   white-space: nowrap;
 }
+
+/* === v9.3.2 lock button disabled state === */
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

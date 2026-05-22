@@ -10651,7 +10651,7 @@ function ensureSettlementPanelV87() {
           <label><span>差额处理方式</span><select id="settlementAdjustModeV87"><option value="carry">结转到下月</option><option value="clear">抹平差额</option><option value="custom">手动调整</option></select></label>
           <label><span>调整金额（人民币）</span><input id="settlementAdjustmentAmountV87" type="number" step="1" value="0" /></label>
           <label class="full"><span>调整原因 / 备注</span><textarea id="settlementAdjustmentReasonV87" rows="2" placeholder="例：汇率差额抹平"></textarea></label>
-          <div class="settlement-lock-actions-v87"><button class="secondary-btn" id="previewSettlementLockV87">预览结果</button><button class="primary-btn" id="lockSettlementV87">确认并锁定本月结算</button></div>
+          <div class="settlement-lock-actions-v87"><button class="secondary-btn" id="previewSettlementLockV87">预览结果</button><button class="primary-btn" id="lockSettlementV87">确认并锁定本月结算</button><button class="danger-btn" id="unlockSettlementV932" type="button">撤销本月锁定</button></div>
         </div>
       </div>
       <div class="settlement-lock-history-v87" id="settlementLockHistoryV87"></div>
@@ -10733,6 +10733,7 @@ function bindSettlementLockPanelV87() {
   document.getElementById("refreshSettlementLockV87")?.addEventListener("click", () => { updateSettlementLockPreviewV87(); fetchSettlementLockHistoryV87(); });
   document.getElementById("previewSettlementLockV87")?.addEventListener("click", updateSettlementLockPreviewV87);
   document.getElementById("lockSettlementV87")?.addEventListener("click", lockSettlementV87);
+  document.getElementById("unlockSettlementV932")?.addEventListener("click", unlockSettlementV932);
   document.getElementById("settlementAdjustModeV87")?.addEventListener("change", updateSettlementLockPreviewV87);
   document.getElementById("settlementAdjustmentAmountV87")?.addEventListener("input", () => { const mode = document.getElementById("settlementAdjustModeV87"); if (mode) mode.value = "custom"; updateSettlementLockPreviewV87(); });
   document.getElementById("settlementAdjustmentReasonV87")?.addEventListener("input", updateSettlementLockPreviewV87);
@@ -10744,10 +10745,11 @@ if (renderStudentSettlementBeforeV87) {
     ensureSettlementPanelV87();
     updateSettlementLockPreviewV87();
     fetchSettlementLockHistoryV87();
+    refreshStudentSettlementButtonStateV932();
   };
 }
 document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => { ensureSettlementPanelV87(); updateSettlementLockPreviewV87(); fetchSettlementLockHistoryV87(); }, 1000);
+  setTimeout(() => { ensureSettlementPanelV87(); updateSettlementLockPreviewV87(); fetchSettlementLockHistoryV87(); refreshStudentSettlementButtonStateV932(); }, 1000);
 });
 const renderAllBeforeV87 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV87) {
@@ -10782,9 +10784,12 @@ async function fetchSettlementLockHistoryV871() {
     if (error && error.code !== "PGRST116") throw error;
 
     if (!data) {
+      setStudentSettlementLockButtonStateV932(false);
       history.innerHTML = `<div class="muted-small">当前月份尚未锁定。</div>`;
       return;
     }
+
+    setStudentSettlementLockButtonStateV932(true);
 
     history.innerHTML = `
       <div class="locked-settlement-v87">
@@ -10798,6 +10803,84 @@ async function fetchSettlementLockHistoryV871() {
     `;
   } catch (error) {
     history.innerHTML = `<div class="error-text">读取结算锁定状态失败：${esc(error.message || error)}</div>`;
+  }
+}
+
+
+function setStudentSettlementLockButtonStateV932(hasLocked) {
+  const lockBtn = document.getElementById("lockSettlementV87");
+  const unlockBtn = document.getElementById("unlockSettlementV932");
+
+  if (lockBtn) {
+    lockBtn.disabled = !!hasLocked;
+    lockBtn.title = hasLocked ? "当前学生月份已经锁定，请先撤销后再重新锁定。" : "";
+  }
+
+  if (unlockBtn) {
+    unlockBtn.disabled = !hasLocked;
+    unlockBtn.title = hasLocked ? "" : "当前学生月份尚未锁定。";
+  }
+}
+
+async function getCurrentStudentSettlementLockV932() {
+  const { month, studentId } = selectedSettlementContextV87 ? selectedSettlementContextV87() : { month: "", studentId: "" };
+  if (!studentId || !month) return null;
+  const client = dbClientV871();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from(SETTLEMENTS_TABLE_V87)
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("year_month", month)
+    .eq("settlement_status", "locked")
+    .maybeSingle();
+
+  if (error && error.code !== "PGRST116") {
+    console.warn("student settlement lock state check failed", error);
+    return null;
+  }
+  return data || null;
+}
+
+async function refreshStudentSettlementButtonStateV932() {
+  const lock = await getCurrentStudentSettlementLockV932();
+  setStudentSettlementLockButtonStateV932(!!lock);
+}
+
+async function unlockSettlementV932() {
+  const lock = await getCurrentStudentSettlementLockV932();
+  if (!lock) {
+    alert("当前学生月份尚未锁定。");
+    await fetchSettlementLockHistoryV871();
+    await refreshStudentSettlementButtonStateV932();
+    return;
+  }
+
+  const ok = confirm(`确定撤销 ${lock.year_month} 的学生月度结算锁定吗？\n\n撤销后可重新修改课时和学费收入记录。`);
+  if (!ok) return;
+
+  const client = dbClientV871();
+  if (!client) {
+    alert("撤销锁定失败：数据库客户端未初始化");
+    return;
+  }
+
+  try {
+    const { error } = await client
+      .from(SETTLEMENTS_TABLE_V87)
+      .update({
+        settlement_status: "void",
+        locked_at: null
+      })
+      .eq("id", lock.id);
+
+    if (error) throw error;
+    alert("学生月度结算锁定已撤销。");
+    await fetchSettlementLockHistoryV871();
+    await refreshStudentSettlementButtonStateV932();
+  } catch (error) {
+    alert(`撤销锁定失败：${error.message || error}`);
   }
 }
 
@@ -10827,6 +10910,7 @@ async function lockSettlementV871() {
     if (error) throw error;
     alert("结算已锁定。");
     await fetchSettlementLockHistoryV871();
+    await refreshStudentSettlementButtonStateV932();
   } catch (error) {
     alert(`锁定结算失败：${error.message || error}`);
   }

@@ -2501,3 +2501,8 @@ button:disabled {
 .yearly-stat-card strong {
   font-size: 1.05rem;
 }
+
+/* === v9.6.0 teacher duty template export === */
+#teacherDutyTemplateExportBtn {
+  white-space: nowrap;
+}

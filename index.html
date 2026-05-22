@@ -4,15 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="icon" href="./favicon.ico?v=9.5.0" />
-  <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png?v=9.5.0" />
-  <link rel="apple-touch-icon" href="./assets/favicon-180.png?v=9.5.0" />
-  <link rel="stylesheet" href="./style.css?v=9.5.0" />
+  <link rel="icon" href="./favicon.ico?v=9.6.0" />
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png?v=9.6.0" />
+  <link rel="apple-touch-icon" href="./assets/favicon-180.png?v=9.6.0" />
+  <link rel="stylesheet" href="./style.css?v=9.6.0" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
       manifest.rel = "manifest";
-      manifest.href = "./manifest.json?v=9.5.0";
+      manifest.href = "./manifest.json?v=9.6.0";
       document.head.appendChild(manifest);
     }
   </script>
@@ -26,7 +26,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./assets/logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v9.5.0</p>
+        <p>运营管理系统 v9.6.0</p>
       </div>
 
       <nav class="nav">
@@ -243,7 +243,10 @@
               <h3>老师工资结算</h3>
               <p class="muted-small">基础版：按实际课时的工资结算月份汇总，按30分钟向下取整计算工资。</p>
             </div>
-            <button class="secondary-btn" id="teacherWageRefreshBtn" type="button">刷新计算</button>
+            <div class="panel-actions">
+              <button class="secondary-btn" id="teacherDutyTemplateExportBtn" type="button">导出勤务申报模板</button>
+              <button class="secondary-btn" id="teacherWageRefreshBtn" type="button">刷新计算</button>
+            </div>
           </div>
           <div class="toolbar finance-toolbar teacher-wage-toolbar">
             <input type="month" id="teacherWageMonthFilter" />
@@ -774,21 +777,22 @@
     </div>
   </div>
 
-  <script src="js/legacy-core.js?v=9.5.0"></script>
-  <script src="js/modules/form-save-fix.js?v=9.5.0"></script>
-  <script src="js/modules/lessons.js?v=9.5.0"></script>
-  <script src="js/modules/lesson-import.js?v=9.5.0"></script>
-  <script src="js/modules/student-settlement.js?v=9.5.0"></script>
-  <script src="js/modules/income.js?v=9.5.0"></script>
-  <script src="js/modules/expense.js?v=9.5.0"></script>
-  <script src="js/modules/reimbursements.js?v=9.5.0"></script>
-  <script src="js/modules/teacher-wages.js?v=9.5.0"></script>
-  <script src="js/modules/teacher-wage-rules.js?v=9.5.0"></script>
-  <script src="js/modules/teacher-wage-locks.js?v=9.5.0"></script>
-  <script src="js/modules/table-selection.js?v=9.5.0"></script>
-  <script src="js/modules/record-copy.js?v=9.5.0"></script>
-  <script src="js/modules/payment-management.js?v=9.5.0"></script>
-  <script src="js/modules/yearly-stats.js?v=9.5.0"></script>
-  <script src="app.js?v=9.5.0"></script>
+  <script src="js/legacy-core.js?v=9.6.0"></script>
+  <script src="js/modules/form-save-fix.js?v=9.6.0"></script>
+  <script src="js/modules/lessons.js?v=9.6.0"></script>
+  <script src="js/modules/lesson-import.js?v=9.6.0"></script>
+  <script src="js/modules/student-settlement.js?v=9.6.0"></script>
+  <script src="js/modules/income.js?v=9.6.0"></script>
+  <script src="js/modules/expense.js?v=9.6.0"></script>
+  <script src="js/modules/reimbursements.js?v=9.6.0"></script>
+  <script src="js/modules/teacher-wages.js?v=9.6.0"></script>
+  <script src="js/modules/teacher-duty-template-export.js?v=9.6.0"></script>
+  <script src="js/modules/teacher-wage-rules.js?v=9.6.0"></script>
+  <script src="js/modules/teacher-wage-locks.js?v=9.6.0"></script>
+  <script src="js/modules/table-selection.js?v=9.6.0"></script>
+  <script src="js/modules/record-copy.js?v=9.6.0"></script>
+  <script src="js/modules/payment-management.js?v=9.6.0"></script>
+  <script src="js/modules/yearly-stats.js?v=9.6.0"></script>
+  <script src="app.js?v=9.6.0"></script>
 </body>
 </html>

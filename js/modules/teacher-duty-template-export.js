@@ -1,4 +1,4 @@
-// === v9.6.4 teacher duty declaration template export ===
+// === v9.6.6 teacher duty declaration template export ===
 // 导出给老师填写的勤务申报模板。
 // v9.6.2 改为真实 .xlsx 输出，避免 .xls HTML 文件的扩展名不匹配警告。
 // 注意：模板不包含业务归属、时给、课程工资、系统工资金额等内部保密信息。
@@ -180,11 +180,13 @@
     for (let i = 0; i < 31; i++) {
       const rowNo = i + 5;
       const row = safeRows[i];
+      // C:D 工作内容列全部合并。即使空白行也合并，避免有内容行与空白行列结构不一致。
+      ws.mergeCells(rowNo, 3, rowNo, 4);
+
       if (row) {
         ws.getCell(rowNo, 1).value = formatDate(row.lesson_date);
         ws.getCell(rowNo, 2).value = studentText(row);
         ws.getCell(rowNo, 3).value = workContent(row);
-        ws.mergeCells(rowNo, 3, rowNo, 4);
         ws.getCell(rowNo, 5).value = formatTime(row.start_time);
         ws.getCell(rowNo, 6).value = formatTime(row.end_time);
         ws.getCell(rowNo, 7).value = formatHours(row.wage?.hours);
@@ -195,11 +197,19 @@
       ws.getCell(rowNo, 9).value = 0;
 
       for (let c = 1; c <= 10; c++) {
-        const align = (c === 3 || c === 10) ? "left" : (c >= 7 && c <= 9 ? "right" : "center");
-        const vertical = c === 3 ? "top" : "middle";
-        styleCell(ws.getCell(rowNo, c), { align, vertical });
+        const align = c === 10 ? "left" : (c >= 7 && c <= 9 ? "right" : "center");
+        styleCell(ws.getCell(rowNo, c), { align });
       }
-      ws.getRow(rowNo).height = row ? 48 : 18;
+
+      // 合并后的工作内容主单元格 C 明确设为左上对齐。
+      const workCell = ws.getCell(`C${rowNo}`);
+      workCell.alignment = {
+        vertical: "top",
+        horizontal: "left",
+        wrapText: true,
+      };
+
+      ws.getRow(rowNo).height = row ? 52 : 18;
     }
 
     // 合计行：只填充 A:I 表格范围，不影响右侧空白列。
@@ -330,7 +340,7 @@
   });
 
   window.SchoolTeacherDutyTemplateExportV962 = {
-    version: "9.6.4",
+    version: "9.6.6",
     exportTemplates,
   };
 })();

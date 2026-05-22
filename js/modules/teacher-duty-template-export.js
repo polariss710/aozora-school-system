@@ -1,4 +1,4 @@
-// === v9.6.0 teacher duty declaration template export ===
+// === v9.6.1 teacher duty declaration template export ===
 // 导出给老师填写的勤务申报模板。
 // 注意：模板不包含业务归属、时给、课程工资、系统工资金额等内部保密信息。
 
@@ -89,21 +89,21 @@
       const excelRow = i + 4;
       return `
         <tr>
-          <td>${escHtml(formatDate(row.lesson_date))}</td>
-          <td colspan="2">${escHtml(workContent(row))}</td>
-          <td>${escHtml(formatTime(row.start_time))}</td>
-          <td>${escHtml(formatTime(row.end_time))}</td>
+          <td class="center">${escHtml(formatDate(row.lesson_date))}</td>
+          <td colspan="2" class="left">${escHtml(workContent(row))}</td>
+          <td class="center">${escHtml(formatTime(row.start_time))}</td>
+          <td class="center">${escHtml(formatTime(row.end_time))}</td>
           <td class="num">${formatHours(row.wage?.hours)}</td>
           <td class="num">0</td>
           <td class="num">0</td>
-          <td></td>
+          <td class="left"></td>
         </tr>`;
     });
 
     for (let i = safeRows.length; i < 31; i++) {
       bodyRows.push(`
         <tr>
-          <td></td><td colspan="2"></td><td></td><td></td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td></td>
+          <td class="center"></td><td colspan="2" class="left"></td><td class="center"></td><td class="center"></td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="left"></td>
         </tr>`);
     }
 
@@ -122,55 +122,70 @@
 <meta charset="utf-8" />
 <style>
   body { font-family: "Yu Gothic", "Meiryo", sans-serif; }
-  table { border-collapse: collapse; width: 100%; }
-  td, th { border: 1px solid #999; padding: 6px; font-size: 12px; }
-  .no-border td { border: none; }
+  table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+  td, th { border: 1px solid #999; padding: 6px; font-size: 12px; vertical-align: middle; }
   .title { font-size: 18px; font-weight: 700; text-align: center; background: #eaf4ff; }
   .head { background: #d9ead3; font-weight: 700; text-align: center; }
-  .note { color: #666; font-size: 11px; }
-  .num { text-align: right; }
   .section { background: #fce5cd; font-weight: 700; }
-  .readonly { background: #f5f5f5; }
+  .center { text-align: center; }
+  .left { text-align: left; }
+  .num { text-align: right; }
+  .muted { color: #666; font-size: 11px; background: #fff; }
+  .plain { background: #fff; }
 </style>
 </head>
 <body>
 <table>
+  <colgroup>
+    <col style="width: 17%;" />
+    <col style="width: 19%;" />
+    <col style="width: 19%;" />
+    <col style="width: 8.5%;" />
+    <col style="width: 8.5%;" />
+    <col style="width: 8%;" />
+    <col style="width: 10%;" />
+    <col style="width: 10%;" />
+    <col style="width: 10%;" />
+  </colgroup>
   <tr><td colspan="9" class="title">勤务申报表（讲师填写用）</td></tr>
   <tr>
-    <td class="head">月份</td><td>${escHtml(year || "")}年${escHtml(monthNo || "")}月</td>
-    <td class="head">姓名</td><td colspan="2">${escHtml(teacher)}</td>
-    <td class="head">支付方式</td><td colspan="3">日元银行 / 支付宝 / 微信</td>
+    <td class="head">月份</td><td class="center">${escHtml(year || "")}年${escHtml(monthNo || "")}月</td>
+    <td class="head">姓名</td><td colspan="2" class="center">${escHtml(teacher)}</td>
+    <td class="head">支付方式</td><td colspan="3" class="center">日元银行 / 支付宝 / 微信</td>
   </tr>
   <tr>
-    <td colspan="9" class="note">
+    <td colspan="9" class="muted">
       ※ 本表仅用于勤务时间、交通费、教室费和支付方式申报。请勿修改系统已填写的日期、工作内容、开始时间、结束时间、时长。
     </td>
   </tr>
-  <tr class="head">
-    <td>日期及星期</td>
-    <td colspan="2">工作内容</td>
-    <td>开始时间</td>
-    <td>结束时间</td>
-    <td>时长</td>
-    <td>当日交通费</td>
-    <td>当日教室费</td>
-    <td>备注</td>
+  <tr>
+    <td class="head">日期及星期</td>
+    <td colspan="2" class="head">工作内容</td>
+    <td class="head">开始时间</td>
+    <td class="head">结束时间</td>
+    <td class="head">时长</td>
+    <td class="head">当日交通费</td>
+    <td class="head">当日教室费</td>
+    <td class="head">备注</td>
   </tr>
   ${rowsHtml(rows)}
-  <tr class="section">
-    <td colspan="5">合计</td>
-    <td class="num">=SUM(F4:F34)</td>
-    <td class="num">=SUM(G4:G34)</td>
-    <td class="num">=SUM(H4:H34)</td>
-    <td></td>
+  <tr>
+    <td colspan="5" class="section">合计</td>
+    <td class="num section">=SUM(F4:F34)</td>
+    <td class="num section">=SUM(G4:G34)</td>
+    <td class="num section">=SUM(H4:H34)</td>
+    <td class="section"></td>
   </tr>
-  <tr><td colspan="9" class="note">※ 系统内部会根据时长、工资规则、交通费、教室费核对最终工资。本模板不会显示时给、课时工资或业务归属。</td></tr>
   <tr><td colspan="9" class="section">日元支付（银行振込）</td></tr>
-  <tr class="head"><td>銀行名</td><td>支店番号</td><td>支店名</td><td>口座番号</td><td colspan="2">名義</td><td colspan="3">备注</td></tr>
-  <tr><td></td><td></td><td></td><td></td><td colspan="2"></td><td colspan="3"></td></tr>
+  <tr>
+    <td class="head">銀行名</td><td class="head">支店番号</td><td class="head">支店名</td><td class="head">口座番号</td><td colspan="2" class="head">名義</td><td colspan="3" class="head">备注</td>
+  </tr>
+  <tr><td class="center"></td><td class="center"></td><td class="center"></td><td class="center"></td><td colspan="2" class="center"></td><td colspan="3" class="left"></td></tr>
   <tr><td colspan="9" class="section">人民币支付</td></tr>
-  <tr class="head"><td>支付宝</td><td colspan="3">微信</td><td colspan="5">备注</td></tr>
-  <tr><td></td><td colspan="3"></td><td colspan="5"></td></tr>
+  <tr>
+    <td class="head">支付宝</td><td colspan="3" class="head">微信</td><td colspan="5" class="head">备注</td>
+  </tr>
+  <tr><td class="center"></td><td colspan="3" class="center"></td><td colspan="5" class="left"></td></tr>
 </table>
 </body>
 </html>`;
@@ -243,7 +258,7 @@
   });
 
   window.SchoolTeacherDutyTemplateExportV960 = {
-    version: "9.6.0",
+    version: "9.6.1",
     exportTemplates,
   };
 })();

@@ -2519,3 +2519,8 @@ button:disabled {
 .teacher-duty-import-result.hidden {
   display: none;
 }
+
+/* === v9.8.0 student settlement export === */
+#studentSettlementExportExcelBtn {
+  white-space: nowrap;
+}

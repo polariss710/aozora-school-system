@@ -1,4 +1,4 @@
-// === v9.8.1 teacher duty declaration template import/check ===
+// === v9.8.2 teacher duty declaration template import/check ===
 // 读取老师填写后的勤务申报表，核对课程时间，并把交通费 / 教室费带回工资结算画面。
 // 本版不写入数据库；费用确认后参与当前画面的工资锁定。
 
@@ -148,6 +148,7 @@
         </div>
         <div class="panel-actions">
           <button class="primary-btn" id="teacherDutyApplyImportBtn" type="button">应用交通费 / 教室费</button>
+          <button class="secondary-btn" id="teacherDutyFeeRevertBtn" type="button">撤回交通/教室费</button>
           <button class="secondary-btn" id="teacherDutyClearImportBtn" type="button">清除结果</button>
         </div>
       </div>
@@ -177,6 +178,7 @@
       lastImportResult = null;
       panel.classList.add("hidden");
     });
+    bindFeeRevertButtonV981();
 
     return panel;
   }
@@ -367,7 +369,7 @@
   });
 
   window.SchoolTeacherDutyTemplateImportV970 = {
-    version: "9.8.1",
+    version: "9.8.2",
     importDutyTemplate,
     applyImportResult,
     lastResult: () => lastImportResult,

@@ -1,4 +1,4 @@
-// === v9.6.3 teacher duty declaration template export ===
+// === v9.6.4 teacher duty declaration template export ===
 // 导出给老师填写的勤务申报模板。
 // v9.6.2 改为真实 .xlsx 输出，避免 .xls HTML 文件的扩展名不匹配警告。
 // 注意：模板不包含业务归属、时给、课程工资、系统工资金额等内部保密信息。
@@ -62,6 +62,7 @@
       .filter(item => item?.row && item?.wage?.hasRule)
       .sort((a, b) =>
         String(a.teacher_name || "").localeCompare(String(b.teacher_name || ""), "zh-Hans-CN") ||
+        String(a.student_name || "").localeCompare(String(b.student_name || ""), "zh-Hans-CN") ||
         String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")) ||
         String(a.start_time || "").localeCompare(String(b.start_time || ""))
       );
@@ -107,7 +108,7 @@
       color: options.fontColor ? { argb: options.fontColor } : undefined,
     };
     cell.alignment = {
-      vertical: "middle",
+      vertical: options.vertical || "middle",
       horizontal: options.align || "center",
       wrapText: options.wrap !== false,
     };
@@ -195,16 +196,17 @@
 
       for (let c = 1; c <= 10; c++) {
         const align = (c === 3 || c === 10) ? "left" : (c >= 7 && c <= 9 ? "right" : "center");
-        styleCell(ws.getCell(rowNo, c), { align });
+        const vertical = c === 3 ? "top" : "middle";
+        styleCell(ws.getCell(rowNo, c), { align, vertical });
       }
-      ws.getRow(rowNo).height = row ? 42 : 18;
+      ws.getRow(rowNo).height = row ? 48 : 18;
     }
 
     // 合计行：只填充 A:I 表格范围，不影响右侧空白列。
     const totalRow = 36;
     setMergeValue(ws, `A${totalRow}:F${totalRow}`, "合计", { fill: COLORS.orange, bold: true, align: "left" });
-    ws.getCell(`I${totalRow}`).value = { formula: `SUM(I5:I35)` };
-    ws.getCell(`I${totalRow}`).value = { formula: `SUM(I5:I35)` };
+    ws.getCell(`G${totalRow}`).value = { formula: `SUM(G5:G35)` };
+    ws.getCell(`H${totalRow}`).value = { formula: `SUM(H5:H35)` };
     ws.getCell(`I${totalRow}`).value = { formula: `SUM(I5:I35)` };
     ws.getCell(`J${totalRow}`).value = "";
     styleRange(ws, `G${totalRow}:J${totalRow}`, { fill: COLORS.orange, bold: true, align: "right" });
@@ -328,7 +330,7 @@
   });
 
   window.SchoolTeacherDutyTemplateExportV962 = {
-    version: "9.6.3",
+    version: "9.6.4",
     exportTemplates,
   };
 })();

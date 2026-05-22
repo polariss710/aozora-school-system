@@ -283,18 +283,35 @@
     };
   }
 
+  function teacherIdsWithActualLessonsInMonthV933(month) {
+    return new Set((state.lessonRecords || [])
+      .filter(r => r.teacher_id && r.lesson_type === "actual" && teacherSettlementMonth(r) === month && isTarget(r))
+      .map(r => r.teacher_id));
+  }
+
   function fillFilters(){
     const m = document.getElementById("teacherWageMonthFilter");
     if (m && !m.value) m.value = currentMonth();
 
+    const month = m?.value || currentMonth();
     const sel = document.getElementById("teacherWageTeacherFilter");
     if (!sel) return;
 
     const old = sel.value;
-    sel.innerHTML = `<option value="">所有老师</option>` + (state.teachers || [])
-      .filter(t => t.status !== "inactive" && t.status !== "retired")
+    const ids = teacherIdsWithActualLessonsInMonthV933(month);
+    const teachers = (state.teachers || [])
+      .filter(t => t.status !== "inactive" && t.status !== "retired" && ids.has(t.id))
+      .sort((a, b) => (a.display_name || a.name || "").localeCompare((b.display_name || b.name || ""), "zh-Hans-CN"));
+
+    if (!teachers.length) {
+      sel.innerHTML = `<option value="">该月无实际课时老师</option>`;
+      sel.value = "";
+      return;
+    }
+
+    sel.innerHTML = `<option value="">所有老师</option>` + teachers
       .map(t => `<option value="${escAttr(t.id)}">${esc(t.display_name || t.name || "")}</option>`).join("");
-    sel.value = old;
+    sel.value = teachers.some(t => t.id === old) ? old : "";
   }
 
   function sortLessons(list) {
@@ -619,7 +636,7 @@
   }
 
   window.SchoolTeacherWagesModule = {
-    version: "9.2.0",
+    version: "9.3.3",
     render,
     summarize,
     targetLessons,

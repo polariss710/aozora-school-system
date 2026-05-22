@@ -1,16 +1,22 @@
 {
   "name": "青空进学塾运营管理系统",
   "short_name": "青空管理",
-  "start_url": "./index.html",
+  "start_url": "./index.html?v=9.3.3",
   "display": "standalone",
   "background_color": "#f5f9ff",
   "theme_color": "#6fb7df",
   "icons": [
     {
-      "src": "./assets/logo-vertical.png",
-      "sizes": "1024x1024",
+      "src": "./assets/favicon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/favicon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

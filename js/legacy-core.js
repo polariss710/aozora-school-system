@@ -5151,14 +5151,38 @@ function studentLabelV83(student) {
   return student?.display_name || student?.name || "";
 }
 
+function settlementMonthForStudentOptionsV933() {
+  return document.getElementById("settlementMonthFilter")?.value || currentYearMonth();
+}
+
+function studentIdsWithLessonsInMonthV933(month) {
+  return new Set((state.lessonRecords || [])
+    .filter(x => x.student_id && x.year_month === month)
+    .map(x => x.student_id));
+}
+
 function fillStudentSelectV83(selectId, keepValue = true) {
   const el = document.getElementById(selectId);
   if (!el) return;
+
   const old = keepValue ? el.value : "";
-  el.innerHTML = `<option value="">选择学生</option>` + (state.students || [])
+  const month = settlementMonthForStudentOptionsV933();
+  const ids = studentIdsWithLessonsInMonthV933(month);
+  const students = (state.students || [])
+    .filter(s => ids.has(s.id))
+    .sort((a, b) => studentLabelV83(a).localeCompare(studentLabelV83(b), "zh-Hans-CN"));
+
+  if (!students.length) {
+    el.innerHTML = `<option value="">该月无课时学生</option>`;
+    el.value = "";
+    return;
+  }
+
+  el.innerHTML = `<option value="">选择学生</option>` + students
     .map(s => `<option value="${escAttr(s.id)}">${esc(studentLabelV83(s))}</option>`)
     .join("");
-  el.value = old;
+
+  el.value = students.some(s => s.id === old) ? old : "";
 }
 
 function feeOfLessonV83(item) {
@@ -10559,7 +10583,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-// === v8.7 student settlement confirm / lock ===
+// === v9.3.3 student settlement month-filtered student options ===
 const SETTLEMENTS_TABLE_V87 = "school_student_monthly_settlements";
 
 function roundCnyV87(value) { return Math.round(Number(value || 0)); }

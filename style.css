@@ -2428,3 +2428,11 @@ button:disabled {
   height: 15px;
   cursor: pointer;
 }
+
+/* === v9.1.14.1 copy button size === */
+#teacherWageRulesTable .copy-record-btn {
+  margin-right: 4px;
+  padding: 4px 8px;
+  min-height: 26px;
+  font-size: 12px;
+}

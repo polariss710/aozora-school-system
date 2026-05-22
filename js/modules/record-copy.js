@@ -1,4 +1,4 @@
-// === v9.1.14 record copy module ===
+// === v9.1.14.1 record copy button size fix ===
 // 在工资规则、收入记录、支出记录的每行操作区增加“复制”按钮。
 // 复制 = 以当前记录为模板打开新增/录入画面，不会直接保存新记录。
 
@@ -27,7 +27,9 @@
   function makeCopyButton(kind, id) {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "secondary-btn copy-record-btn";
+    btn.className = kind === "teacherRule"
+      ? "secondary-btn teacher-rule-mini-btn copy-record-btn"
+      : "secondary-btn copy-record-btn";
     btn.textContent = "复制";
     btn.dataset.copyKind = kind;
     btn.dataset.copyId = id;
@@ -165,7 +167,7 @@
   });
 
   window.SchoolRecordCopyV9114 = {
-    version: "9.1.14",
+    version: "9.1.14.1",
     apply: applyCopyButtons,
     copyFinanceRecord,
     copyTeacherWageRule,

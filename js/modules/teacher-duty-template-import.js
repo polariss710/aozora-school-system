@@ -1,4 +1,4 @@
-// === v9.7.0 teacher duty declaration template import/check ===
+// === v9.8.1 teacher duty declaration template import/check ===
 // 读取老师填写后的勤务申报表，核对课程时间，并把交通费 / 教室费带回工资结算画面。
 // 本版不写入数据库；费用确认后参与当前画面的工资锁定。
 
@@ -308,6 +308,23 @@
     showMessage(`已应用 ${result?.applied || updates.length} 条交通费 / 教室费。请确认工资合计后再锁定。`, "ok");
   }
 
+
+  function bindFeeRevertButtonV981() {
+    const btn = document.getElementById("teacherDutyFeeRevertBtn");
+    if (!btn || btn.dataset.boundTeacherDutyFeeRevert === "true") return;
+
+    btn.dataset.boundTeacherDutyFeeRevert = "true";
+    btn.addEventListener("click", () => {
+      const ok = confirm("确定撤回当前显示范围内的交通费 / 教室费吗？\n\n这会把当前工资结算画面里尚未锁定的交通费、教室费恢复为 0。");
+      if (!ok) return;
+
+      const result = window.SchoolTeacherWagesModule?.clearFeeOverridesForCurrentRows?.();
+      lastImportResult = null;
+      document.getElementById("teacherDutyImportResultPanel")?.classList.add("hidden");
+      showMessage(`已撤回 ${result?.cleared || 0} 条交通费 / 教室费。`, "ok");
+    });
+  }
+
   function bindImportButton() {
     const btn = document.getElementById("teacherDutyTemplateImportBtn");
     const input = document.getElementById("teacherDutyTemplateImportInput");
@@ -326,7 +343,11 @@
   if (switchPageBeforeV970) {
     window.switchPage = function(page) {
       switchPageBeforeV970(page);
-      if (page === "teacher-wages") setTimeout(bindImportButton, 0);
+      if (page === "teacher-wages") {
+        setTimeout(bindImportButton, 0);
+        setTimeout(bindFeeRevertButtonV981, 0);
+        setTimeout(bindFeeRevertButtonV981, 0);
+      }
     };
   }
 
@@ -342,10 +363,11 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     setTimeout(bindImportButton, 1000);
+    setTimeout(bindFeeRevertButtonV981, 1000);
   });
 
   window.SchoolTeacherDutyTemplateImportV970 = {
-    version: "9.7.0",
+    version: "9.8.1",
     importDutyTemplate,
     applyImportResult,
     lastResult: () => lastImportResult,

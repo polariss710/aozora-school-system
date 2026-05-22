@@ -1,4 +1,4 @@
-// === v9.6.6 teacher duty declaration template export ===
+// === v9.8.1 teacher duty declaration template export ===
 // 导出给老师填写的勤务申报模板。
 // v9.6.2 改为真实 .xlsx 输出，避免 .xls HTML 文件的扩展名不匹配警告。
 // 注意：模板不包含业务归属、时给、课程工资、系统工资金额等内部保密信息。
@@ -197,7 +197,7 @@
       ws.getCell(rowNo, 9).value = 0;
 
       for (let c = 1; c <= 10; c++) {
-        const align = c === 10 ? "left" : (c >= 7 && c <= 9 ? "right" : "center");
+        const align = c === 10 ? "left" : "center";
         styleCell(ws.getCell(rowNo, c), { align });
       }
 
@@ -219,7 +219,7 @@
     ws.getCell(`H${totalRow}`).value = { formula: `SUM(H5:H35)` };
     ws.getCell(`I${totalRow}`).value = { formula: `SUM(I5:I35)` };
     ws.getCell(`J${totalRow}`).value = "";
-    styleRange(ws, `G${totalRow}:J${totalRow}`, { fill: COLORS.orange, bold: true, align: "right" });
+    styleRange(ws, `G${totalRow}:J${totalRow}`, { fill: COLORS.orange, bold: true, align: "center" });
 
     setMergeValue(ws, "A37:J37", "日元支付（银行振込）", { fill: COLORS.orange, bold: true, align: "left" });
 
@@ -340,7 +340,7 @@
   });
 
   window.SchoolTeacherDutyTemplateExportV962 = {
-    version: "9.6.6",
+    version: "9.8.1",
     exportTemplates,
   };
 })();

@@ -2492,3 +2492,12 @@ button:disabled {
   line-height: 1.5;
   white-space: pre-wrap;
 }
+
+/* === v9.5.0 yearly statistics === */
+.yearly-summary-wrap {
+  margin-top: 14px;
+}
+
+.yearly-stat-card strong {
+  font-size: 1.05rem;
+}

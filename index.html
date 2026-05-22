@@ -4,15 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="icon" href="./favicon.ico?v=9.4.5" />
-  <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png?v=9.4.5" />
-  <link rel="apple-touch-icon" href="./assets/favicon-180.png?v=9.4.5" />
-  <link rel="stylesheet" href="./style.css?v=9.4.5" />
+  <link rel="icon" href="./favicon.ico?v=9.5.0" />
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png?v=9.5.0" />
+  <link rel="apple-touch-icon" href="./assets/favicon-180.png?v=9.5.0" />
+  <link rel="stylesheet" href="./style.css?v=9.5.0" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
       manifest.rel = "manifest";
-      manifest.href = "./manifest.json?v=9.4.5";
+      manifest.href = "./manifest.json?v=9.5.0";
       document.head.appendChild(manifest);
     }
   </script>
@@ -26,7 +26,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./assets/logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v9.4.5</p>
+        <p>运营管理系统 v9.5.0</p>
       </div>
 
       <nav class="nav">
@@ -99,6 +99,22 @@
           <div class="stat-card">
             <span>本月结余</span>
             <strong id="statNet">-</strong>
+          </div>
+          <div class="stat-card yearly-stat-card">
+            <span>本年度收入</span>
+            <strong id="statYearIncome">-</strong>
+          </div>
+          <div class="stat-card yearly-stat-card">
+            <span>本年度普通支出</span>
+            <strong id="statYearExpense">-</strong>
+          </div>
+          <div class="stat-card yearly-stat-card">
+            <span>本年度老师工资</span>
+            <strong id="statYearWage">-</strong>
+          </div>
+          <div class="stat-card yearly-stat-card">
+            <span>本年度净收入</span>
+            <strong id="statYearNet">-</strong>
           </div>
         </div>
 
@@ -555,11 +571,12 @@
       <section class="page" id="page-finance">
         <div class="panel">
           <div class="panel-header">
-            <h3>收支月度汇总</h3>
+            <h3>收支汇总</h3>
             <button class="secondary-btn" id="recalcAccountBalancesBtnFinance" type="button">重算账户余额</button>
           </div>
           <div class="toolbar finance-toolbar">
             <input type="month" id="financeMonthFilter" />
+            <select id="financeYearFilter"></select>
             <select id="financeEntityFilter"></select>
             <select id="financeAccountFilter"></select>
             <button class="secondary-btn" id="financeClearFilter">清除筛选</button>
@@ -568,8 +585,27 @@
             <div class="stat-card"><span>筛选收入</span><strong id="financeIncomeTotal">-</strong></div>
             <div class="stat-card"><span>筛选支出</span><strong id="financeExpenseTotal">-</strong></div>
             <div class="stat-card"><span>筛选结余</span><strong id="financeNetTotal">-</strong></div>
+            <div class="stat-card"><span>老师工资</span><strong id="financeWageTotal">-</strong></div>
+            <div class="stat-card"><span>净收入</span><strong id="financeRealNetTotal">-</strong></div>
             <div class="stat-card"><span>记录数</span><strong id="financeRecordCount">-</strong></div>
           </div>
+          <div class="table-wrap yearly-summary-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>月份</th>
+                  <th>收入</th>
+                  <th>普通支出</th>
+                  <th>老师工资</th>
+                  <th>净收入</th>
+                  <th>收入记录</th>
+                  <th>支出记录</th>
+                </tr>
+              </thead>
+              <tbody id="financeYearlySummaryTable"></tbody>
+            </table>
+          </div>
+
           <div class="table-wrap">
             <table>
               <thead>
@@ -738,20 +774,21 @@
     </div>
   </div>
 
-  <script src="js/legacy-core.js?v=9.4.5"></script>
-  <script src="js/modules/form-save-fix.js?v=9.4.5"></script>
-  <script src="js/modules/lessons.js?v=9.4.5"></script>
-  <script src="js/modules/lesson-import.js?v=9.4.5"></script>
-  <script src="js/modules/student-settlement.js?v=9.4.5"></script>
-  <script src="js/modules/income.js?v=9.4.5"></script>
-  <script src="js/modules/expense.js?v=9.4.5"></script>
-  <script src="js/modules/reimbursements.js?v=9.4.5"></script>
-  <script src="js/modules/teacher-wages.js?v=9.4.5"></script>
-  <script src="js/modules/teacher-wage-rules.js?v=9.4.5"></script>
-  <script src="js/modules/teacher-wage-locks.js?v=9.4.5"></script>
-  <script src="js/modules/table-selection.js?v=9.4.5"></script>
-  <script src="js/modules/record-copy.js?v=9.4.5"></script>
-  <script src="js/modules/payment-management.js?v=9.4.5"></script>
-  <script src="app.js?v=9.4.5"></script>
+  <script src="js/legacy-core.js?v=9.5.0"></script>
+  <script src="js/modules/form-save-fix.js?v=9.5.0"></script>
+  <script src="js/modules/lessons.js?v=9.5.0"></script>
+  <script src="js/modules/lesson-import.js?v=9.5.0"></script>
+  <script src="js/modules/student-settlement.js?v=9.5.0"></script>
+  <script src="js/modules/income.js?v=9.5.0"></script>
+  <script src="js/modules/expense.js?v=9.5.0"></script>
+  <script src="js/modules/reimbursements.js?v=9.5.0"></script>
+  <script src="js/modules/teacher-wages.js?v=9.5.0"></script>
+  <script src="js/modules/teacher-wage-rules.js?v=9.5.0"></script>
+  <script src="js/modules/teacher-wage-locks.js?v=9.5.0"></script>
+  <script src="js/modules/table-selection.js?v=9.5.0"></script>
+  <script src="js/modules/record-copy.js?v=9.5.0"></script>
+  <script src="js/modules/payment-management.js?v=9.5.0"></script>
+  <script src="js/modules/yearly-stats.js?v=9.5.0"></script>
+  <script src="app.js?v=9.5.0"></script>
 </body>
 </html>

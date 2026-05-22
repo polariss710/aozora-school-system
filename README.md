@@ -156,6 +156,26 @@
 
 
 
+
+### v9.2.2
+- 整理 logo 文件结构。
+- 根目录的 `logo-horizontal.png`、`logo-vertical.png` 移动到：
+  - `assets/logo-horizontal.png`
+  - `assets/logo-vertical.png`
+- 新增不带文字的图形 logo：
+  - `assets/logo-mark.png`
+- 网站标签页 favicon 改为不带文字的图形 logo。
+- 生成 favicon 相关文件：
+  - `favicon.ico`
+  - `assets/favicon-32.png`
+  - `assets/favicon-48.png`
+  - `assets/favicon-180.png`
+  - `assets/favicon-192.png`
+  - `assets/favicon-512.png`
+- 已更新前端引用路径。
+- 本版无 SQL 修改。
+- 本版压缩包不包含旧 SQL 文件。
+
 ### v9.2.1
 - 增加学生月度结算锁定保护。
 - 学生月度结算已锁定后，禁止直接修改或删除：

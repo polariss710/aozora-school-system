@@ -2436,3 +2436,13 @@ button:disabled {
   min-height: 26px;
   font-size: 12px;
 }
+
+/* === v9.1.15 teacher wage variable fees === */
+.teacher-fee-input {
+  width: 82px;
+  min-height: 28px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}

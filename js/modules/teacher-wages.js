@@ -1,4 +1,4 @@
-// === v9.1.13 teacher wage rule matching name fallback ===
+// === v9.1.15 teacher wage variable fees ===
 // 改善工资结算显示：
 // 1. 汇总表显示业务归属、学生、规则状态。
 // 2. 排序优先级：业务归属 → 老师 → 学生 → 科目 → 日期 → 时间。
@@ -7,6 +7,7 @@
 
 (function () {
   const payHourOverrides = new Map();
+  const rowFeeOverrides = new Map();
   let wageRules = [];
 
   function n(v){ const x = Number(v || 0); return Number.isFinite(x) ? x : 0; }
@@ -96,6 +97,21 @@
     const key = rowKey(row);
     if (payHourOverrides.has(key)) return n(payHourOverrides.get(key));
     return defaultPayHoursFromMinutes(actualMinutes(row));
+  }
+
+  function feeForRow(row) {
+    const key = rowKey(row);
+    const current = rowFeeOverrides.get(key) || {};
+    return {
+      transport: n(current.transport),
+      classroom: n(current.classroom),
+    };
+  }
+
+  function setFeeForRow(key, field, value) {
+    const current = rowFeeOverrides.get(key) || {};
+    current[field] = Math.max(0, Math.round(n(value)));
+    rowFeeOverrides.set(key, current);
   }
 
   function isTarget(row){
@@ -210,7 +226,7 @@
         <th>工资课时</th>
         <th>结算方式</th>
         <th>时给</th>
-        <th>预计工资</th>
+        <th>预计合计</th>
         <th>课时数</th>
         <th>规则</th>
       </tr>
@@ -240,6 +256,11 @@
       cnyAmount = exchangeRate > 0 ? jpyAmount * exchangeRate : 0;
     }
 
+    const fees = feeForRow(row);
+    const feeJpyAmount = fees.transport + fees.classroom;
+    const totalJpyAmount = jpyAmount + feeJpyAmount;
+    const totalCnyAmount = exchangeRate > 0 ? cnyAmount + (feeJpyAmount * exchangeRate) : cnyAmount;
+
     return {
       rule,
       type,
@@ -247,8 +268,13 @@
       rateJpy,
       rateCny,
       exchangeRate,
+      transportFeeJpy: fees.transport,
+      classroomFeeJpy: fees.classroom,
+      feeJpyAmount,
       jpyAmount,
       cnyAmount,
+      totalJpyAmount,
+      totalCnyAmount,
       isNoWage: type === "no_wage",
       hasRule: !!rule,
       matchMode: rule ? ruleMatchMode(row) : "missing",
@@ -324,8 +350,11 @@
           missingRuleHelp: wage.missingRuleHelp,
           minutes: 0,
           hours: 0,
+          feeJpyAmount: 0,
           jpyAmount: 0,
           cnyAmount: 0,
+          totalJpyAmount: 0,
+          totalCnyAmount: 0,
           count: 0,
         });
       }
@@ -333,8 +362,11 @@
       const x = map.get(key);
       x.minutes += actualMinutes(r);
       x.hours += wage.hours;
+      x.feeJpyAmount += wage.feeJpyAmount;
       x.jpyAmount += wage.jpyAmount;
       x.cnyAmount += wage.cnyAmount;
+      x.totalJpyAmount += wage.totalJpyAmount;
+      x.totalCnyAmount += wage.totalCnyAmount;
       x.count += 1;
     });
 
@@ -354,7 +386,7 @@
 
     setOptionalText("teacherWageTotalMinutes", String(summary.reduce((s,x)=>s+n(x.minutes),0)));
     setOptionalText("teacherWagePayHours", fmtHours(summary.reduce((s,x)=>s+n(x.hours),0)));
-    setOptionalText("teacherWageTotalAmount", fmtAmount(summary.reduce((s,x)=>s+n(x.jpyAmount),0), "JPY") + " / " + fmtAmount(summary.reduce((s,x)=>s+n(x.cnyAmount),0), "CNY"));
+    setOptionalText("teacherWageTotalAmount", fmtAmount(summary.reduce((s,x)=>s+n(x.totalJpyAmount),0), "JPY") + " / " + fmtAmount(summary.reduce((s,x)=>s+n(x.totalCnyAmount),0), "CNY"));
     setOptionalText("teacherWageLessonCount", String(list.length));
 
     const sumBody = document.getElementById("teacherWageSummaryTable");
@@ -373,7 +405,7 @@
             <td>${fmtHours(x.hours)}H</td>
             <td>${esc(settlementTypeLabel(x.settlementType))}</td>
             <td>${rateText}</td>
-            <td><strong>${fmtAmount(x.jpyAmount, "JPY")}</strong><br><span class="muted-small">${fmtAmount(x.cnyAmount, "CNY")}</span></td>
+            <td><strong>${fmtAmount(x.totalJpyAmount, "JPY")}</strong><br><span class="muted-small">${fmtAmount(x.totalCnyAmount, "CNY")}</span><br><span class="muted-small">课时 ${fmtAmount(x.jpyAmount, "JPY")} / 费用 ${fmtAmount(x.feeJpyAmount, "JPY")}</span></td>
             <td>${x.count}</td>
             <td>${x.hasRule ? `${x.isNoWage ? badge("不计工资", "gray") : badge("已匹配")}${x.matchMode === "label" ? `<br><span class="muted-small">名称匹配</span>` : ""}` : `${badge("未设置", "red")}<br><span class="muted-small">${esc(x.missingRuleHelp || ("缺少：" + x.missingRuleText))}</span>`}</td>
           </tr>
@@ -417,16 +449,31 @@
             <td>${esc(settlementTypeLabel(wage.type))}</td>
             <td>${rateText}</td>
             <td><strong>${fmtAmount(wage.jpyAmount, "JPY")}</strong></td>
-            <td>${fmtAmount(wage.cnyAmount, "CNY")}</td>
+            <td><input class="teacher-fee-input" data-teacher-fee-key="${escAttr(key)}" data-teacher-fee-field="transport" type="number" step="1" min="0" inputmode="numeric" value="${escAttr(String(wage.transportFeeJpy || 0))}" /></td>
+            <td><input class="teacher-fee-input" data-teacher-fee-key="${escAttr(key)}" data-teacher-fee-field="classroom" type="number" step="1" min="0" inputmode="numeric" value="${escAttr(String(wage.classroomFeeJpy || 0))}" /></td>
+            <td><strong>${fmtAmount(wage.totalJpyAmount, "JPY")}</strong></td>
+            <td>${fmtAmount(wage.totalCnyAmount, "CNY")}</td>
             <td>${wage.hasRule ? `${wage.isNoWage ? badge("不计工资", "gray") : badge("已匹配")}${wage.matchMode === "label" ? `<br><span class="muted-small">名称匹配</span>` : ""}` : `${badge("未设置", "red")}<br><span class="muted-small">${esc(wage.missingRuleHelp || ("缺少：" + wage.missingRuleText))}</span>`}</td>
             <td>${badge(lessonStatusLabel(r.status),"")}</td>
             <td>${esc(short(r.lesson_content || r.note, 32))}</td>
           </tr>
         `;
-      }).join("") : `<tr><td colspan="16" class="empty-row">当前条件下没有课时明细</td></tr>`;
+      }).join("") : `<tr><td colspan="18" class="empty-row">当前条件下没有课时明细</td></tr>`;
 
       bindPayHourInputs();
+      bindFeeInputs();
     }
+  }
+
+  function bindFeeInputs() {
+    document.querySelectorAll("[data-teacher-fee-key]").forEach(input => {
+      if (input.dataset.boundTeacherFee === "true") return;
+      input.dataset.boundTeacherFee = "true";
+      input.addEventListener("change", () => {
+        setFeeForRow(input.dataset.teacherFeeKey, input.dataset.teacherFeeField, input.value);
+        render();
+      });
+    });
   }
 
   function bindPayHourInputs() {
@@ -489,6 +536,7 @@
         if (m) m.value = currentMonth();
         if (t) t.value = "";
         payHourOverrides.clear();
+        rowFeeOverrides.clear();
         render();
       });
     }
@@ -547,12 +595,13 @@
   };
 
   window.SchoolTeacherWagesModule = {
-    version: "9.1.13",
+    version: "9.1.15",
     render,
     summarize,
     targetLessons,
     payHoursFromMinutes: defaultPayHoursFromMinutes,
     payHourOverrides,
+    rowFeeOverrides,
     loadWageRules,
   };
 })();

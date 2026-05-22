@@ -1,4 +1,4 @@
-// === v9.2.0 teacher wage lock module ===
+// === v9.2.1 teacher wage lock module + student settlement protection ===
 // 工资锁定：保存当前老师工资结算快照，并生成待支付要求数据。
 // 9.2 只保存数据和显示锁定结果，不做完整支付管理页面。
 
@@ -368,16 +368,151 @@
     return !!(data && data.length);
   }
 
+  async function isStudentSettlementLocked(studentId, month) {
+    if (!studentId || !month) return false;
+    const { data, error } = await db
+      .from("school_student_monthly_settlements")
+      .select("id, settlement_status")
+      .eq("student_id", studentId)
+      .eq("year_month", month)
+      .eq("settlement_status", "locked")
+      .limit(1);
+    if (error) {
+      console.warn("student settlement lock check failed", error);
+      return false;
+    }
+    return !!(data && data.length);
+  }
+
+  function lessonStudentSettlementMonth(item) {
+    return item?.year_month || item?.settlement_month || String(item?.lesson_date || "").slice(0, 7) || "";
+  }
+
+  function incomeStudentSettlementMonth(item) {
+    return item?.settlement_month || item?.year_month || String(item?.income_date || item?.record_date || "").slice(0, 7) || "";
+  }
+
+  function isTuitionIncome(item) {
+    return String(item?.income_category || item?.category || "") === "tuition" &&
+      item?.include_in_student_settlement !== false &&
+      !!item?.student_id;
+  }
+
+  async function isStudentLockedTarget(type, item) {
+    if (!item) return false;
+
+    if (type === "lesson") {
+      const month = lessonStudentSettlementMonth(item);
+      return await isStudentSettlementLocked(item.student_id, month);
+    }
+
+    if (type === "income" && isTuitionIncome(item)) {
+      const month = incomeStudentSettlementMonth(item);
+      return await isStudentSettlementLocked(item.student_id, month);
+    }
+
+    return false;
+  }
+
+  function studentLockMessage(type) {
+    if (type === "lesson") {
+      return "该课时所属学生月份已经结算锁定，请先撤销学生月度结算锁定后再修改或删除。";
+    }
+    if (type === "income") {
+      return "该学费收入所属学生月份已经结算锁定，请先撤销学生月度结算锁定后再修改或删除。";
+    }
+    return "该记录所属月份已经结算锁定，请先撤销锁定后再修改或删除。";
+  }
+
+  async function selectedFinanceRowsForProtection(type) {
+    const key = type === "income" ? "income" : "expenses";
+    const tbodyId = type === "income" ? "incomeTable" : "expensesTable";
+    const rows = Array.from(document.querySelectorAll(`#${tbodyId} [data-row-select="${key}"]:checked`))
+      .map(box => box.dataset.recordId)
+      .filter(Boolean);
+    const source = type === "income" ? (state.incomeRecords || []) : (state.expenseRecords || []);
+    return source.filter(x => rows.includes(String(x.id)));
+  }
+
+  async function hasLockedStudentRows(type, rows) {
+    for (const item of rows || []) {
+      if (await isStudentLockedTarget(type, item)) return true;
+    }
+    return false;
+  }
+
+  function interceptLockedStudentActionsV921() {
+    if (document.body.dataset.boundStudentLockProtectionV921 === "true") return;
+    document.body.dataset.boundStudentLockProtectionV921 = "true";
+
+    document.body.addEventListener("click", async (e) => {
+      const editBtn = e.target.closest("[data-edit][data-type]");
+      const deleteBtn = e.target.closest("[data-delete][data-type]");
+      const selectedIncomeDelete = e.target.closest("#incomeDeleteSelectedBtn");
+      const filteredIncomeDelete = e.target.closest("#incomeDeleteFilteredBtn");
+
+      if (editBtn) {
+        const type = editBtn.dataset.type;
+        if (type === "lesson" || type === "income") {
+          const item = typeof findLocal === "function" ? findLocal(type, editBtn.dataset.edit) : null;
+          if (await isStudentLockedTarget(type, item)) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            showMessage(studentLockMessage(type), "error");
+          }
+        }
+        return;
+      }
+
+      if (deleteBtn) {
+        const type = deleteBtn.dataset.type;
+        if (type === "lesson" || type === "income") {
+          const item = typeof findLocal === "function" ? findLocal(type, deleteBtn.dataset.delete) : null;
+          if (await isStudentLockedTarget(type, item)) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            showMessage(studentLockMessage(type), "error");
+          }
+        }
+        return;
+      }
+
+      if (selectedIncomeDelete) {
+        const rows = await selectedFinanceRowsForProtection("income");
+        if (await hasLockedStudentRows("income", rows)) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          showMessage("选中的收入中包含已锁定学生月度结算的学费记录，请先撤销学生月度结算锁定后再删除。", "error");
+        }
+        return;
+      }
+
+      if (filteredIncomeDelete) {
+        const rows = typeof filterFinanceRows === "function" ? filterFinanceRows(state.incomeRecords || [], "income") : [];
+        if (await hasLockedStudentRows("income", rows)) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          showMessage("当前筛选收入中包含已锁定学生月度结算的学费记录，请先撤销学生月度结算锁定后再删除。", "error");
+        }
+      }
+    }, true);
+  }
+
   const deleteRecordBeforeV920 = typeof deleteRecord === "function" ? deleteRecord : null;
   if (deleteRecordBeforeV920) {
     window.deleteRecord = async function(type, id) {
-      if (type === "lesson") {
-        const item = typeof findLocal === "function" ? findLocal(type, id) : null;
-        if (await isLessonLocked(item)) {
-          showMessage(protectDeleteMessage(type), "error");
-          return;
-        }
+      const item = typeof findLocal === "function" ? findLocal(type, id) : null;
+
+      if (type === "lesson" && await isLessonLocked(item)) {
+        showMessage(protectDeleteMessage(type), "error");
+        return;
       }
+
+      if ((type === "lesson" || type === "income") && await isStudentLockedTarget(type, item)) {
+        showMessage(studentLockMessage(type), "error");
+        return;
+      }
+
       return deleteRecordBeforeV920(type, id);
     };
   }
@@ -389,6 +524,7 @@
       if (page === "teacher-wages") {
         setTimeout(() => {
           ensureLockPanel();
+          interceptLockedStudentActionsV921();
           renderLocks();
         }, 0);
       }
@@ -402,6 +538,7 @@
       if (document.getElementById("page-teacher-wages")?.classList.contains("active")) {
         setTimeout(() => {
           ensureLockPanel();
+          interceptLockedStudentActionsV921();
           renderLocks();
         }, 0);
       }
@@ -410,15 +547,17 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => {
+      interceptLockedStudentActionsV921();
       if (document.getElementById("page-teacher-wages")?.classList.contains("active")) {
         ensureLockPanel();
+        interceptLockedStudentActionsV921();
         renderLocks();
       }
     }, 1000);
   });
 
   window.SchoolTeacherWageLocksV920 = {
-    version: "9.2.0",
+    version: "9.2.1",
     lockCurrentWages,
     unlockCurrentWages,
     renderLocks,

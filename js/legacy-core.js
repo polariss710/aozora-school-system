@@ -1017,6 +1017,7 @@ function updateFinanceFilters() {
 function openCreateModal(type, prefill = {}) {
   state.editing = { type, id: null };
   buildForm(type, prefill);
+  clearModalSaveErrorV944();
   document.getElementById("modalTitle").textContent = modalTitle(type, false);
   document.getElementById("modal").classList.remove("hidden");
 }
@@ -1024,6 +1025,7 @@ function openCreateModal(type, prefill = {}) {
 function openEditModal(type, id) {
   state.editing = { type, id };
   buildForm(type, findLocal(type, id));
+  clearModalSaveErrorV944();
   document.getElementById("modalTitle").textContent = modalTitle(type, true);
   document.getElementById("modal").classList.remove("hidden");
 }
@@ -1621,6 +1623,38 @@ function resetFormSavingStateV71(form, submitButton) {
 }
 
 
+
+function showModalSaveErrorV944(message) {
+  const form = document.getElementById("modalForm");
+  if (!form) {
+    showMessage(message, "error");
+    return;
+  }
+
+  let box = document.getElementById("modalSaveErrorV944");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "modalSaveErrorV944";
+    box.className = "modal-save-error-v944 full";
+    const actions = form.querySelector(".modal-actions, .form-actions");
+    if (actions && actions.parentElement === form) form.insertBefore(box, actions);
+    else form.appendChild(box);
+  }
+
+  box.textContent = message;
+  box.classList.remove("hidden");
+  box.scrollIntoView({ behavior: "smooth", block: "center" });
+  showMessage(message, "error");
+}
+
+function clearModalSaveErrorV944() {
+  const box = document.getElementById("modalSaveErrorV944");
+  if (box) {
+    box.textContent = "";
+    box.classList.add("hidden");
+  }
+}
+
 function lessonStudentSettlementMonthForLockV943(record) {
   return record?.year_month || record?.settlement_month || String(record?.lesson_date || "").slice(0, 7) || "";
 }
@@ -1677,6 +1711,13 @@ async function assertLessonEditAllowedV943(oldRecord, payload) {
   if (!oldRecord || oldRecord.lesson_type !== "actual") return { ok: true };
 
   const nextRecord = { ...oldRecord, ...payload };
+
+  if (oldRecord.planned_lesson_id && !sameValueV943(oldRecord.year_month, nextRecord.year_month)) {
+    return {
+      ok: false,
+      message: "该实际课时已关联预定课时，不能单独修改归属月份。请删除/撤销实际课时后，从正确月份的预定课时重新生成实际课时。",
+    };
+  }
 
   const studentLockedMonths = new Set([
     lessonStudentSettlementMonthForLockV943(oldRecord),
@@ -1762,6 +1803,7 @@ async function saveForm(e) {
 
   const type = state.editing.type;
   if (state.isSavingForm || form?.dataset?.saving === "true") return;
+  clearModalSaveErrorV944();
   state.isSavingForm = true;
   if (form) form.dataset.saving = "true";
   if (submitButton) submitButton.disabled = true;
@@ -1823,7 +1865,7 @@ async function saveForm(e) {
     const lockCheck = await assertLessonEditAllowedV943(oldRecord, payload);
     if (!lockCheck.ok) {
       resetFormSavingStateV71(form, submitButton);
-      showMessage(lockCheck.message, "error");
+      showModalSaveErrorV944(lockCheck.message);
       return;
     }
   }
@@ -1837,7 +1879,7 @@ async function saveForm(e) {
 
   if (result.error) {
     resetFormSavingStateV71(form, submitButton);
-    showMessage(result.error.message, "error");
+    showModalSaveErrorV944(result.error.message);
     return;
   }
 

@@ -1,7 +1,12 @@
-// === v9.8.14 student settlement DB summary reader ===
+// === v9.8.16 student settlement DB summary reader ===
 (function () {
   function n(v) { const x = Number(v || 0); return Number.isFinite(x) ? x : 0; }
   function money(v) { const x = Number(v || 0); return Number.isFinite(x) ? Math.round(x).toLocaleString() : "0"; }
+  function hours(v) {
+    const x = Number(v || 0);
+    if (!Number.isFinite(x)) return "0";
+    return Number.isInteger(x) ? String(x) : x.toFixed(2).replace(/\.00$/, "").replace(/0$/, "");
+  }
   function cny(v) { return `${money(v)} CNY`; }
   function jpy(v) { return `${money(v)} JPY`; }
 
@@ -60,8 +65,8 @@
     window.__studentSettlementSummaryDbV989 = summary;
     window.__studentSettlementCarryoverV987 = { month: summary.month, studentId: summary.studentId, amount: summary.carryoverCny };
 
-    setOptionalText("settlementPlannedHours", money(summary.plannedHours));
-    setOptionalText("settlementActualHours", money(summary.actualHours));
+    setOptionalText("settlementPlannedHours", hours(summary.plannedHours));
+    setOptionalText("settlementActualHours", hours(summary.actualHours));
     setOptionalText("settlementPlannedJpy", jpy(summary.plannedFeeJpy));
     setOptionalText("settlementActualJpy", jpy(summary.actualFeeJpy));
 
@@ -106,5 +111,5 @@
   });
   document.addEventListener("DOMContentLoaded", () => setTimeout(scheduleRefresh, 1000));
 
-  window.SchoolStudentSettlementSummaryDbV989 = { version: "9.8.14", refresh: refreshSummary, fetchSummary };
+  window.SchoolStudentSettlementSummaryDbV989 = { version: "9.8.16", refresh: refreshSummary, fetchSummary };
 })();

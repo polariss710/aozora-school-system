@@ -13053,8 +13053,6 @@ function lessonStudentSelectedV887() {
 function updateLessonButtonsDisabledV887() {
   const disabled = !lessonStudentSelectedV887();
   [
-    "lessonImportCompletedExcelBtnV88",
-    "lessonImportExcelBtn",
     "addLessonBtn",
     "newLessonBtn",
     "createLessonBtn",
@@ -13062,14 +13060,14 @@ function updateLessonButtonsDisabledV887() {
     const btn = document.getElementById(id);
     if (!btn) return;
     btn.disabled = disabled;
-    btn.classList.toggle("disabled", disabled);
+    btn.classList.toggle("disabled", disabled)
     if (disabled) btn.title = "请先选择学生";
     else btn.removeAttribute("title");
   });
 }
 
 document.addEventListener("click", (e) => {
-  const btn = e.target?.closest?.("#lessonImportCompletedExcelBtnV88,#lessonImportExcelBtn,#addLessonBtn,#newLessonBtn,#createLessonBtn");
+  const btn = e.target?.closest?.("#lessonImportExcelBtn,#addLessonBtn,#newLessonBtn,#createLessonBtn");
   if (!btn) return;
   if (!lessonStudentSelectedV887()) {
     e.preventDefault();

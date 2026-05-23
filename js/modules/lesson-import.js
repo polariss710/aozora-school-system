@@ -73,6 +73,10 @@ window.normalizeTeacherSettlementMonthV916 = normalizeTeacherSettlementMonthV916
     if (!btn || !input || btn.dataset.boundMonthRequiredV917 === "true") return;
 
     btn.dataset.boundMonthRequiredV917 = "true";
+    btn.disabled = false;
+    btn.classList.remove("disabled");
+    btn.removeAttribute("title");
+    btn.removeAttribute("aria-disabled");
     btn.onclick = () => {
       const month = requireCompletedImportMonthV917();
       if (!month) return;

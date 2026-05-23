@@ -12192,8 +12192,15 @@ function status88(v){const t=tx88(v); if(/休|取消|キャンセル|请假|欠�
 function ensureCompletedImportButtonV88(){
   const page=document.getElementById("page-lessons")||document.querySelector("[data-page='lessons']");
   if(!page||document.getElementById("lessonImportCompletedExcelBtnV88"))return;
-  const anchor=document.getElementById("lessonExportExcelBtn")?.parentElement||page.querySelector(".panel-actions")||page.querySelector(".section-title-row")||page;
-  anchor.insertAdjacentHTML("beforeend",`<button class="secondary-btn" id="lessonImportCompletedExcelBtnV88">导入完整课时</button><input type="file" id="lessonImportCompletedExcelInputV88" accept=".xlsx,.xls" style="display:none" />`);
+  const exportBtn=document.getElementById("lessonExportExcelBtn");
+  const html=`<button class="secondary-btn" id="lessonImportCompletedExcelBtnV88">导入完整课时</button><input type="file" id="lessonImportCompletedExcelInputV88" accept=".xlsx,.xls" style="display:none" />`;
+  if(exportBtn) exportBtn.insertAdjacentHTML("beforebegin",html);
+  else {
+    const anchor=page.querySelector(".panel-actions")||page.querySelector(".section-title-row")||page;
+    anchor.insertAdjacentHTML("beforeend",html);
+  }
+  document.getElementById("lessonImportCompletedExcelBtnV88").disabled=false;
+  document.getElementById("lessonImportCompletedExcelBtnV88").classList.remove("disabled");
   document.getElementById("lessonImportCompletedExcelBtnV88").onclick=()=>{document.getElementById("lessonImportCompletedExcelInputV88")?.click();};
   document.getElementById("lessonImportCompletedExcelInputV88").onchange=async e=>{const f=e.target.files?.[0]; if(f) await importCompletedLessonExcelV88(f); e.target.value="";};
 }
@@ -13369,17 +13376,22 @@ const importCompletedLessonExcelBeforeV886 = typeof importCompletedLessonExcelV8
 
 
 function normalizePersonNameV9810(value) {
-  return String(value || "").replace(/\s+/g, "").toLowerCase();
+  return String(value || "")
+    .replace(/（.*?）|\(.*?\)|\/.*$/g, "")
+    .replace(/\s+/g, "")
+    .toLowerCase();
 }
 
 function studentFromExcelNameV9810(name) {
   const text = normalizePersonNameV9810(name);
-  if (!text) return null;
+  if (!text || /学生|姓名|生徒/.test(text)) return null;
   return (state.students || []).find(s => {
     const n1 = normalizePersonNameV9810(s.name);
     const n2 = normalizePersonNameV9810(s.display_name);
-    return (n1 && (n1.includes(text) || text.includes(n1))) ||
-           (n2 && (n2.includes(text) || text.includes(n2)));
+    const n3 = normalizePersonNameV9810(s.full_name);
+    return (n1 && (n1 === text || n1.includes(text) || text.includes(n1))) ||
+           (n2 && (n2 === text || n2.includes(text) || text.includes(n2))) ||
+           (n3 && (n3 === text || n3.includes(text) || text.includes(n3)));
   }) || null;
 }
 
@@ -13601,7 +13613,24 @@ function patchLessonCountDisplayV886() {
 }
 
 // Full import button disabled when no student selected.
-function updateLessonImportButtonsV886() { /* v9.8-final.10: removed student-filter based disabled control. */ }
+function updateLessonImportButtonsV886() {
+  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  const addBtn = document.getElementById("addLessonBtn");
+  if (addBtn) {
+    addBtn.disabled = !studentId;
+    addBtn.classList.toggle("disabled", !studentId);
+    if (!studentId) addBtn.title = "请先选择学生";
+    else addBtn.removeAttribute("title");
+  }
+
+  const importBtn = document.getElementById("lessonImportCompletedExcelBtnV88");
+  if (importBtn) {
+    importBtn.disabled = false;
+    importBtn.classList.remove("disabled");
+    importBtn.removeAttribute("title");
+    importBtn.removeAttribute("aria-disabled");
+  }
+}
 
 
 const ensureCompletedImportButtonBeforeV886 = typeof ensureCompletedImportButtonV884 === "function" ? ensureCompletedImportButtonV884 : (typeof ensureCompletedImportButtonV88 === "function" ? ensureCompletedImportButtonV88 : null);

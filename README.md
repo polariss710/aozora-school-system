@@ -207,6 +207,21 @@
 
 
 
+
+### v9.8-stable-final.11-clean-import-button-student-fix
+- 课时管理导入 clean 微调。
+- 按钮位置：
+  - `导入完整课时` 放到 `导出标准登记Excel` 左侧。
+- 活性控制：
+  - `新增课时` 保留学生必选逻辑。
+  - `导入完整课时` 不再绑定学生筛选，始终激活。
+- 学生识别：
+  - 加强 Excel 第一列 `学生姓名` 的识别。
+  - 支持与学生 `name` / `display_name` / `full_name` 匹配。
+  - 对 `姓名 / 个人名义` 这类显示名做简化匹配。
+- 本版不新增补丁式 JS，继续修改旧逻辑源头。
+- 本版不修改 DB。
+
 ### v9.8-stable-final.10-clean-lesson-import-template
 - 课时管理导入/导出 clean 调整。
 - 删除课时管理旧「导入Excel」按钮与隐藏 input。

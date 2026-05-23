@@ -12379,27 +12379,6 @@ normalizeLessonPayload = function (payload, type) {
 // Add lesson_count to completed import common payload.
 const importCompletedLessonExcelBeforeV886 = typeof importCompletedLessonExcelV885 === "function" ? importCompletedLessonExcelV885 : null;
 
-
-function normalizePersonNameV9810(value) {
-  return String(value || "")
-    .replace(/（.*?）|\(.*?\)|\/.*$/g, "")
-    .replace(/\s+/g, "")
-    .toLowerCase();
-}
-
-function studentFromExcelNameV9810(name) {
-  const text = normalizePersonNameV9810(name);
-  if (!text || /学生|姓名|生徒/.test(text)) return null;
-  return (state.students || []).find(s => {
-    const n1 = normalizePersonNameV9810(s.name);
-    const n2 = normalizePersonNameV9810(s.display_name);
-    const n3 = normalizePersonNameV9810(s.full_name);
-    return (n1 && (n1 === text || n1.includes(text) || text.includes(n1))) ||
-      (n2 && (n2 === text || n2.includes(text) || text.includes(n2))) ||
-      (n3 && (n3 === text || n3.includes(text) || text.includes(n3)));
-  }) || null;
-}
-
 function selectedStudentFallbackV9810() {
   const id = normalizeLessonSelectedStudentFilterV9812();
   return id ? (state.students || []).find(s => s.id === id) || null : null;

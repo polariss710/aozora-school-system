@@ -631,6 +631,11 @@ function renderLessons() {
   const tbody = document.getElementById("lessonsTable");
   if (!tbody) return;
 
+  const monthEl = document.getElementById("lessonMonthFilter");
+  if (monthEl && !monthEl.value) {
+    monthEl.value = currentYearMonth();
+  }
+  
   updateLessonFilters();
   const rows = filterLessons().slice().sort((a, b) => {
     const da = String(a.lesson_date || "");

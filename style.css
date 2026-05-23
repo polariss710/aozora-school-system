@@ -2799,3 +2799,78 @@ button:disabled {
 .settlement-lessons-table .settlement-month-title td {
   border-bottom: 0;
 }
+
+
+/* v9.8-stable-final.15 学生月度结算 14 列左右均分 */
+.settlement-lessons-wrap {
+  overflow-x: auto;
+}
+
+.settlement-lessons-table,
+.settlement-lessons-readonly-table {
+  width: 100%;
+  min-width: 1320px;
+  table-layout: fixed;
+}
+
+.settlement-lessons-table col.settle-date,
+.settlement-lessons-readonly-table col.settle-date { width: 8%; }
+
+.settlement-lessons-table col.settle-name,
+.settlement-lessons-readonly-table col.settle-name { width: 7%; }
+
+.settlement-lessons-table col.settle-teacher,
+.settlement-lessons-readonly-table col.settle-teacher { width: 8%; }
+
+.settlement-lessons-table col.settle-subject,
+.settlement-lessons-readonly-table col.settle-subject { width: 13%; }
+
+.settlement-lessons-table col.settle-status,
+.settlement-lessons-readonly-table col.settle-status { width: 7%; }
+
+.settlement-lessons-table col.settle-content,
+.settlement-lessons-readonly-table col.settle-content { width: 10%; }
+
+.settlement-lessons-table col.settle-note,
+.settlement-lessons-readonly-table col.settle-note { width: 7%; }
+
+.settlement-lessons-table th,
+.settlement-lessons-table td,
+.settlement-lessons-readonly-table th,
+.settlement-lessons-readonly-table td {
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* 覆盖旧 nth-child 固定宽度，避免 colspan 行影响左右分配 */
+.settlement-lessons-table th:nth-child(n),
+.settlement-lessons-table td:nth-child(n),
+.settlement-lessons-readonly-table th:nth-child(n),
+.settlement-lessons-readonly-table td:nth-child(n) {
+  width: auto;
+}
+
+.settlement-lessons-table .lesson-pair-head,
+.settlement-lessons-readonly-table .lesson-pair-head {
+  text-align: center;
+}
+
+.settlement-lessons-table .lesson-sub-head th,
+.settlement-lessons-readonly-table .lesson-sub-head th,
+.settlement-lessons-table .settlement-inline-head th,
+.settlement-lessons-readonly-table .settlement-inline-head th {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.settlement-lessons-table .date-col,
+.settlement-lessons-readonly-table .date-col {
+  white-space: nowrap;
+}
+
+.settlement-lessons-table .lesson-content-cell,
+.settlement-lessons-readonly-table .lesson-content-cell {
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
+}

@@ -1,4 +1,4 @@
-// === v9.8-stable-recovery-final12 ===
+// === v9.8-stable-final.15-settlement-columns-fix ===
 // 学生月度结算 PDF 输出。
 // 输出格式：当前月课时左右对照 + 下个月预定课时另起一页。
 // 核心金额读取 DB RPC；PDF 仅负责排版。

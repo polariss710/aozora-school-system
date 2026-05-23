@@ -1,4 +1,4 @@
-// === v9.8-stable-recovery-final12 student tuition notice Excel export ===
+// === v9.8-stable-final.15-settlement-columns-fix student tuition notice Excel export ===
 (function () {
   const COLORS = { green: "92D050", title: "EAF4FF", border: "000000" };
 

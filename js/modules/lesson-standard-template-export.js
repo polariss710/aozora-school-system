@@ -1,4 +1,4 @@
-// === v9.8-stable-recovery-final12 lesson standard template export ===
+// === v9.8-stable-final.15-settlement-columns-fix lesson standard template export ===
 // 课时管理「导出Excel」改为导出标准课时登记模板。
 // 用于未来月份预登记：只生成该月每个周一代表的周，默认时长 2H，其他业务字段留空。
 

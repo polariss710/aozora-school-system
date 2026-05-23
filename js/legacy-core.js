@@ -4799,7 +4799,6 @@ function bindLessonExcelActionsV79() {
   const exportBtn = document.getElementById("lessonExportExcelBtn");
   if (exportBtn && exportBtn.dataset.boundExportV79 !== "true") {
     exportBtn.dataset.boundExportV79 = "true";
-    exportBtn.onclick = exportCurrentLessonsExcel;
   }
 }
 
@@ -11465,10 +11464,6 @@ function bindLessonExcelActionsV871() {
     };
   }
 
-  if (exportBtn && typeof exportCurrentLessonsExcel === "function") {
-    exportBtn.onclick = exportCurrentLessonsExcel;
-  }
-
   updateUndoImportButtonV871();
 }
 
@@ -12287,7 +12282,6 @@ importCompletedLessonExcelV88 = importCompletedLessonExcelV884;
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    ensureLessonMonthDefaultV884();
     ensureCompletedImportButtonV884();
   }, 800);
 });
@@ -12296,7 +12290,6 @@ const renderAllBeforeV884 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV884) {
   renderAll = function() {
     renderAllBeforeV884();
-    ensureLessonMonthDefaultV884();
     ensureCompletedImportButtonV884();
   };
 }

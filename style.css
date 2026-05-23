@@ -2524,3 +2524,124 @@ button:disabled {
 #studentSettlementExportExcelBtn {
   white-space: nowrap;
 }
+
+
+/* v9.8-stable-final.3 学生月度结算课时明细一览样式 */
+.settlement-lessons-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.settlement-lessons-table {
+  min-width: 1320px;
+  table-layout: fixed;
+}
+
+.settlement-lessons-table th,
+.settlement-lessons-table td {
+  padding: 7px 8px;
+  vertical-align: middle;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.settlement-lessons-table .lesson-pair-head {
+  text-align: center;
+  background: #e8f6ff;
+  color: #0f6091;
+  font-weight: 700;
+}
+
+.settlement-lessons-table .lesson-pair-head.actual {
+  background: #effaf3;
+  color: #16784c;
+}
+
+.settlement-lessons-table .lesson-sub-head th {
+  background: #f7fbff;
+  color: #475569;
+  font-size: 12px;
+  text-align: center;
+}
+
+.settlement-lessons-table .lesson-pair-row td {
+  min-height: 0;
+  height: auto;
+}
+
+.settlement-lessons-table .date-col {
+  width: 96px;
+  white-space: nowrap;
+}
+
+.settlement-lessons-table .muted-small {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.settlement-lessons-table .lesson-content-cell {
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.settlement-lessons-table .table-actions,
+.settlement-lessons-table .lesson-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+}
+
+.settlement-lessons-table .table-actions button,
+.settlement-lessons-table .lesson-actions button {
+  min-width: 58px;
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.settlement-lessons-table .empty-row {
+  text-align: center;
+  color: #94a3b8;
+  background: #f8fafc;
+  padding: 18px 8px;
+}
+
+/* 左右各 7 列：日期/姓名/老师/科目/状态/内容/操作 */
+.settlement-lessons-table th:nth-child(1),
+.settlement-lessons-table th:nth-child(8),
+.settlement-lessons-table td:nth-child(1),
+.settlement-lessons-table td:nth-child(8) { width: 96px; }
+
+.settlement-lessons-table th:nth-child(2),
+.settlement-lessons-table th:nth-child(9),
+.settlement-lessons-table td:nth-child(2),
+.settlement-lessons-table td:nth-child(9) { width: 86px; }
+
+.settlement-lessons-table th:nth-child(3),
+.settlement-lessons-table th:nth-child(10),
+.settlement-lessons-table td:nth-child(3),
+.settlement-lessons-table td:nth-child(10) { width: 88px; }
+
+.settlement-lessons-table th:nth-child(4),
+.settlement-lessons-table th:nth-child(11),
+.settlement-lessons-table td:nth-child(4),
+.settlement-lessons-table td:nth-child(11) { width: 150px; }
+
+.settlement-lessons-table th:nth-child(5),
+.settlement-lessons-table th:nth-child(12),
+.settlement-lessons-table td:nth-child(5),
+.settlement-lessons-table td:nth-child(12) { width: 76px; text-align: center; }
+
+.settlement-lessons-table th:nth-child(6),
+.settlement-lessons-table th:nth-child(13),
+.settlement-lessons-table td:nth-child(6),
+.settlement-lessons-table td:nth-child(13) { width: 120px; }
+
+.settlement-lessons-table th:nth-child(7),
+.settlement-lessons-table th:nth-child(14),
+.settlement-lessons-table td:nth-child(7),
+.settlement-lessons-table td:nth-child(14) { width: 76px; }

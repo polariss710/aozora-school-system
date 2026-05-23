@@ -1,4 +1,4 @@
-// === v9.8-stable-final.2-student-settlement-paired-pdf ===
+// === v9.8-stable-final.3-student-settlement-list-css ===
 // 学生月度结算 PDF 输出。
 // 输出格式：当前月课时左右对照 + 下个月预定课时另起一页。
 // 核心金额读取 DB RPC；PDF 仅负责排版。
@@ -360,5 +360,5 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => setTimeout(bind, 500));
-  window.SchoolStudentSettlementPdfExport = { version: "9.8-stable-final.2-student-settlement-paired-pdf", exportPdf };
+  window.SchoolStudentSettlementPdfExport = { version: "9.8-stable-final.3-student-settlement-list-css", exportPdf };
 })();

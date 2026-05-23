@@ -4,15 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>青空进学塾运营管理系统</title>
-  <link rel="icon" href="./favicon.ico?v=9.8-stable-final.2-student-settlement-paired-pdf" />
-  <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png?v=9.8-stable-final.2-student-settlement-paired-pdf" />
-  <link rel="apple-touch-icon" href="./assets/favicon-180.png?v=9.8-stable-final.2-student-settlement-paired-pdf" />
-  <link rel="stylesheet" href="./style.css?v=9.8-stable-final.2-student-settlement-paired-pdf" />
+  <link rel="icon" href="./favicon.ico?v=9.8-stable-final.3-student-settlement-list-css" />
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png?v=9.8-stable-final.3-student-settlement-list-css" />
+  <link rel="apple-touch-icon" href="./assets/favicon-180.png?v=9.8-stable-final.3-student-settlement-list-css" />
+  <link rel="stylesheet" href="./style.css?v=9.8-stable-final.3-student-settlement-list-css" />
   <script>
     if (location.protocol.startsWith("http")) {
       const manifest = document.createElement("link");
       manifest.rel = "manifest";
-      manifest.href = "./manifest.json?v=9.8-stable-final.2-student-settlement-paired-pdf";
+      manifest.href = "./manifest.json?v=9.8-stable-final.3-student-settlement-list-css";
       document.head.appendChild(manifest);
     }
   </script>
@@ -26,7 +26,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-logo" src="./assets/logo-horizontal.png" alt="青空进学塾" />
-        <p>运营管理系统 v9.8-stable-final.2-student-settlement-paired-pdf</p>
+        <p>运营管理系统 v9.8-stable-final.3-student-settlement-list-css</p>
       </div>
 
       <nav class="nav">
@@ -220,8 +220,8 @@
           </div>
 
           <h4 class="subsection-title">课时明细</h4>
-          <div class="table-wrap">
-            <table>
+          <div class="table-wrap settlement-lessons-wrap">
+            <table class="settlement-lessons-table">
               <thead>
                 <tr>
                   <th colspan="8" class="lesson-pair-head">预定课时</th><th colspan="8" class="lesson-pair-head actual">实际课时</th>
@@ -558,8 +558,8 @@
             <div class="stat-card"><span>取消/放假数量</span><strong id="lessonCancelledCount">0</strong></div>
             <div class="stat-card"><span>记录数</span><strong id="lessonRecordCount">0</strong></div>
           </div>
-          <div class="table-wrap">
-            <table>
+          <div class="table-wrap settlement-lessons-wrap">
+            <table class="settlement-lessons-table">
               <thead>
                 <tr>
                   <th colspan="8" class="lesson-pair-head">预定课时</th><th colspan="8" class="lesson-pair-head actual">实际课时</th>
@@ -781,26 +781,26 @@
     </div>
   </div>
 
-  <script src="js/legacy-core.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/form-save-fix.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/lessons.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/lesson-import.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/student-settlement-clean.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/student-settlement-export.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/student-settlement-pdf-export.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/income.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/expense.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/reimbursements.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/teacher-wages.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
+  <script src="js/legacy-core.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/form-save-fix.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/lessons.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/lesson-import.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/student-settlement-clean.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/student-settlement-export.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/student-settlement-pdf-export.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/income.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/expense.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/reimbursements.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/teacher-wages.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-  <script src="js/modules/teacher-duty-template-export.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/teacher-duty-template-import.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/teacher-wage-rules.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/teacher-wage-locks.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/table-selection.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/record-copy.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/payment-management.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="js/modules/yearly-stats.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
-  <script src="app.js?v=9.8-stable-final.2-student-settlement-paired-pdf"></script>
+  <script src="js/modules/teacher-duty-template-export.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/teacher-duty-template-import.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/teacher-wage-rules.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/teacher-wage-locks.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/table-selection.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/record-copy.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/payment-management.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="js/modules/yearly-stats.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
+  <script src="app.js?v=9.8-stable-final.3-student-settlement-list-css"></script>
 </body>
 </html>

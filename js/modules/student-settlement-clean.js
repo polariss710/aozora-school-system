@@ -1,4 +1,4 @@
-// === v9.8-stable-final.2-student-settlement-paired-pdf ===
+// === v9.8-stable-final.3-student-settlement-list-css ===
 // 学生月度结算清理版：只保留一个渲染入口。
 // 核心统计和金额读取 DB RPC；JS 只负责读取、显示、课时明细排版和锁定触发。
 
@@ -261,10 +261,9 @@
 
   function sideCells(row, side) {
     if (!row) {
-      return `<td colspan="8" class="empty-row">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
+      return `<td colspan="7" class="empty-row">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
     }
 
-    const checkbox = `<input type="checkbox" data-select-lesson="${escAttribute(row.id)}" />`;
     const actions = `
       <div class="table-actions lesson-actions">
         ${row.lesson_type === "planned" ? `<button class="secondary-btn" data-create-actual="${escAttribute(row.id)}">生成实际</button>` : ""}
@@ -275,13 +274,15 @@
     `;
 
     return `
-      <td class="select-col">${checkbox}</td>
-      <td class="date-col">${escText(lessonDate(row))}</td>
+      <td class="date-col">
+        <strong>${escText(lessonDate(row))}</strong><br>
+        <span class="muted-small">${escText(row.lesson_date || "")}</span>
+      </td>
       <td>${escText(lessonStudentName(row))}</td>
       <td>${escText(lessonTeacherName(row))}</td>
       <td>
         <strong>${escText(lessonSubjectName(row))}</strong><br>
-        <span class="muted-small">${escText(timeText(row))} / ${hours(row.duration_hours)}H / ${jpy(lessonFee(row))}</span>
+        <span class="muted-small">${escText(timeText(row))} / ${hours(row.duration_hours)}H<br>${jpy(lessonFee(row))}</span>
       </td>
       <td>${statusHtml(row)}</td>
       <td><div class="lesson-content-cell">${escText((row.lesson_content || row.note || "").slice(0, 42))}</div></td>
@@ -292,16 +293,19 @@
   function ensureSettlementTableHead() {
     const table = document.getElementById("settlementLessonsTable")?.closest("table");
     const thead = table?.querySelector("thead");
+    const wrap = table?.closest(".table-wrap");
+    if (wrap) wrap.classList.add("settlement-lessons-wrap");
+    if (table) table.classList.add("settlement-lessons-table");
     if (!thead || thead.dataset.cleanPairedHead === "true") return;
     thead.dataset.cleanPairedHead = "true";
     thead.innerHTML = `
       <tr>
-        <th colspan="8" class="lesson-pair-head">预定课时</th>
-        <th colspan="8" class="lesson-pair-head actual">实际课时</th>
+        <th colspan="7" class="lesson-pair-head">预定课时</th>
+        <th colspan="7" class="lesson-pair-head actual">实际课时</th>
       </tr>
       <tr class="lesson-sub-head">
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目 / 时间 / 金额</th><th>状态</th><th>内容</th><th>操作</th>
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目 / 时间 / 金额</th><th>状态</th><th>内容</th><th>操作</th>
+        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
       </tr>
     `;
   }
@@ -340,7 +344,7 @@
         html.push(`<tr class="lesson-pair-row">${sideCells(plan, "planned")}${sideCells(null, "actual")}</tr>`);
       } else {
         actuals.forEach((actual, idx) => {
-          const left = idx === 0 ? sideCells(plan, "planned") : `<td colspan="8" class="empty-row">同一预定课时</td>`;
+          const left = idx === 0 ? sideCells(plan, "planned") : `<td colspan="7" class="empty-row">同一预定课时</td>`;
           html.push(`<tr class="lesson-pair-row">${left}${sideCells(actual, "actual")}</tr>`);
         });
       }
@@ -350,7 +354,7 @@
       html.push(`<tr class="lesson-pair-row">${sideCells(null, "planned")}${sideCells(actual, "actual")}</tr>`);
     });
 
-    tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="16" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
+    tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="14" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
 
     if (typeof bindTableActionButtons === "function") bindTableActionButtons();
     if (typeof bindLessonPairButtonsV43 === "function") bindLessonPairButtonsV43();
@@ -433,7 +437,7 @@
   }
 
   window.SchoolStudentSettlementClean = {
-    version: "v9.8-stable-final.2-student-settlement-paired-pdf",
+    version: "v9.8-stable-final.3-student-settlement-list-css",
     render: renderCleanStudentSettlement,
     fetchSummary: fetchDbSummary,
   };

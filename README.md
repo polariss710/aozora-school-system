@@ -184,6 +184,25 @@
 
 
 
+
+### v9.8.7
+- 从本版开始，学生月度结转改为数据库明确记录，不再依赖前端 JS 反推上一月锁定结果。
+- 新增 SQL：
+  - `school_v9_8_7_student_settlement_carryovers.sql`
+- 新增表：
+  - `school_student_settlement_carryovers`
+- 学生月度结算锁定时：
+  - 保存本月结算快照
+  - 同时写入下一月结转记录
+  - 例如 2026-03 最终结转 +650 CNY，会写入 to_year_month = 2026-04
+- 学生月度结算撤销时：
+  - 对应结转记录标记为 void
+- 当前月月初预定结算：
+  - 优先读取 `school_student_settlement_carryovers`
+  - 找不到结转记录时，才使用学生资料中的初始 previous_balance_cny
+- 学生课时费通知单导出同步读取结转表。
+- 本版包含当前新增 SQL 文件，不包含旧 SQL 文件。
+
 ### v9.8.6
 - 整理学生月度结算的结转逻辑。
 - “结转到下个月”改为“按最终差额结转”：

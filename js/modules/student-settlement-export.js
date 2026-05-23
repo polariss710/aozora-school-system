@@ -1,4 +1,4 @@
-// === v9.8.6 student tuition notice Excel export ===
+// === v9.8.7 student tuition notice Excel export ===
 (function () {
   const COLORS = { green: "92D050", title: "EAF4FF", border: "000000" };
 
@@ -11,17 +11,17 @@
   function nextMonth(ym){ const [y,m]=String(ym).split("-").map(Number); const d=new Date(y,m,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
   function prevMonth(ym){ const [y,m]=String(ym).split("-").map(Number); const d=new Date(y,m-2,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
   async function fetchPrevCarryover(studentId, ym, student){
-    const pm = prevMonth(ym);
-    const client = dbClientV986(); if(!studentId || !pm || !client?.from) return n(student.previous_balance_cny);
-    const { data, error } = await client.from("school_student_monthly_settlements")
-      .select("carryover_amount_cny,carryover_cny,balance_cny,settlement_status,status,locked_at,updated_at")
+    const client = dbClientV986(); if(!studentId || !ym || !client?.from) return n(student.previous_balance_cny);
+    const { data, error } = await client.from("school_student_settlement_carryovers")
+      .select("amount_cny,status,updated_at")
       .eq("student_id", studentId)
-      .eq("year_month", pm)
-      .order("locked_at", { ascending: false })
-      .limit(5);
-    if(error) { console.warn("export previous carryover load failed", error); return n(student.previous_balance_cny); }
-    const row = (data || []).find(x => x.settlement_status === "locked" || x.status === "locked" || x.locked_at) || data?.[0];
-    return row ? n(row.carryover_amount_cny ?? row.carryover_cny ?? row.balance_cny) : n(student.previous_balance_cny);
+      .eq("to_year_month", ym)
+      .eq("status", "active")
+      .order("updated_at", { ascending: false })
+      .limit(1);
+    if(error) { console.warn("export carryover load failed", error); return n(student.previous_balance_cny); }
+    const row = data?.[0];
+    return row ? n(row.amount_cny) : n(student.previous_balance_cny);
   }
   function monthLabel(ym){ return `${Number(String(ym).split("-")[1] || 0)}月`; }
   function studentName(s){ return s?.display_name || s?.name || ""; }
@@ -123,5 +123,5 @@
   const switchPageBeforeV983=typeof switchPage==="function"?switchPage:null; if(switchPageBeforeV983){ window.switchPage=function(page){ switchPageBeforeV983(page); if(page==="student-settlement") setTimeout(bindExportButton,0); }; }
   const renderAllBeforeV983=typeof renderAll==="function"?renderAll:null; if(renderAllBeforeV983){ window.renderAll=function(){ renderAllBeforeV983(); if(document.getElementById("page-student-settlement")?.classList.contains("active")) setTimeout(bindExportButton,0); }; }
   document.addEventListener("DOMContentLoaded",()=>setTimeout(bindExportButton,1000));
-  window.SchoolStudentSettlementExportV983={version:"9.8.6",exportExcel};
+  window.SchoolStudentSettlementExportV987={version:"9.8.7",exportExcel};
 })();

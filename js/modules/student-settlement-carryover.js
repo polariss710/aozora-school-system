@@ -1,17 +1,9 @@
-// === v9.8.6 student previous settlement carryover ===
-// 修正学生月度结算页面：当前月的上月结余/补交优先读取上一月份已锁定结算。
-// 约定：上月 carryover_amount_cny > 0 表示需补交，应加到本月应收合计；<0 表示结余，应抵扣。
+// === v9.8.7 student settlement carryover DB reader ===
+// 当前月份的上月结余/补交优先读取 school_student_settlement_carryovers。
+// 本表由学生月度结算锁定时写入，避免前端临时反推上一月结转。
 
 (function () {
-  const TABLE = "school_student_monthly_settlements";
-
-  function dbClientV986() {
-    if (typeof db !== "undefined" && db?.from) return db;
-    if (typeof supabase !== "undefined" && supabase?.from) return supabase;
-    if (window.db?.from) return window.db;
-    if (window.supabase?.from) return window.supabase;
-    return null;
-  }
+  const TABLE = "school_student_settlement_carryovers";
 
   function n(v) {
     const x = Number(v || 0);
@@ -22,11 +14,12 @@
     return `${Math.round(n(v)).toLocaleString()} CNY`;
   }
 
-  function prevMonth(ym) {
-    const [y, m] = String(ym || "").split("-").map(Number);
-    if (!y || !m) return "";
-    const d = new Date(y, m - 2, 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  function dbClientV987() {
+    if (typeof db !== "undefined" && db?.from) return db;
+    if (typeof supabase !== "undefined" && supabase?.from) return supabase;
+    if (window.db?.from) return window.db;
+    if (window.supabase?.from) return window.supabase;
+    return null;
   }
 
   function currentContext() {
@@ -50,36 +43,35 @@
     return rows.reduce((sum, x) => sum + feeOfLesson(x), 0);
   }
 
-  async function fetchPrevCarryover(studentId, month, student) {
-    const pm = prevMonth(month);
-    const client = dbClientV986();
-    if (!studentId || !pm || !client?.from) return n(student?.previous_balance_cny);
+  async function fetchCarryover(studentId, month, student) {
+    const client = dbClientV987();
+    if (!studentId || !month || !client?.from) return n(student?.previous_balance_cny);
 
     const { data, error } = await client
       .from(TABLE)
-      .select("carryover_amount_cny,carryover_cny,balance_cny,settlement_status,status,locked_at,updated_at")
+      .select("amount_cny,status,updated_at,from_year_month,to_year_month")
       .eq("student_id", studentId)
-      .eq("year_month", pm)
-      .order("locked_at", { ascending: false })
-      .limit(5);
+      .eq("to_year_month", month)
+      .eq("status", "active")
+      .order("updated_at", { ascending: false })
+      .limit(1);
 
     if (error) {
-      console.warn("load previous settlement carryover failed", error);
+      console.warn("load student carryover failed", error);
       return n(student?.previous_balance_cny);
     }
 
-    const row = (data || []).find(x =>
-      x.settlement_status === "locked" || x.status === "locked" || x.locked_at
-    ) || data?.[0];
-    if (!row) return n(student?.previous_balance_cny);
-    return n(row.carryover_amount_cny ?? row.carryover_cny ?? row.balance_cny);
+    const row = data?.[0];
+    return row ? n(row.amount_cny) : n(student?.previous_balance_cny);
   }
 
-  async function applyPrevCarryover() {
+  async function applyCarryover() {
     const { month, studentId, student } = currentContext();
     if (!month || !studentId || !student) return;
 
-    const carry = await fetchPrevCarryover(studentId, month, student);
+    const carry = await fetchCarryover(studentId, month, student);
+    window.__studentSettlementCarryoverV987 = { month, studentId, amount: carry };
+
     const rate = n(student.preset_exchange_rate);
     const plannedJpy = sumFee(lessonsFor(studentId, month, "planned"));
     const plannedCny = plannedJpy * rate;
@@ -90,16 +82,20 @@
 
     if (prevEl) prevEl.textContent = fmtCny(carry);
     if (totalEl) totalEl.textContent = fmtCny(plannedTotal);
+
+    if (typeof updateSettlementLockPreviewV87 === "function") {
+      updateSettlementLockPreviewV87();
+    }
   }
 
   function scheduleApply() {
-    setTimeout(applyPrevCarryover, 80);
+    setTimeout(applyCarryover, 80);
   }
 
-  const renderStudentSettlementBeforeV984 = typeof window.renderStudentSettlement === "function" ? window.renderStudentSettlement : null;
-  if (renderStudentSettlementBeforeV984) {
+  const renderStudentSettlementBeforeV987 = typeof window.renderStudentSettlement === "function" ? window.renderStudentSettlement : null;
+  if (renderStudentSettlementBeforeV987) {
     window.renderStudentSettlement = function() {
-      renderStudentSettlementBeforeV984();
+      renderStudentSettlementBeforeV987();
       scheduleApply();
     };
   }
@@ -114,5 +110,9 @@
     setTimeout(scheduleApply, 1000);
   });
 
-  window.SchoolStudentSettlementCarryoverV984 = { version: "9.8.6", apply: applyPrevCarryover, fetchPrevCarryover };
+  window.SchoolStudentSettlementCarryoverV987 = {
+    version: "9.8.7",
+    apply: applyCarryover,
+    fetchCarryover,
+  };
 })();

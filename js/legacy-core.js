@@ -10796,6 +10796,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // === v9.4.2 student settlement switch lock display fix ===
 const SETTLEMENTS_TABLE_V87 = "school_student_monthly_settlements";
+const STUDENT_CARRYOVERS_TABLE_V987 = "school_student_settlement_carryovers";
+
+function nextMonthV987(ym) {
+  const [y, m] = String(ym || "").split("-").map(Number);
+  if (!y || !m) return "";
+  const d = new Date(y, m, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function currentSettlementCarryoverAmountV987(studentId, month, student) {
+  const cached = window.__studentSettlementCarryoverV987;
+  if (cached && cached.studentId === studentId && cached.month === month) {
+    return Number(cached.amount || 0);
+  }
+  return Number(student?.previous_balance_cny || 0);
+}
 
 function roundCnyV87(value) { return Math.round(Number(value || 0)); }
 function signedCnyV87(value) {
@@ -10837,7 +10853,7 @@ function computeSettlementSnapshotV87(adjustment = 0, reason = "") {
   const { month, studentId, student } = selectedSettlementContextV87();
   if (!studentId || !student) return null;
   const rate = Number(student.preset_exchange_rate || 0);
-  const previousBalanceCny = Number(student.previous_balance_cny || 0);
+  const previousBalanceCny = currentSettlementCarryoverAmountV987(studentId, month, student);
   const plannedJpy = sumLessonsForSettlementV87(studentId, month, "planned");
   const actualJpy = sumLessonsForSettlementV87(studentId, month, "actual");
   const plannedCny = plannedJpy * rate;
@@ -10963,9 +10979,13 @@ async function lockSettlementV87() {
   const payload = { ...snapshot };
   delete payload.student;
   try {
-    const { error } = await supabase.from(SETTLEMENTS_TABLE_V87).upsert(payload, { onConflict: "student_id,year_month" });
+    const { data: saved, error } = await supabase.from(SETTLEMENTS_TABLE_V87)
+      .upsert(payload, { onConflict: "student_id,year_month" })
+      .select("id")
+      .single();
     if (error) throw error;
-    alert("结算已锁定。");
+    await upsertStudentCarryoverV987(supabase, snapshot, saved?.id || null);
+    alert("结算已锁定，并已写入下月结转记录。");
     await fetchSettlementLockHistoryV87();
   } catch (error) {
     alert(`锁定结算失败：${error.message || error}`);
@@ -11135,6 +11155,50 @@ async function refreshStudentSettlementButtonStateV932() {
   setStudentSettlementLockButtonStateV932(!!lock);
 }
 
+
+async function upsertStudentCarryoverV987(client, snapshot, settlementId = null) {
+  if (!client || !snapshot) return;
+  const toMonth = nextMonthV987(snapshot.year_month);
+  if (!toMonth) return;
+
+  const payload = {
+    student_id: snapshot.student_id,
+    from_year_month: snapshot.year_month,
+    to_year_month: toMonth,
+    amount_cny: Number(snapshot.carryover_amount_cny || 0),
+    source_settlement_id: settlementId || null,
+    source_settlement_month: snapshot.year_month,
+    status: "active",
+    note: snapshot.adjustment_reason || "",
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await client
+    .from(STUDENT_CARRYOVERS_TABLE_V987)
+    .upsert(payload, { onConflict: "student_id,from_year_month,to_year_month" });
+
+  if (error) throw error;
+}
+
+async function voidStudentCarryoverV987(client, lock) {
+  if (!client || !lock) return;
+  const toMonth = nextMonthV987(lock.year_month);
+  if (!toMonth) return;
+
+  const { error } = await client
+    .from(STUDENT_CARRYOVERS_TABLE_V987)
+    .update({
+      status: "void",
+      updated_at: new Date().toISOString(),
+      note: "来源学生月度结算已撤销",
+    })
+    .eq("student_id", lock.student_id)
+    .eq("from_year_month", lock.year_month)
+    .eq("to_year_month", toMonth);
+
+  if (error) throw error;
+}
+
 async function unlockSettlementV932() {
   const lock = await getCurrentStudentSettlementLockV932();
   if (!lock) {
@@ -11163,6 +11227,7 @@ async function unlockSettlementV932() {
       .eq("id", lock.id);
 
     if (error) throw error;
+    await voidStudentCarryoverV987(client, lock);
     alert("学生月度结算锁定已撤销。");
     await fetchSettlementLockHistoryV871();
     await refreshStudentSettlementButtonStateV932();
@@ -11191,11 +11256,14 @@ async function lockSettlementV871() {
   delete payload.student;
 
   try {
-    const { error } = await client
+    const { data: saved, error } = await client
       .from(SETTLEMENTS_TABLE_V87)
-      .upsert(payload, { onConflict: "student_id,year_month" });
+      .upsert(payload, { onConflict: "student_id,year_month" })
+      .select("id")
+      .single();
     if (error) throw error;
-    alert("结算已锁定。");
+    await upsertStudentCarryoverV987(client, snapshot, saved?.id || null);
+    alert("结算已锁定，并已写入下月结转记录。");
     await fetchSettlementLockHistoryV871();
     await refreshStudentSettlementButtonStateV932();
   } catch (error) {

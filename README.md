@@ -193,6 +193,27 @@
 
 
 
+
+### v9.8-stable-student-settlement
+- 学生月度结算 DB 化阶段稳定版。
+- 基于 v9.8.16。
+- 稳定范围：
+  - 学生月度结算核心汇总读取 DB RPC
+  - 月初结转读取 DB 结转表
+  - 学生月度结算锁定 / 撤销
+  - 课时费通知单 Excel 导出
+  - 月度结算课时明细左右对照显示
+- 当前 DB 核心出口：
+  - `school_get_student_monthly_settlement_summary(student_id, year_month)`
+- 当前结转表：
+  - `school_student_settlement_carryovers`
+- 本阶段后续原则：
+  - 暂不再扩大修改学生月度结算模块
+  - 下一阶段开始逐个模块 DB 化
+  - 旧 JS 计算逻辑等所有核心模块 DB 化后再集中清理
+- 本版包含当前学生月度结算 DB RPC SQL 文件。
+- 本版不包含旧 SQL 文件。
+
 ### v9.8.16
 - 修正学生月度结算 DB RPC 的课时统计口径。
 - 问题说明：

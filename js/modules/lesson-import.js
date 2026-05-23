@@ -70,12 +70,7 @@ window.normalizeTeacherSettlementMonthV916 = normalizeTeacherSettlementMonthV916
   function patchCompletedImportButtonV917() {
     const btn = document.getElementById("lessonImportCompletedExcelBtnV88");
     const input = document.getElementById("lessonImportCompletedExcelInputV88");
-    if (!btn || !input) return;
-    btn.disabled = false;
-    btn.classList.remove("disabled");
-    btn.removeAttribute("title");
-    btn.removeAttribute("aria-disabled");
-    if (btn.dataset.boundMonthRequiredV917 === "true") return;
+    if (!btn || !input || btn.dataset.boundMonthRequiredV917 === "true") return;
 
     btn.dataset.boundMonthRequiredV917 = "true";
     btn.disabled = false;

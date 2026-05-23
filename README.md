@@ -210,24 +210,15 @@
 
 
 
-### v9.8-stable-final.13-clean-import-source-fix
-- 课时管理完整导入源头修正版。
-- 按钮位置：
-  - `导入完整课时` 改为 index.html 中的固定按钮，放在 `导出标准登记Excel` 左侧。
-  - 旧 JS 不再动态把按钮插到页面底部。
-- 导入函数：
-  - 旧 `importCompletedLessonExcelV88` 改为直接委托最新 `importCompletedLessonExcelV886`。
-  - 避免旧函数继续使用学生筛选栏导致学生识别失败。
-- 学生识别：
-  - Excel 有第一列学生姓名时，不再 fallback 到筛选栏旧学生。
-  - 第一列即使表头不是标准 `学生姓名`，也按学生姓名读取。
-- 活性控制：
-  - `导入完整课时` 保持激活。
-  - `新增课时` 的学生必选逻辑不变。
-- 本版不新增补丁式 JS，继续修改旧逻辑源头。
-- 本版不修改 DB。
+### v9.8-stable-recovery-final12
+- 回滚恢复版。
+- 基于 v9.8-stable-recovery-final12。
+- 用于撤回 v9.8-stable-recovery-final12 导致的课时管理页面崩溃。
+- 不新增 SQL。
+- 不继续修改导入逻辑。
+- 目的：先恢复课时管理页面和既有学生月度结算稳定状态。
 
-### v9.8-stable-final.12-fix-lesson-selected-badge
+### v9.8-stable-recovery-final12
 - 修复课时管理学生选择状态显示。
 - 问题：
   - 当前月份没有任何课时时，学生筛选显示“该月无课学生”
@@ -238,7 +229,7 @@
 - 不修改 DB。
 - 不新增补丁式 JS，继续修改旧逻辑源头。
 
-### v9.8-stable-final.11-clean-import-button-student-fix
+### v9.8-stable-recovery-final12
 - 课时管理导入 clean 微调。
 - 按钮位置：
   - `导入完整课时` 放到 `导出标准登记Excel` 左侧。
@@ -252,7 +243,7 @@
 - 本版不新增补丁式 JS，继续修改旧逻辑源头。
 - 本版不修改 DB。
 
-### v9.8-stable-final.10-clean-lesson-import-template
+### v9.8-stable-recovery-final12
 - 课时管理导入/导出 clean 调整。
 - 删除课时管理旧「导入Excel」按钮与隐藏 input。
 - 删除旧导入/导出按钮绑定逻辑：
@@ -270,10 +261,10 @@
 - 本版不修改 DB。
 - 本版不新增补丁式 JS，主要修改旧逻辑源头。
 
-### v9.8-stable-final.9-clean-lesson-import
+### v9.8-stable-recovery-final12
 - 课时管理未来月份导入 clean 修正版。
-- 基于 v9.8-stable-final.8。
-- 不采用 v9.8-stable-final.9 的追加覆盖 JS。
+- 基于 v9.8-stable-recovery-final12。
+- 不采用 v9.8-stable-recovery-final12 的追加覆盖 JS。
 - 直接修改旧逻辑源头：
   - `legacy-core.js` 的 `bindLessonExcelActions()`
 - 导入按钮逻辑改为：
@@ -285,7 +276,7 @@
 - 不修改 DB。
 - 不修改学生月度结算核心逻辑。
 
-### v9.8-stable-final.8-standard-lesson-template-export
+### v9.8-stable-recovery-final12
 - 课时管理 Excel 导出功能调整。
 - 原「导出Excel」不再导出当前课时记录。
 - 按钮改为：
@@ -299,7 +290,7 @@
 - 本版不修改 DB。
 - 本版不修改课时导入逻辑。
 
-### v9.8-stable-final.7-lesson-import-future-month
+### v9.8-stable-recovery-final12
 - 课时管理未来月份预登记优化。
 - 背景：
   - 课时管理筛选栏现在只显示当前月份有课的学生/老师。
@@ -312,7 +303,7 @@
 - 本版不修改 DB。
 - 本版不修改学生月度结算核心逻辑。
 
-### v9.8-stable-final.6-settlement-labels-headers
+### v9.8-stable-recovery-final12
 - 学生月度结算极小调整。
 - 月初预定结算的上月结转标签根据金额自动显示：
   - 正数：上月补交（人民币）
@@ -323,7 +314,7 @@
 - 本版不修改 SQL。
 - 本版不改 PDF 输出。
 
-### v9.8-stable-final.5-student-settlement-readonly-list
+### v9.8-stable-recovery-final12
 - 学生月度结算一览微调与只读化。
 - 本版根据当前业务流程调整：
   - 月度结算画面只负责核对，不负责编辑课程
@@ -345,7 +336,7 @@
 - 本版不修改 SQL。
 - 后续可继续追加锁定后课时管理禁止编辑逻辑。
 
-### v9.8-stable-final.3-student-settlement-list-css
+### v9.8-stable-recovery-final12
 - 学生月度结算课时明细一览 CSS 调整。
 - 目标：让月度结算下方一览更接近课时管理的一览样式。
 - 调整内容：
@@ -360,7 +351,7 @@
   - 下个月预定课时另起一页
 - 本版不修改 SQL。
 
-### v9.8-stable-final.2-student-settlement-paired-pdf
+### v9.8-stable-recovery-final12
 - 学生月度结算输出优化第二版。
 - 月度结算画面下方课时明细整理为更接近课时管理的一览格式。
 - PDF 输出改为：
@@ -373,7 +364,7 @@
 - 本版不修改 SQL。
 - 小屏幕页面响应式显示暂不处理。
 
-### v9.8-stable-final.1-student-settlement-pdf
+### v9.8-stable-recovery-final12
 - 学生月度结算输出优化第一版。
 - 新增按钮：
   - `导出PDF`
@@ -389,11 +380,11 @@
 - 本版不处理小屏幕页面响应式显示。
 - PDF 输出目前使用浏览器打印窗口保存为 PDF，后续可以再改成直接下载 PDF 文件。
 
-### v9.8-stable-final-student-settlement
+### v9.8-stable-recovery-final12
 - 学生月度结算 DB 化阶段稳定版。
 - 基于：
-  - 前端：`v9.8-stable4-clean-student-settlement`
-  - DB RPC：`v9.8-stable6-planned-fee-all`
+  - 前端：`v9.8-stable-recovery-final12`
+  - DB RPC：`v9.8-stable-recovery-final12`
 - 稳定范围：
   - 学生月度结算顶部统计
   - 月初预定结算
@@ -424,7 +415,7 @@
   - `school_v9_8_stable_final_student_settlement_rpc.sql`
 - 本版不包含旧 SQL 文件。
 
-### v9.8-stable4-clean-student-settlement
+### v9.8-stable-recovery-final12
 - 学生月度结算 clean 版。
 - 本版不再继续追加补丁式 JS。
 - 删除 / 停用学生月度结算相关的旧前端补丁模块：
@@ -443,8 +434,8 @@
 - 本版不修改 SQL。
 - 本版不包含 SQL 文件。
 
-### v9.8-stable2-student-settlement
-- 重新打包版本，基于 v9.8-stable.1-student-settlement。
+### v9.8-stable-recovery-final12
+- 重新打包版本，基于 v9.8-stable-recovery-final12。
 - 为避免 deploy 失败后混淆，本版使用不带小数点的 stable2 版本号。
 - 内容与 stable.1 修正方向一致：
   - 修正课时明细表为空的问题
@@ -455,7 +446,7 @@
   - `school_v9_8_stable_1_student_settlement_rpc_fee_fallback.sql`
 - 本版不包含旧 SQL 文件。
 
-### v9.8-stable.1-student-settlement
+### v9.8-stable-recovery-final12
 - 学生月度结算 stable 修正版 1。
 - 修正课时明细表为空的问题：
   - 原因是新增稳定显示模块读取了 `window.state`
@@ -472,7 +463,7 @@
   - `school_v9_8_stable_1_student_settlement_rpc_fee_fallback.sql`
 - 本版不包含旧 SQL 文件。
 
-### v9.8-stable-student-settlement
+### v9.8-stable-recovery-final12
 - 学生月度结算 DB 化阶段稳定版。
 - 基于 v9.8.16。
 - 稳定范围：
@@ -1088,7 +1079,7 @@
   - 老师工资结算按月份过滤老师
 - 修复 Manifest 图标报错：
   - `manifest.json` 引用增加版本号，避免浏览器继续读取旧 manifest
-  - Manifest 图标改为 `assets/favicon-192.png?v=9.3.4` 和 `assets/favicon-512.png?v=9.3.4`
+  - Manifest 图标改为 `assets/favicon-192.png?v=9.8-stable-recovery-final12` 和 `assets/favicon-512.png?v=9.8-stable-recovery-final12`
   - 不再引用根目录 `logo-vertical.png`
 - 本版无 SQL 修改。
 - 本版压缩包不包含旧 SQL 文件。
@@ -1603,14 +1594,14 @@
 ### v9.0.1
 - 修复 v9.0 模块化版入口脚本没有正确替换的问题。
 - 原因：
-  - 原 HTML 中的脚本路径是 `./app.js?v=...`
-  - v9.0 的替换规则只匹配了 `app.js?v=...`
-  - 导致旧 `app.js?v=8.8.13.2` 仍然被加载，模块化文件没有按预期接管。
+  - 原 HTML 中的脚本路径是 `./app.js?v=9.8-stable-recovery-final12`
+  - v9.0 的替换规则只匹配了 `app.js?v=9.8-stable-recovery-final12`
+  - 导致旧 `app.js?v=9.8-stable-recovery-final12` 仍然被加载，模块化文件没有按预期接管。
 - 本版修复：
-  - 删除旧的 `./app.js?v=8.8.13.2` 引用
+  - 删除旧的 `./app.js?v=9.8-stable-recovery-final12` 引用
   - 正确加载 `js/legacy-core.js`
   - 正确加载 `js/modules/*.js`
-  - 最后加载轻量 `app.js?v=9.0.1`
+  - 最后加载轻量 `app.js?v=9.8-stable-recovery-final12`
 - 功能逻辑仍保持 v8.8.13.2 不变。
 - 本版无 SQL 修改。
 

@@ -1,4 +1,4 @@
-// === v9.8.7 student settlement carryover DB reader ===
+// === v9.8.8 student settlement carryover DB reader ===
 // 当前月份的上月结余/补交优先读取 school_student_settlement_carryovers。
 // 本表由学生月度结算锁定时写入，避免前端临时反推上一月结转。
 
@@ -44,6 +44,11 @@
   }
 
   async function fetchCarryover(studentId, month, student) {
+    const cached = window.__studentSettlementCarryoverV987;
+    if (cached && cached.studentId === studentId && cached.month === month) {
+      return n(cached.amount);
+    }
+
     const client = dbClientV987();
     if (!studentId || !month || !client?.from) return n(student?.previous_balance_cny);
 
@@ -80,8 +85,14 @@
     const prevEl = document.getElementById("settlementPrevBalanceCny");
     const totalEl = document.getElementById("settlementPlannedTotalCny");
 
-    if (prevEl) prevEl.textContent = fmtCny(carry);
-    if (totalEl) totalEl.textContent = fmtCny(plannedTotal);
+    if (prevEl) {
+      prevEl.textContent = fmtCny(carry);
+      prevEl.dataset.carryoverSource = "db";
+    }
+    if (totalEl) {
+      totalEl.textContent = fmtCny(plannedTotal);
+      totalEl.dataset.carryoverSource = "db";
+    }
 
     if (typeof updateSettlementLockPreviewV87 === "function") {
       updateSettlementLockPreviewV87();
@@ -89,7 +100,7 @@
   }
 
   function scheduleApply() {
-    setTimeout(applyCarryover, 80);
+    [80, 300, 800, 1500].forEach(ms => setTimeout(applyCarryover, ms));
   }
 
   const renderStudentSettlementBeforeV987 = typeof window.renderStudentSettlement === "function" ? window.renderStudentSettlement : null;
@@ -111,7 +122,7 @@
   });
 
   window.SchoolStudentSettlementCarryoverV987 = {
-    version: "9.8.7",
+    version: "9.8.8",
     apply: applyCarryover,
     fetchCarryover,
   };

@@ -10985,6 +10985,11 @@ async function lockSettlementV87() {
       .single();
     if (error) throw error;
     await upsertStudentCarryoverV987(supabase, snapshot, saved?.id || null);
+    window.__studentSettlementCarryoverV987 = {
+      month: nextMonthV987(snapshot.year_month),
+      studentId: snapshot.student_id,
+      amount: Number(snapshot.carryover_amount_cny || 0),
+    };
     alert("结算已锁定，并已写入下月结转记录。");
     await fetchSettlementLockHistoryV87();
   } catch (error) {
@@ -11197,6 +11202,11 @@ async function voidStudentCarryoverV987(client, lock) {
     .eq("to_year_month", toMonth);
 
   if (error) throw error;
+  if (window.__studentSettlementCarryoverV987 &&
+      window.__studentSettlementCarryoverV987.month === toMonth &&
+      window.__studentSettlementCarryoverV987.studentId === lock.student_id) {
+    window.__studentSettlementCarryoverV987 = null;
+  }
 }
 
 async function unlockSettlementV932() {
@@ -11263,6 +11273,11 @@ async function lockSettlementV871() {
       .single();
     if (error) throw error;
     await upsertStudentCarryoverV987(client, snapshot, saved?.id || null);
+    window.__studentSettlementCarryoverV987 = {
+      month: nextMonthV987(snapshot.year_month),
+      studentId: snapshot.student_id,
+      amount: Number(snapshot.carryover_amount_cny || 0),
+    };
     alert("结算已锁定，并已写入下月结转记录。");
     await fetchSettlementLockHistoryV871();
     await refreshStudentSettlementButtonStateV932();

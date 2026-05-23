@@ -1,4 +1,4 @@
-// === v9.8-stable-final.1-student-settlement-pdf ===
+// === v9.8-stable-final.2-student-settlement-paired-pdf ===
 // 学生月度结算清理版：只保留一个渲染入口。
 // 核心统计和金额读取 DB RPC；JS 只负责读取、显示、课时明细排版和锁定触发。
 
@@ -275,20 +275,42 @@
     `;
 
     return `
-      <td>${checkbox}</td>
-      <td>${escText(lessonDate(row))}<br><span class="muted-small">${escText(row.lesson_date || "")}</span></td>
+      <td class="select-col">${checkbox}</td>
+      <td class="date-col">${escText(lessonDate(row))}</td>
       <td>${escText(lessonStudentName(row))}</td>
       <td>${escText(lessonTeacherName(row))}</td>
-      <td><strong>${escText(lessonSubjectName(row))}</strong><br><span class="muted-small">${escText(timeText(row))} / ${hours(row.duration_hours)}H<br>${jpy(lessonFee(row))}</span></td>
+      <td>
+        <strong>${escText(lessonSubjectName(row))}</strong><br>
+        <span class="muted-small">${escText(timeText(row))} / ${hours(row.duration_hours)}H / ${jpy(lessonFee(row))}</span>
+      </td>
       <td>${statusHtml(row)}</td>
-      <td>${escText((row.lesson_content || row.note || "").slice(0, 36))}</td>
+      <td><div class="lesson-content-cell">${escText((row.lesson_content || row.note || "").slice(0, 42))}</div></td>
       <td>${actions}</td>
+    `;
+  }
+
+  function ensureSettlementTableHead() {
+    const table = document.getElementById("settlementLessonsTable")?.closest("table");
+    const thead = table?.querySelector("thead");
+    if (!thead || thead.dataset.cleanPairedHead === "true") return;
+    thead.dataset.cleanPairedHead = "true";
+    thead.innerHTML = `
+      <tr>
+        <th colspan="8" class="lesson-pair-head">预定课时</th>
+        <th colspan="8" class="lesson-pair-head actual">实际课时</th>
+      </tr>
+      <tr class="lesson-sub-head">
+        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目 / 时间 / 金额</th><th>状态</th><th>内容</th><th>操作</th>
+        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目 / 时间 / 金额</th><th>状态</th><th>内容</th><th>操作</th>
+      </tr>
     `;
   }
 
   function renderLessonDetails() {
     const tbody = document.getElementById("settlementLessonsTable");
     if (!tbody) return;
+
+    ensureSettlementTableHead();
 
     const studentId = selectedStudentId();
     const month = selectedMonth();
@@ -315,16 +337,17 @@
     plannedRows.forEach(plan => {
       const actuals = actualByPlan.get(plan.id) || [];
       if (!actuals.length) {
-        html.push(`<tr>${sideCells(plan, "planned")}${sideCells(null, "actual")}</tr>`);
+        html.push(`<tr class="lesson-pair-row">${sideCells(plan, "planned")}${sideCells(null, "actual")}</tr>`);
       } else {
         actuals.forEach((actual, idx) => {
-          html.push(`<tr>${idx === 0 ? sideCells(plan, "planned") : `<td colspan="8" class="empty-row">同一预定课时</td>`}${sideCells(actual, "actual")}</tr>`);
+          const left = idx === 0 ? sideCells(plan, "planned") : `<td colspan="8" class="empty-row">同一预定课时</td>`;
+          html.push(`<tr class="lesson-pair-row">${left}${sideCells(actual, "actual")}</tr>`);
         });
       }
     });
 
     unlinkedActual.forEach(actual => {
-      html.push(`<tr>${sideCells(null, "planned")}${sideCells(actual, "actual")}</tr>`);
+      html.push(`<tr class="lesson-pair-row">${sideCells(null, "planned")}${sideCells(actual, "actual")}</tr>`);
     });
 
     tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="16" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
@@ -410,7 +433,7 @@
   }
 
   window.SchoolStudentSettlementClean = {
-    version: "v9.8-stable-final.1-student-settlement-pdf",
+    version: "v9.8-stable-final.2-student-settlement-paired-pdf",
     render: renderCleanStudentSettlement,
     fetchSummary: fetchDbSummary,
   };

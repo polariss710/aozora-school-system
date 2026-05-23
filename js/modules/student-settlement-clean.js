@@ -1,4 +1,4 @@
-// === v9.8-stable-final.5-student-settlement-readonly-list ===
+// === v9.8-stable-final.6-settlement-labels-headers ===
 // 学生月度结算清理版：只保留一个渲染入口。
 // 核心统计和金额读取 DB RPC；JS 只负责读取、显示、课时明细排版和锁定触发。
 
@@ -250,6 +250,12 @@
     setText("settlementActualJpy", jpy(summary.actualFeeJpy));
 
     setText("settlementPrevBalanceCny", cny(summary.carryoverCny));
+    const prevLabel = document.querySelector("#settlementPrevBalanceCny")?.closest("tr")?.querySelector("th");
+    if (prevLabel) {
+      if (summary.carryoverCny > 0) prevLabel.textContent = "上月补交（人民币）";
+      else if (summary.carryoverCny < 0) prevLabel.textContent = "上月结余（人民币）";
+      else prevLabel.textContent = "上月结余/补交（人民币）";
+    }
     setText("settlementExchangeRate", money(summary.rate));
     setText("settlementPlannedJpy2", jpy(summary.plannedFeeJpy));
     setText("settlementPlannedCny", cny(summary.plannedFeeCny));
@@ -375,6 +381,12 @@
 
     if (rows.length) {
       html.push(`<tr class="month-group-row settlement-month-title"><td colspan="14">${escText(settlementMonthLabel(month))}</td></tr>`);
+      html.push(`
+        <tr class="settlement-inline-head">
+          <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>上课内容</th><th>备注</th>
+          <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>上课内容</th><th>备注</th>
+        </tr>
+      `);
     }
 
     plannedRows.forEach(plan => {
@@ -473,7 +485,7 @@
   }
 
   window.SchoolStudentSettlementClean = {
-    version: "v9.8-stable-final.5-student-settlement-readonly-list",
+    version: "v9.8-stable-final.6-settlement-labels-headers",
     render: renderCleanStudentSettlement,
     fetchSummary: fetchDbSummary,
   };

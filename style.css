@@ -2781,3 +2781,21 @@ button:disabled {
 .settlement-lessons-readonly-table th:nth-child(14),
 .settlement-lessons-readonly-table td:nth-child(7),
 .settlement-lessons-readonly-table td:nth-child(14) { width: 100px; }
+
+
+/* v9.8-stable-final.6 月度结算一览月份下标题栏 */
+.settlement-lessons-readonly-table .settlement-inline-head th,
+.settlement-lessons-table .settlement-inline-head th {
+  padding: 4px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  background: #f8fbff;
+  color: #475569;
+  border: 1px solid #dbeafe;
+}
+
+.settlement-lessons-readonly-table .settlement-month-title td,
+.settlement-lessons-table .settlement-month-title td {
+  border-bottom: 0;
+}

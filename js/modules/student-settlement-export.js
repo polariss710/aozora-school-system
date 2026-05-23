@@ -1,4 +1,4 @@
-// === v9.8-stable-final.5-student-settlement-readonly-list student tuition notice Excel export ===
+// === v9.8-stable-final.6-settlement-labels-headers student tuition notice Excel export ===
 (function () {
   const COLORS = { green: "92D050", title: "EAF4FF", border: "000000" };
 
@@ -146,5 +146,5 @@
   const switchPageBeforeV983=typeof switchPage==="function"?switchPage:null; if(switchPageBeforeV983){ window.switchPage=function(page){ switchPageBeforeV983(page); if(page==="student-settlement") setTimeout(bindExportButton,0); }; }
   const renderAllBeforeV983=typeof renderAll==="function"?renderAll:null; if(renderAllBeforeV983){ window.renderAll=function(){ renderAllBeforeV983(); if(document.getElementById("page-student-settlement")?.classList.contains("active")) setTimeout(bindExportButton,0); }; }
   document.addEventListener("DOMContentLoaded",()=>setTimeout(bindExportButton,1000));
-  window.SchoolStudentSettlementExportV987={version: "9.8-stable-final.5-student-settlement-readonly-list",exportExcel};
+  window.SchoolStudentSettlementExportV987={version: "9.8-stable-final.6-settlement-labels-headers",exportExcel};
 })();

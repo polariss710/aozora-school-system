@@ -12154,16 +12154,8 @@ function ensureCompletedImportButtonV88() {
   if (btn.dataset.boundCompletedImportV9814 === "true") return;
   btn.dataset.boundCompletedImportV9814 = "true";
   btn.onclick = () => { input.click(); };
-  input.onchange = async e => { const f = e.target.files?.[0]; if (f) await importCompletedLessonExcelV88(f); e.target.value = ""; };
+  input.onchange = async e => { const f = e.target.files?.[0]; if (f) await importCompletedLessonExcelV8810(f); e.target.value = ""; };
 }
-async function importCompletedLessonExcelV88(file) {
-  return importCompletedLessonExcelV8810(file);
-}
-async function importCompletedLessonExcelV884(file) {
-  return importCompletedLessonExcelV8810(file);
-}
-
-importCompletedLessonExcelV88 = importCompletedLessonExcelV884;
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
@@ -12299,13 +12291,6 @@ if (headerMapBeforeV885) {
 // - 待补课 never creates actual row
 // - actual year_month follows planned year_month
 // - count / normal note / salary note saved into note
-async function importCompletedLessonExcelV885(file) {
-  return importCompletedLessonExcelV8810(file);
-}
-
-importCompletedLessonExcelV88 = importCompletedLessonExcelV885;
-importCompletedLessonExcelV884 = importCompletedLessonExcelV885;
-
 // Patch status badges text if rendered from raw values.
 function patchLessonStatusTextV885() {
   document.querySelectorAll("td, span, .badge").forEach(el => {
@@ -12419,173 +12404,6 @@ function selectedStudentFallbackV9810() {
   const id = normalizeLessonSelectedStudentFilterV9812();
   return id ? (state.students || []).find(s => s.id === id) || null : null;
 }
-
-async function importCompletedLessonExcelV886(file) {
-  if (!lessonExcelRequireXLSX()) return;
-
-  const batchId = typeof newImportBatchIdV871 === "function" ? newImportBatchIdV871() : `completed_import_${Date.now()}`;
-  const importedAt = new Date().toISOString();
-
-  const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
-  const sheetName = wb.SheetNames[0];
-  const sheet = wb.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
-
-  const hi = findHeader88(rows);
-  if (hi < 0) {
-    showMessage("没有找到完整课时模板表头。请确认包含学生姓名、科目、日期、回数、时长、单价等列。", "error");
-    return;
-  }
-
-  const col = headerMap88(rows[hi]);
-  const records = [];
-  let curStudentText = "";
-  let curT = "";
-  let curS = "";
-  let skipped = 0;
-  let actualSkipped = 0;
-  const missingStudents = new Set();
-  const importedStudents = new Map();
-  const baseYear = Number(document.getElementById("lessonMonthFilter")?.value?.slice(0, 4) || new Date().getFullYear());
-
-  for (let r = hi + 1; r < rows.length; r++) {
-    const row = rows[r] || [];
-    const line = row.map(x => String(x || "").trim()).join("");
-    if (!line || /合计|总计|總計|小计|小計/.test(line)) continue;
-
-    const studentCell = String((col.student !== undefined ? row[col.student] : row[0]) || "").trim();
-    const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
-    const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
-    if (studentCell) curStudentText = studentCell;
-    if (teacherCell) curT = teacherCell;
-    if (subjectCell) curS = subjectCell;
-
-    const student = studentFromExcelNameV9810(curStudentText);
-    if (!student) {
-      if (curStudentText) missingStudents.add(curStudentText);
-      skipped++;
-      continue;
-    }
-
-    const plannedDate = dt88(col.plannedDate !== undefined ? row[col.plannedDate] : row[col.actualDate], baseYear);
-    const rawActualDate = col.actualDate !== undefined ? row[col.actualDate] : "";
-    const actualDate = dt88(rawActualDate, baseYear);
-
-    const duration = num88(col.duration !== undefined ? row[col.duration] : "");
-    const actualDuration = num88(col.actualDuration !== undefined ? row[col.actualDuration] : (col.duration !== undefined ? row[col.duration] : ""));
-
-    const subjectId = subjectIdFromExcelName(curS) || document.getElementById("lessonSubjectFilter")?.value || "";
-    const teacherId = teacherIdFromExcelName(curT) || document.getElementById("lessonTeacherFilter")?.value || "";
-
-    if (!plannedDate || !duration || !subjectId || !teacherId) {
-      skipped++;
-      continue;
-    }
-
-    const tr = timeRange88(col.timeRange !== undefined ? row[col.timeRange] : "");
-    const start = col.start !== undefined ? String(row[col.start] || "") : tr.start;
-    const end = col.end !== undefined ? String(row[col.end] || "") : tr.end;
-    const unit = num88(col.unitPrice !== undefined ? row[col.unitPrice] : "");
-    const fee = num88(col.lessonFee !== undefined ? row[col.lessonFee] : "") || (unit && duration ? unit * duration : 0);
-
-    const plannedContent = String((col.plannedContent !== undefined ? row[col.plannedContent] : row[col.content]) || "");
-    const actualContent = String((col.actualContent !== undefined ? row[col.actualContent] : row[col.content]) || "");
-    const count = normalizeLessonCountV886(col.count !== undefined ? row[col.count] : null);
-    const normalNote = String(col.note !== undefined ? row[col.note] || "" : "");
-    const salaryNote = String(col.salaryNote !== undefined ? row[col.salaryNote] || "" : "");
-    const status = normalizeLessonStatusTextV885(col.status !== undefined ? row[col.status] : "");
-
-    const plannedId = crypto.randomUUID();
-    const actualId = crypto.randomUUID();
-    const plannedYm = plannedDate.slice(0, 7);
-    const baseNote = `完整课时导入：${sheetName}`;
-    const mergedNote = buildCompletedLessonNoteV885(baseNote, "", normalNote, salaryNote);
-    const plannedStatus = status || (actualDate ? "completed" : "planned");
-    const businessEntityId = student.business_entity_id || state.businessEntities?.[0]?.id || null;
-
-    const common = {
-      student_id: student.id,
-      teacher_id: teacherId,
-      subject_id: subjectId,
-      business_entity_id: businessEntityId,
-      start_time: start || "",
-      end_time: end || "",
-      duration_hours: duration,
-      unit_price: unit || 0,
-      lesson_fee: fee || 0,
-      lesson_count: count,
-      is_billable: true,
-      note: mergedNote,
-      import_batch_id: batchId,
-      import_source: file.name || sheetName,
-      imported_at: importedAt,
-    };
-
-    records.push({
-      id: plannedId,
-      lesson_type: "planned",
-      lesson_date: plannedDate,
-      year_month: plannedYm,
-      lesson_content: plannedContent,
-      status: plannedStatus,
-      planned_lesson_id: null,
-      ...common,
-    });
-
-    if (isActualGeneratedFromStatusV885(status, actualDate)) {
-      records.push({
-        id: actualId,
-        lesson_type: "actual",
-        planned_lesson_id: plannedId,
-        lesson_date: actualDate,
-        year_month: plannedYm,
-        lesson_content: actualContent,
-        status: status || "completed",
-        duration_hours: actualDuration || duration,
-        lesson_fee: unit && (actualDuration || duration) ? unit * (actualDuration || duration) : fee,
-        ...common,
-      });
-    } else {
-      actualSkipped++;
-    }
-
-    importedStudents.set(student.id, student.display_name || student.name || "");
-  }
-
-  if (!records.length) {
-    const extra = missingStudents.size ? `\n未识别学生：${Array.from(missingStudents).join("、")}` : "";
-    showMessage(`没有读取到可导入的完整课时记录。${extra}`, "error");
-    return;
-  }
-
-  const plannedCount = records.filter(x => x.lesson_type === "planned").length;
-  const actualCount = records.filter(x => x.lesson_type === "actual").length;
-  const total = records.filter(x => x.lesson_type === "actual").reduce((s, x) => s + Number(x.lesson_fee || 0), 0);
-  const studentNames = Array.from(importedStudents.values()).filter(Boolean).join("、") || "自动识别";
-
-  const ok = confirm(`即将导入完整课时记录：\n\n学生：${studentNames}\n文件：${file.name}\n预定课时：${plannedCount} 条\n实际课时：${actualCount} 条\n实际课时费合计：${total.toLocaleString()} JPY\n跳过行数：${skipped}\n未生成实际课时：${actualSkipped} 条\n\n确认导入吗？`);
-  if (!ok) return;
-
-  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
-  const { error } = await client.from(tables.lessons).insert(records);
-  if (error) {
-    showMessage(`导入失败：${error.message}`, "error");
-    return;
-  }
-
-  if (typeof saveLastImportBatchV871 === "function") {
-    saveLastImportBatchV871({ batchId, studentId: Array.from(importedStudents.keys())[0] || "", studentName: studentNames, fileName: file.name, count: records.length, importedAt });
-  }
-
-  await loadAll();
-  renderAll();
-  showMessage(`已导入完整课时记录：预定 ${plannedCount} 条 / 实际 ${actualCount} 条。`, "ok");
-}
-
-importCompletedLessonExcelV88 = importCompletedLessonExcelV886;
-importCompletedLessonExcelV884 = importCompletedLessonExcelV886;
-importCompletedLessonExcelV885 = importCompletedLessonExcelV886;
-
 // Duplicate check includes lesson_count.
 // If both rows have count and count differs, they are not duplicates.
 function plannedDuplicateKeyV886(item) {
@@ -12947,16 +12765,6 @@ function buildCompletedImportRecordsV887(file, rows, sheetName, col, context) {
 
   return { records, skipped, actualSkipped };
 }
-
-async function importCompletedLessonExcelV887(file) {
-  return importCompletedLessonExcelV8810(file);
-}
-
-importCompletedLessonExcelV88 = importCompletedLessonExcelV887;
-importCompletedLessonExcelV884 = importCompletedLessonExcelV887;
-importCompletedLessonExcelV885 = importCompletedLessonExcelV887;
-importCompletedLessonExcelV886 = importCompletedLessonExcelV887;
-
 const renderAllBeforeV887 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV887) {
   renderAll = function () {
@@ -13542,12 +13350,6 @@ async function importCompletedLessonExcelV8810(file) {
   renderAll();
   showMessage(`已导入完整课时记录：预定 ${plannedCount} 条 / 实际 ${actualCount} 条。`, "ok");
 }
-
-importCompletedLessonExcelV88 = importCompletedLessonExcelV8810;
-importCompletedLessonExcelV884 = importCompletedLessonExcelV8810;
-importCompletedLessonExcelV885 = importCompletedLessonExcelV8810;
-importCompletedLessonExcelV886 = importCompletedLessonExcelV8810;
-importCompletedLessonExcelV887 = importCompletedLessonExcelV8810;
 
 // 3) 新增/编辑课时状态下拉增加取消课
 function patchLessonStatusSelectV8810() {

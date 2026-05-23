@@ -1,4 +1,4 @@
-// === v9.8.10 student settlement DB summary reader ===
+// === v9.8.11 student settlement DB summary reader ===
 (function () {
   function n(v) { const x = Number(v || 0); return Number.isFinite(x) ? x : 0; }
   function money(v) { const x = Number(v || 0); return Number.isFinite(x) ? Math.round(x).toLocaleString() : "0"; }
@@ -54,6 +54,7 @@
       receivedCny: n(row.received_cny),
       receivedEquivalentCny: n(row.received_equivalent_cny),
       finalDueCny: n(row.final_due_cny),
+      lockedCarryoverCny: n(row.locked_carryover_cny ?? row.final_due_cny),
     };
 
     window.__studentSettlementSummaryDbV989 = summary;
@@ -105,5 +106,5 @@
   });
   document.addEventListener("DOMContentLoaded", () => setTimeout(scheduleRefresh, 1000));
 
-  window.SchoolStudentSettlementSummaryDbV989 = { version: "9.8.10", refresh: refreshSummary, fetchSummary };
+  window.SchoolStudentSettlementSummaryDbV989 = { version: "9.8.11", refresh: refreshSummary, fetchSummary };
 })();

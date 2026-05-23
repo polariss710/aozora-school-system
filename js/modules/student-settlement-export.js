@@ -1,4 +1,4 @@
-// === v9.8.10 student tuition notice Excel export ===
+// === v9.8.11 student tuition notice Excel export ===
 (function () {
   const COLORS = { green: "92D050", title: "EAF4FF", border: "000000" };
 
@@ -125,7 +125,8 @@
       d.plannedCny = n(dbSummary.planned_fee_cny);
       d.actualJpy = n(dbSummary.actual_fee_jpy);
       d.actualCny = n(dbSummary.actual_fee_cny);
-      d.needCny = n(dbSummary.final_due_cny);
+      d.needCny = n(dbSummary.locked_carryover_cny ?? dbSummary.final_due_cny);
+      d.diffCny = n(dbSummary.locked_carryover_cny ?? dbSummary.final_due_cny);
       d.nextTotalCny = d.nextCny + d.needCny;
     } else {
       const carry = await fetchPrevCarryover(currentStudentId(), currentMonth(), d.student);
@@ -143,5 +144,5 @@
   const switchPageBeforeV983=typeof switchPage==="function"?switchPage:null; if(switchPageBeforeV983){ window.switchPage=function(page){ switchPageBeforeV983(page); if(page==="student-settlement") setTimeout(bindExportButton,0); }; }
   const renderAllBeforeV983=typeof renderAll==="function"?renderAll:null; if(renderAllBeforeV983){ window.renderAll=function(){ renderAllBeforeV983(); if(document.getElementById("page-student-settlement")?.classList.contains("active")) setTimeout(bindExportButton,0); }; }
   document.addEventListener("DOMContentLoaded",()=>setTimeout(bindExportButton,1000));
-  window.SchoolStudentSettlementExportV987={version:"9.8.10",exportExcel};
+  window.SchoolStudentSettlementExportV987={version:"9.8.11",exportExcel};
 })();

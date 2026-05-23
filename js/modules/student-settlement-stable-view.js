@@ -1,4 +1,4 @@
-// === v9.8-stable.1-student-settlement student settlement stable paired view ===
+// === v9.8-stable2-student-settlement student settlement stable paired view ===
 // 恢复学生月度结算课时明细的左右对照显示稳定性。
 // 核心统计金额仍读取 DB RPC；这里仅负责课时明细排版。
 
@@ -213,7 +213,7 @@
   });
 
   window.SchoolStudentSettlementStableViewV9814 = {
-    version: "9.8-stable.1-student-settlement",
+    version: "9.8-stable2-student-settlement",
     render: renderStableTable,
   };
 })();

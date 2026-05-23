@@ -195,6 +195,19 @@
 
 
 
+
+### v9.8-stable2-student-settlement
+- 重新打包版本，基于 v9.8-stable.1-student-settlement。
+- 为避免 deploy 失败后混淆，本版使用不带小数点的 stable2 版本号。
+- 内容与 stable.1 修正方向一致：
+  - 修正课时明细表为空的问题
+  - 课时明细稳定读取全局 state
+  - 课时费 RPC 金额优先使用 lesson_fee，缺失时再使用 unit_price × duration_hours
+  - 学生月度结算核心统计继续读取 DB RPC
+- 本版包含当前 SQL：
+  - `school_v9_8_stable_1_student_settlement_rpc_fee_fallback.sql`
+- 本版不包含旧 SQL 文件。
+
 ### v9.8-stable.1-student-settlement
 - 学生月度结算 stable 修正版 1。
 - 修正课时明细表为空的问题：

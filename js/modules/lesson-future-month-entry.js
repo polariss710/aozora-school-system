@@ -1,4 +1,4 @@
-// === v9.8-stable-final.7 lesson future month entry ===
+// === v9.8-stable-final.8-standard-lesson-template-export lesson future month entry ===
 // 课时管理：筛选栏继续只显示当前月份有课的学生/老师。
 // 但导入和新增入口用于录入，不能依赖当前月份已有课时。
 // 本模块只做入口优化，不修改 DB 和学生月度结算逻辑。
@@ -197,7 +197,7 @@
   document.addEventListener("DOMContentLoaded", () => setTimeout(bind, 500));
 
   window.SchoolLessonFutureMonthEntry = {
-    version: "9.8-stable-final.7",
+    version: "9.8-stable-final.8-standard-lesson-template-export",
     bind,
     ensureImportButtonsEnabled,
     patchLessonModalFullOptions,

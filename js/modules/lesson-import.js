@@ -296,14 +296,7 @@ window.normalizeTeacherSettlementMonthV916 = normalizeTeacherSettlementMonthV916
   }
 
   function applyCompletedImportMonthRequiredV917() {
-    patchCompletedImportButtonV917();
-
-    [
-      "importCompletedLessonExcelV88",
-      "importCompletedLessonExcelV884",
-      "importCompletedLessonExcelV885",
-      "importCompletedLessonExcelV886"
-    ].forEach(wrapCompletedImportFunctionV917);
+    // 旧完整课时导入包装逻辑已废弃。
   }
 
   const ensureBeforeV917 = typeof ensureCompletedImportButtonV884 === "function"

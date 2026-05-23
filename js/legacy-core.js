@@ -519,11 +519,11 @@ function renderExpensesTable() {
 
 function updateLessonFilters() {
   const monthEl = document.getElementById("lessonMonthFilter");
-if (monthEl && !monthEl.value) {
-  monthEl.value = currentYearMonth();
-}
+  if (monthEl && !monthEl.value) {
+    monthEl.value = currentYearMonth();
+  }
 
-const month = monthEl?.value || "";
+  const month = monthEl?.value || "";
   const studentEl = document.getElementById("lessonStudentFilter");
   const teacherEl = document.getElementById("lessonTeacherFilter");
   const subjectEl = document.getElementById("lessonSubjectFilter");
@@ -768,7 +768,7 @@ function switchPage(page) {
     business: ["业务归属", "管理公司与个人业务归属"],
     students: ["学生管理", "管理学生基础资料与升学信息"],
     lessons: ["课时管理", "管理学生预定课时与实际课时"],
-  "student-settlement": ["学生月度结算", "按学生和月份计算预定课时费与实际课时费"],
+    "student-settlement": ["学生月度结算", "按学生和月份计算预定课时费与实际课时费"],
     teachers: ["老师管理", "管理老师资料与工资信息"],
     subjects: ["科目管理", "管理课程科目与分类"],
     accounts: ["账户管理", "管理公司账户与垫付账户"],
@@ -1076,11 +1076,13 @@ function getFields(type) {
   if (type === "business") return [
     { name: "name", label: "名称", required: true },
     { name: "code", label: "代码", required: true },
-    { name: "entity_type", label: "类型", type: "select", default: "company", options: [
-      { value: "company", label: "公司" },
-      { value: "personal", label: "个人" },
-      { value: "other", label: "其他" },
-    ]},
+    {
+      name: "entity_type", label: "类型", type: "select", default: "company", options: [
+        { value: "company", label: "公司" },
+        { value: "personal", label: "个人" },
+        { value: "other", label: "其他" },
+      ]
+    },
     { name: "default_currency", label: "默认币种", type: "select", default: "JPY", options: currencyOptions() },
     { name: "is_company_report", label: "计入公司报表", type: "checkbox", default: false },
     { name: "is_active", label: "状态启用", type: "checkbox", default: true },
@@ -1209,15 +1211,17 @@ function getFields(type) {
   if (type === "account") return [
     { name: "name", label: "账户名称", required: true },
     { name: "account_code", label: "账户代码" },
-    { name: "account_type", label: "账户类型", type: "select", default: "bank", options: [
-      { value: "bank", label: "银行" },
-      { value: "cash", label: "现金" },
-    { value: "card", label: "信用卡" },
-      { value: "wechat", label: "微信" },
-      { value: "alipay", label: "支付宝" },
-      { value: "paypay", label: "PayPay" },
-      { value: "other", label: "其他" },
-    ]},
+    {
+      name: "account_type", label: "账户类型", type: "select", default: "bank", options: [
+        { value: "bank", label: "银行" },
+        { value: "cash", label: "现金" },
+        { value: "card", label: "信用卡" },
+        { value: "wechat", label: "微信" },
+        { value: "alipay", label: "支付宝" },
+        { value: "paypay", label: "PayPay" },
+        { value: "other", label: "其他" },
+      ]
+    },
     { name: "currency", label: "币种", type: "select", default: "JPY", options: currencyOptions() },
     { name: "business_entity_id", label: "业务归属", type: "select", options: [{ value: "", label: "未设置" }, ...businessOptions] },
     { name: "opening_balance", label: "初始余额", type: "number", default: 0 },
@@ -1824,7 +1828,7 @@ async function assertLessonEditAllowedV943(oldRecord, payload) {
 }
 
 async function saveForm(e) {
-  e = e || { preventDefault(){}, stopPropagation(){}, stopImmediatePropagation(){}, target: document.getElementById("modalForm") };
+  e = e || { preventDefault() { }, stopPropagation() { }, stopImmediatePropagation() { }, target: document.getElementById("modalForm") };
   e.preventDefault();
   const form = e.target;
   const submitButton = form?.querySelector('button[type="submit"], .primary-btn');
@@ -3363,7 +3367,7 @@ function teacherStatusBadge(status) {
 
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+    navigator.serviceWorker.register("./service-worker.js").catch(() => { });
   });
 }
 
@@ -3424,7 +3428,7 @@ function schoolV30NetTotals(incomeTotals, expenseTotals) {
   return net;
 }
 
-renderStats = function() {
+renderStats = function () {
   setText("statStudents", state.students.length);
   setText("statTeachers", state.teachers.length);
   setText("statSubjects", state.subjects.length);
@@ -3440,7 +3444,7 @@ renderStats = function() {
   setOptionalText("statNet", schoolV30FormatTotals(netTotals));
 };
 
-renderFinanceSummary = function() {
+renderFinanceSummary = function () {
   const incomeRows = filterFinanceRows(state.incomeRecords, "finance");
   const expenseRows = filterFinanceRows(state.expenseRecords, "finance");
 
@@ -3486,7 +3490,7 @@ function buildEntityFilterOptionsV47() {
     .join("");
 }
 
-updateFinanceFilters = function() {
+updateFinanceFilters = function () {
   const entityOptions = buildEntityFilterOptionsV47();
   const accountOptions = buildAccountFilterOptionsV47();
 
@@ -3507,7 +3511,7 @@ updateFinanceFilters = function() {
   });
 };
 
-filterFinanceRows = function(rows, scope) {
+filterFinanceRows = function (rows, scope) {
   let month = "";
   let entity = "";
   let account = "";
@@ -3547,7 +3551,7 @@ function bindAccountFilterListenersV47() {
 }
 
 const renderAllOriginalV47 = renderAll;
-renderAll = function() {
+renderAll = function () {
   updateFinanceFilters();
   bindAccountFilterListenersV47();
   renderAllOriginalV47();
@@ -3702,7 +3706,7 @@ function bindLessonPairButtonsV59() {
   });
 }
 
-renderLessons = function() {
+renderLessons = function () {
   const tbody = document.getElementById("lessonsTable");
   if (!tbody) return;
 
@@ -3777,7 +3781,7 @@ renderLessons = function() {
 
 
 // === v7.0 stable page switch override ===
-switchPage = function(page) {
+switchPage = function (page) {
   if (!page) return;
 
   document.querySelectorAll(".nav-btn[data-page]").forEach(btn => {
@@ -3793,7 +3797,7 @@ switchPage = function(page) {
     business: ["业务归属", "管理公司与个人业务归属"],
     students: ["学生管理", "管理学生基础资料与升学信息"],
     lessons: ["课时管理", "管理学生预定课时与实际课时"],
-  "student-settlement": ["学生月度结算", "按学生和月份计算预定课时费与实际课时费"],
+    "student-settlement": ["学生月度结算", "按学生和月份计算预定课时费与实际课时费"],
     teachers: ["老师管理", "管理老师资料与工资信息"],
     subjects: ["科目管理", "管理课程科目与分类"],
     accounts: ["账户管理", "管理公司账户与垫付账户"],
@@ -3975,7 +3979,7 @@ function teacherIdFromExcelName(name) {
     const name1 = String(t.name || "").replace(/\s+/g, "").toLowerCase();
     const name2 = String(t.display_name || "").replace(/\s+/g, "").toLowerCase();
     return (name1 && (name1.includes(text) || text.includes(name1))) ||
-           (name2 && (name2.includes(text) || text.includes(name2)));
+      (name2 && (name2.includes(text) || text.includes(name2)));
   });
 
   return matched?.id || "";
@@ -4179,7 +4183,7 @@ function resetReimbursementSelectionV74() {
 
 const renderReimbursementsBeforeV74 = typeof renderReimbursements === "function" ? renderReimbursements : null;
 if (renderReimbursementsBeforeV74) {
-  renderReimbursements = function() {
+  renderReimbursements = function () {
     renderReimbursementsBeforeV74();
     const checkAll = document.getElementById("pendingReimbursementCheckAll");
     if (checkAll) checkAll.checked = false;
@@ -4235,7 +4239,7 @@ function teacherIdFromExcelNameV76(name) {
     const name1 = normalizeLessonMatchTextV76(t.name);
     const name2 = normalizeLessonMatchTextV76(t.display_name);
     return (name1 && (name1.includes(text) || text.includes(name1))) ||
-           (name2 && (name2.includes(text) || text.includes(name2)));
+      (name2 && (name2.includes(text) || text.includes(name2)));
   });
   return matched?.id || "";
 }
@@ -4248,7 +4252,7 @@ function subjectIdFromExcelNameV76(name) {
     const sRaw = normalizeLessonMatchTextV76(s.name);
     const sAlias = normalizeLessonSubjectAliasV76(s.name);
     return (sRaw && (sRaw.includes(raw) || raw.includes(sRaw))) ||
-           (sAlias && (sAlias.includes(alias) || alias.includes(sAlias)));
+      (sAlias && (sAlias.includes(alias) || alias.includes(sAlias)));
   });
   return matched?.id || "";
 }
@@ -4382,7 +4386,7 @@ function lessonSelectCheckboxV76(item) {
 
 const lessonPairActionsBeforeV76 = typeof lessonPairActions === "function" ? lessonPairActions : null;
 if (lessonPairActionsBeforeV76) {
-  lessonPairActions = function(item) {
+  lessonPairActions = function (item) {
     if (!item) return "";
     return `${lessonSelectCheckboxV76(item)}${lessonPairActionsBeforeV76(item)}`;
   };
@@ -4434,7 +4438,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV76 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV76) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV76();
     bindLessonDeleteSelectedV76();
   };
@@ -4499,7 +4503,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // 月份升序 → 周一日期升序 → 老师 → 科目 → 开始时间
 const renderLessonsBeforeV77 = typeof renderLessons === "function" ? renderLessons : null;
 if (renderLessonsBeforeV77) {
-  renderLessons = function() {
+  renderLessons = function () {
     const tbody = document.getElementById("lessonsTable");
     if (!tbody) return;
 
@@ -4580,7 +4584,7 @@ if (renderLessonsBeforeV77) {
 
 const renderAllBeforeV77 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV77) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV77();
     bindLessonSelectAllV77();
   };
@@ -4610,7 +4614,7 @@ function compareLessonsV78(a, b) {
 // Re-render lesson list with v7.8 order while keeping the paired planned/actual view.
 const renderLessonsBeforeV78 = typeof renderLessons === "function" ? renderLessons : null;
 if (renderLessonsBeforeV78) {
-  renderLessons = function() {
+  renderLessons = function () {
     const tbody = document.getElementById("lessonsTable");
     if (!tbody) return;
 
@@ -4821,7 +4825,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV79 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV79) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV79();
     bindExpensePdfImportV79();
     bindLessonExcelActionsV79();
@@ -4859,7 +4863,7 @@ function buildLessonTeacherOrderMapV80(rows) {
 
 const lessonTeacherOrderBeforeV80 = typeof lessonTeacherOrderV77 === "function" ? lessonTeacherOrderV77 : null;
 if (lessonTeacherOrderBeforeV80) {
-  lessonTeacherOrderV77 = function(item) {
+  lessonTeacherOrderV77 = function (item) {
     const orderMap = window.lessonTeacherOrderMapV80;
     if (orderMap && item?.teacher_id && orderMap.has(item.teacher_id)) {
       const name = item?.teacher?.display_name || item?.teacher?.name || "";
@@ -4871,7 +4875,7 @@ if (lessonTeacherOrderBeforeV80) {
 
 const renderLessonsBeforeV80 = typeof renderLessons === "function" ? renderLessons : null;
 if (renderLessonsBeforeV80) {
-  renderLessons = function() {
+  renderLessons = function () {
     try {
       const rows = typeof filterLessons === "function" ? filterLessons() : (state.lessonRecords || []);
       window.lessonTeacherOrderMapV80 = buildLessonTeacherOrderMapV80(rows);
@@ -5039,7 +5043,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV80Upload = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV80Upload) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV80Upload();
     bindUploadDialogButtonsV80();
   };
@@ -5172,7 +5176,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV81 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV81) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV81();
     bindUploadDialogButtonsV81();
   };
@@ -5204,7 +5208,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV82 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV82) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV82();
     bindLessonUploadDialogFinalV82();
   };
@@ -5316,8 +5320,8 @@ function renderStudentSettlement() {
 
   if (!studentId || !student) {
     ["settlementPlannedHours", "settlementActualHours", "settlementPlannedJpy", "settlementActualJpy",
-     "settlementPrevBalanceCny", "settlementExchangeRate", "settlementPlannedJpy2", "settlementPlannedCny",
-     "settlementPlannedTotalCny", "settlementActualJpy2", "settlementActualCny", "settlementReceivedCny", "settlementReceivedJpy"].forEach(id => setOptionalText(id, "0"));
+      "settlementPrevBalanceCny", "settlementExchangeRate", "settlementPlannedJpy2", "settlementPlannedCny",
+      "settlementPlannedTotalCny", "settlementActualJpy2", "settlementActualCny", "settlementReceivedCny", "settlementReceivedJpy"].forEach(id => setOptionalText(id, "0"));
     const tbody = document.getElementById("settlementLessonsTable");
     if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="empty-row">请先选择学生</td></tr>`;
     return;
@@ -5404,7 +5408,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV83 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV83) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV83();
     bindStudentSettlementV83();
   };
@@ -5412,7 +5416,7 @@ if (renderAllBeforeV83) {
 
 const switchPageBeforeV83 = typeof switchPage === "function" ? switchPage : null;
 if (switchPageBeforeV83) {
-  switchPage = function(page) {
+  switchPage = function (page) {
     switchPageBeforeV83(page);
     if (page === "student-settlement") {
       bindStudentSettlementV83();
@@ -5519,7 +5523,7 @@ makeActualFromPlanned = makeActualFromPlannedV831;
 // Rebind buttons after render to ensure override takes effect.
 const bindLessonPairButtonsBeforeV831 = typeof bindLessonPairButtonsV59 === "function" ? bindLessonPairButtonsV59 : null;
 if (bindLessonPairButtonsBeforeV831) {
-  bindLessonPairButtonsV59 = function() {
+  bindLessonPairButtonsV59 = function () {
     document.querySelectorAll("[data-create-actual]").forEach(btn => {
       btn.onclick = () => makeActualFromPlannedV831(btn.dataset.createActual);
     });
@@ -5642,7 +5646,7 @@ bindLessonPairButtonsV59 = bindLessonPairButtonsCompactV833;
 
 const renderLessonsBeforeV833 = typeof renderLessons === "function" ? renderLessons : null;
 if (renderLessonsBeforeV833) {
-  renderLessons = function() {
+  renderLessons = function () {
     renderLessonsBeforeV833();
     bindLessonPairButtonsCompactV833();
   };
@@ -5758,8 +5762,8 @@ function renderStudentSettlementV834() {
 
   if (!studentId || !student) {
     ["settlementPlannedHours", "settlementActualHours", "settlementPlannedJpy", "settlementActualJpy",
-     "settlementPrevBalanceCny", "settlementExchangeRate", "settlementPlannedJpy2", "settlementPlannedCny",
-     "settlementPlannedTotalCny", "settlementActualJpy2", "settlementActualCny", "settlementReceivedCny", "settlementReceivedJpy"].forEach(id => setOptionalText(id, "0"));
+      "settlementPrevBalanceCny", "settlementExchangeRate", "settlementPlannedJpy2", "settlementPlannedCny",
+      "settlementPlannedTotalCny", "settlementActualJpy2", "settlementActualCny", "settlementReceivedCny", "settlementReceivedJpy"].forEach(id => setOptionalText(id, "0"));
     const tbody = document.getElementById("settlementLessonsTable");
     if (tbody) tbody.innerHTML = `<tr><td colspan="12" class="empty-row">请先选择学生</td></tr>`;
     return;
@@ -5836,7 +5840,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV834 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV834) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV834();
     bindStudentSettlementV834();
   };
@@ -5844,7 +5848,7 @@ if (renderAllBeforeV834) {
 
 const switchPageBeforeV834 = typeof switchPage === "function" ? switchPage : null;
 if (switchPageBeforeV834) {
-  switchPage = function(page) {
+  switchPage = function (page) {
     switchPageBeforeV834(page);
     if (page === "student-settlement") {
       bindStudentSettlementV834();
@@ -5864,7 +5868,7 @@ function normalizeExchangeRateInputV835() {
 
 const buildFormBeforeV835 = typeof buildForm === "function" ? buildForm : null;
 if (buildFormBeforeV835) {
-  buildForm = function(type, data = {}) {
+  buildForm = function (type, data = {}) {
     buildFormBeforeV835(type, data);
     if (type === "student") normalizeExchangeRateInputV835();
   };
@@ -6072,7 +6076,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV835 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV835) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV835();
     renderLessonsFinalV835();
     normalizeExchangeRateInputV835();
@@ -6094,7 +6098,7 @@ function normalizeExchangeRateInputV836() {
 
 const buildFormBeforeV836 = typeof buildForm === "function" ? buildForm : null;
 if (buildFormBeforeV836) {
-  buildForm = function(type, data = {}) {
+  buildForm = function (type, data = {}) {
     buildFormBeforeV836(type, data);
     if (type === "student") normalizeExchangeRateInputV836();
   };
@@ -6302,7 +6306,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV836 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV836) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV836();
     renderLessonsFinalV836();
     normalizeExchangeRateInputV836();
@@ -6494,7 +6498,7 @@ function normalizeExchangeRateInputV837() {
 
 const buildFormBeforeV837 = typeof buildForm === "function" ? buildForm : null;
 if (buildFormBeforeV837) {
-  buildForm = function(type, data = {}) {
+  buildForm = function (type, data = {}) {
     buildFormBeforeV837(type, data);
     if (type === "student") normalizeExchangeRateInputV837();
   };
@@ -6509,7 +6513,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV837 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV837) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV837();
     renderLessonsV837();
     normalizeExchangeRateInputV837();
@@ -6531,7 +6535,7 @@ function cleanupSettlementSummaryV838() {
 
 const renderStudentSettlementBeforeV838 = typeof renderStudentSettlement === "function" ? renderStudentSettlement : null;
 if (renderStudentSettlementBeforeV838) {
-  renderStudentSettlement = function() {
+  renderStudentSettlement = function () {
     renderStudentSettlementBeforeV838();
     cleanupSettlementSummaryV838();
   };
@@ -6539,7 +6543,7 @@ if (renderStudentSettlementBeforeV838) {
 
 const renderAllBeforeV838 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV838) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV838();
     cleanupSettlementSummaryV838();
   };
@@ -6547,7 +6551,7 @@ if (renderAllBeforeV838) {
 
 const switchPageBeforeV838 = typeof switchPage === "function" ? switchPage : null;
 if (switchPageBeforeV838) {
-  switchPage = function(page) {
+  switchPage = function (page) {
     switchPageBeforeV838(page);
     if (page === "student-settlement") {
       setTimeout(cleanupSettlementSummaryV838, 0);
@@ -6749,7 +6753,7 @@ function normalizeExchangeRateInputV839() {
 
 const buildFormBeforeV839 = typeof buildForm === "function" ? buildForm : null;
 if (buildFormBeforeV839) {
-  buildForm = function(type, data = {}) {
+  buildForm = function (type, data = {}) {
     buildFormBeforeV839(type, data);
     if (type === "student") normalizeExchangeRateInputV839();
   };
@@ -6764,7 +6768,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV839 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV839) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV839();
     renderLessonsV839();
     normalizeExchangeRateInputV839();
@@ -7050,7 +7054,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV8310 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV8310) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV8310();
     renderLessonsV8310();
   };
@@ -7071,7 +7075,7 @@ function showSettlementReceivedJpyV8310() {
 document.addEventListener("DOMContentLoaded", () => setTimeout(showSettlementReceivedJpyV8310, 1000));
 const renderAllBeforeReceivedJpyV8310 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeReceivedJpyV8310) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeReceivedJpyV8310();
     showSettlementReceivedJpyV8310();
   };
@@ -7161,7 +7165,7 @@ function ensureSettlementReceivedJpyRowV8311() {
 // Patch settlement renderer to restore JPY row after older cleanup code runs.
 const renderStudentSettlementBeforeV8311 = typeof renderStudentSettlement === "function" ? renderStudentSettlement : null;
 if (renderStudentSettlementBeforeV8311) {
-  renderStudentSettlement = function() {
+  renderStudentSettlement = function () {
     renderStudentSettlementBeforeV8311();
     ensureSettlementReceivedJpyRowV8311();
   };
@@ -7169,7 +7173,7 @@ if (renderStudentSettlementBeforeV8311) {
 
 const renderAllBeforeV8311 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV8311) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV8311();
     ensureSettlementReceivedJpyRowV8311();
     if (typeof renderLessons === "function") renderLessons();
@@ -7178,7 +7182,7 @@ if (renderAllBeforeV8311) {
 
 const switchPageBeforeV8311 = typeof switchPage === "function" ? switchPage : null;
 if (switchPageBeforeV8311) {
-  switchPage = function(page) {
+  switchPage = function (page) {
     switchPageBeforeV8311(page);
     if (page === "student-settlement") setTimeout(ensureSettlementReceivedJpyRowV8311, 0);
     if (page === "lessons" && typeof renderLessons === "function") setTimeout(renderLessons, 0);
@@ -7247,7 +7251,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV8312 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV8312) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV8312();
     if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
@@ -7256,7 +7260,7 @@ if (renderAllBeforeV8312) {
 
 const switchPageBeforeV8312 = typeof switchPage === "function" ? switchPage : null;
 if (switchPageBeforeV8312) {
-  switchPage = function(page) {
+  switchPage = function (page) {
     switchPageBeforeV8312(page);
     if (page === "lessons" && typeof renderLessons === "function") setTimeout(renderLessons, 0);
     if (page === "student-settlement" && typeof renderStudentSettlement === "function") setTimeout(renderStudentSettlement, 0);
@@ -7349,7 +7353,7 @@ function normalizeCourseTrackInputV8314() {
 
 const buildFormBeforeV8314 = typeof buildForm === "function" ? buildForm : null;
 if (buildFormBeforeV8314) {
-  buildForm = function(type, data = {}) {
+  buildForm = function (type, data = {}) {
     buildFormBeforeV8314(type, data);
     if (type === "student") {
       normalizeCourseTrackInputV8314();
@@ -7369,7 +7373,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV8314 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV8314) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV8314();
     if (typeof renderStudentsTable === "function") renderStudentsTable();
     if (typeof renderLessons === "function") renderLessons();
@@ -7506,7 +7510,7 @@ function computeStudentSettlementV84() {
 
 const renderStudentSettlementBeforeV84 = typeof renderStudentSettlement === "function" ? renderStudentSettlement : null;
 if (renderStudentSettlementBeforeV84) {
-  renderStudentSettlement = function() {
+  renderStudentSettlement = function () {
     renderStudentSettlementBeforeV84();
     ensureSettlementDifferenceRowsV84();
 
@@ -7552,7 +7556,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV84 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV84) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV84();
     ensureSettlementDifferenceRowsV84();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
@@ -7561,7 +7565,7 @@ if (renderAllBeforeV84) {
 
 const switchPageBeforeV84 = typeof switchPage === "function" ? switchPage : null;
 if (switchPageBeforeV84) {
-  switchPage = function(page) {
+  switchPage = function (page) {
     switchPageBeforeV84(page);
     if (page === "student-settlement") {
       setTimeout(() => {
@@ -7674,7 +7678,7 @@ function computeReceivedEquivalentCnyV85(studentId, month, rate) {
 
 const computeStudentSettlementBeforeV85 = typeof computeStudentSettlementV84 === "function" ? computeStudentSettlementV84 : null;
 if (computeStudentSettlementBeforeV85) {
-  computeStudentSettlementV84 = function() {
+  computeStudentSettlementV84 = function () {
     const result = computeStudentSettlementBeforeV85();
     if (!result) return result;
 
@@ -7714,7 +7718,7 @@ function ensureSettlementEquivalentRowsV85() {
 
 const renderStudentSettlementBeforeV85 = typeof renderStudentSettlement === "function" ? renderStudentSettlement : null;
 if (renderStudentSettlementBeforeV85) {
-  renderStudentSettlement = function() {
+  renderStudentSettlement = function () {
     renderStudentSettlementBeforeV85();
     ensureSettlementEquivalentRowsV85();
 
@@ -7757,7 +7761,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV85 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV85) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV85();
     if (typeof renderIncomeTable === "function") renderIncomeTable();
     ensureSettlementEquivalentRowsV85();
@@ -7813,7 +7817,7 @@ function sanitizeLessonPayloadV851(payload) {
 }
 
 const normalizeLessonPayloadBeforeV851 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
-normalizeLessonPayload = function(payload, type) {
+normalizeLessonPayload = function (payload, type) {
   if (normalizeLessonPayloadBeforeV851) {
     payload = normalizeLessonPayloadBeforeV851(payload, type);
   }
@@ -7874,7 +7878,7 @@ function bindActualButtonsV851() {
 }
 
 const bindLessonPairButtonsBeforeV851 = typeof bindLessonPairButtonsV59 === "function" ? bindLessonPairButtonsV59 : null;
-bindLessonPairButtonsV59 = function() {
+bindLessonPairButtonsV59 = function () {
   if (bindLessonPairButtonsBeforeV851) bindLessonPairButtonsBeforeV851();
   bindActualButtonsV851();
 };
@@ -8099,7 +8103,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV852 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV852) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV852();
     if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
@@ -8291,7 +8295,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV853 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV853) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV853();
     if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
@@ -8503,7 +8507,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV854 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV854) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV854();
     if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
@@ -8678,7 +8682,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV855 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV855) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV855();
     if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
@@ -8767,7 +8771,7 @@ function attachLessonAutoCalcV856() {
 
 const buildFormBeforeV856 = typeof buildForm === "function" ? buildForm : null;
 if (buildFormBeforeV856) {
-  buildForm = function(type, data = {}) {
+  buildForm = function (type, data = {}) {
     buildFormBeforeV856(type, data);
     if (type === "lesson") {
       attachLessonAutoCalcV856();
@@ -8901,7 +8905,7 @@ function settlementLessonCellsV856(item, side) {
 // Override render rows to use new cell formatter, keeping v8.5.5 stable link logic if available.
 if (typeof renderLessonRowsV855 === "function") {
   const renderLessonRowsBeforeV856 = renderLessonRowsV855;
-  renderLessonRowsV855 = function(rows) {
+  renderLessonRowsV855 = function (rows) {
     const oldCells = lessonPairCells;
     lessonPairCells = lessonPairCellsV856;
     const html = renderLessonRowsBeforeV856(rows);
@@ -8912,7 +8916,7 @@ if (typeof renderLessonRowsV855 === "function") {
 
 if (typeof renderSettlementPairedLessonsV855 === "function") {
   const renderSettlementBeforeV856 = renderSettlementPairedLessonsV855;
-  renderSettlementPairedLessonsV855 = function(planned, actual) {
+  renderSettlementPairedLessonsV855 = function (planned, actual) {
     const oldCells = settlementLessonCellsV852;
     settlementLessonCellsV852 = settlementLessonCellsV856;
     const result = renderSettlementBeforeV856(planned, actual);
@@ -8934,7 +8938,7 @@ bindLessonPairButtonsV59 = bindLessonButtonsV856;
 
 const renderLessonsBeforeV856 = typeof renderLessons === "function" ? renderLessons : null;
 if (renderLessonsBeforeV856) {
-  renderLessons = function() {
+  renderLessons = function () {
     renderLessonsBeforeV856();
     bindLessonButtonsV856();
   };
@@ -8950,7 +8954,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV856 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV856) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV856();
     bindLessonButtonsV856();
   };
@@ -9004,7 +9008,7 @@ function dateCellDisplayV857(item) {
 // Store planned lesson dates as the Monday of that week.
 // This prevents later rendering/sorting from falling back to a mid-week date.
 const normalizeLessonPayloadBeforeV857 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
-normalizeLessonPayload = function(payload, type) {
+normalizeLessonPayload = function (payload, type) {
   if (normalizeLessonPayloadBeforeV857) payload = normalizeLessonPayloadBeforeV857(payload, type);
   if (type === "lesson" && payload?.lesson_type === "planned" && payload.lesson_date) {
     const monday = mondayOfDateV857(payload.lesson_date);
@@ -9217,7 +9221,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV857 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV857) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV857();
     if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
@@ -9272,7 +9276,7 @@ function dateCellDisplayV858(item) {
 // v8.5.7 changed planned lesson_date to Monday on save.
 // Override it: week label is display-only; the actual selected class date must stay in lesson_date.
 const normalizeLessonPayloadBeforeV858 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
-normalizeLessonPayload = function(payload, type) {
+normalizeLessonPayload = function (payload, type) {
   const originalLessonDate = payload?.lesson_date;
   if (normalizeLessonPayloadBeforeV858) payload = normalizeLessonPayloadBeforeV858(payload, type);
 
@@ -9492,7 +9496,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV858 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV858) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV858();
     if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
@@ -9891,7 +9895,7 @@ if (typeof renderSettlementPairedLessonsV858 === "function") renderSettlementPai
 
 const buildFormBeforeV86 = typeof buildForm === "function" ? buildForm : null;
 if (buildFormBeforeV86) {
-  buildForm = function(type, data = {}) {
+  buildForm = function (type, data = {}) {
     buildFormBeforeV86(type, data);
     if (type === "lesson") attachLessonAutoCalcV86();
   };
@@ -9906,7 +9910,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV86 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV86) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV86();
     if (typeof renderLessons === "function") renderLessons();
   };
@@ -10044,7 +10048,7 @@ function renderBusinessSplitStatsV861() {
 
 const renderStatsBeforeV861 = typeof renderStats === "function" ? renderStats : null;
 if (renderStatsBeforeV861) {
-  renderStats = function() {
+  renderStats = function () {
     renderStatsBeforeV861();
     renderBusinessSplitStatsV861();
   };
@@ -10052,7 +10056,7 @@ if (renderStatsBeforeV861) {
 
 const renderAllBeforeV861 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV861) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV861();
     renderBusinessSplitStatsV861();
   };
@@ -10291,7 +10295,7 @@ function renderSplitFinanceSummaryV862() {
 
 const renderStatsBeforeV862 = typeof renderStats === "function" ? renderStats : null;
 if (renderStatsBeforeV862) {
-  renderStats = function() {
+  renderStats = function () {
     renderStatsBeforeV862();
     renderSplitFinanceSummaryV862();
   };
@@ -10299,7 +10303,7 @@ if (renderStatsBeforeV862) {
 
 const renderAllBeforeV862 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV862) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV862();
     renderSplitFinanceSummaryV862();
   };
@@ -10531,7 +10535,7 @@ function renderSplitFinanceSummaryV863() {
 
 const renderStatsBeforeV863 = typeof renderStats === "function" ? renderStats : null;
 if (renderStatsBeforeV863) {
-  renderStats = function() {
+  renderStats = function () {
     renderStatsBeforeV863();
     renderSplitFinanceSummaryV863();
   };
@@ -10539,7 +10543,7 @@ if (renderStatsBeforeV863) {
 
 const renderAllBeforeV863 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV863) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV863();
     renderSplitFinanceSummaryV863();
   };
@@ -10620,7 +10624,7 @@ function sanitizeReimbursementPayloadV864(payload) {
 
 const normalizePayloadBeforeV864 = typeof normalizePayload === "function" ? normalizePayload : null;
 if (normalizePayloadBeforeV864) {
-  normalizePayload = function(payload, type) {
+  normalizePayload = function (payload, type) {
     payload = normalizePayloadBeforeV864(payload, type);
     if (type === "expense") return sanitizeExpensePayloadV864(payload);
     if (type === "reimbursement") return sanitizeReimbursementPayloadV864(payload);
@@ -10629,7 +10633,7 @@ if (normalizePayloadBeforeV864) {
 }
 
 const normalizeExpensePayloadBeforeV864 = typeof normalizeExpensePayload === "function" ? normalizeExpensePayload : null;
-normalizeExpensePayload = function(payload, type) {
+normalizeExpensePayload = function (payload, type) {
   if (normalizeExpensePayloadBeforeV864) payload = normalizeExpensePayloadBeforeV864(payload, type);
   return type === "expense" ? sanitizeExpensePayloadV864(payload) : payload;
 };
@@ -10649,7 +10653,7 @@ function removeIncomeOnlyFieldsFromNonIncomeFormsV864() {
 
 const buildFormBeforeV864 = typeof buildForm === "function" ? buildForm : null;
 if (buildFormBeforeV864) {
-  buildForm = function(type, data = {}) {
+  buildForm = function (type, data = {}) {
     buildFormBeforeV864(type, data);
     if (["expense", "reimbursement"].includes(type)) removeIncomeOnlyFieldsFromNonIncomeFormsV864();
   };
@@ -10879,7 +10883,7 @@ function bindSettlementLockPanelV87() {
 }
 const renderStudentSettlementBeforeV87 = typeof renderStudentSettlement === "function" ? renderStudentSettlement : null;
 if (renderStudentSettlementBeforeV87) {
-  renderStudentSettlement = function() {
+  renderStudentSettlement = function () {
     renderStudentSettlementBeforeV87();
     ensureSettlementPanelV87();
     updateSettlementLockPreviewV87();
@@ -10905,7 +10909,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 const renderAllBeforeV87 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV87) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV87();
     ensureSettlementPanelV87();
     if (document.getElementById("page-student-settlement")?.classList.contains("active")) {
@@ -11075,8 +11079,8 @@ async function voidStudentCarryoverV987(client, lock) {
 
   if (error) throw error;
   if (window.__studentSettlementCarryoverV987 &&
-      window.__studentSettlementCarryoverV987.month === toMonth &&
-      window.__studentSettlementCarryoverV987.studentId === lock.student_id) {
+    window.__studentSettlementCarryoverV987.month === toMonth &&
+    window.__studentSettlementCarryoverV987.studentId === lock.student_id) {
     window.__studentSettlementCarryoverV987 = null;
   }
 }
@@ -11173,7 +11177,7 @@ function consumePendingActualPlanV871() {
 }
 
 const normalizeLessonPayloadBeforeV871 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
-normalizeLessonPayload = function(payload, type) {
+normalizeLessonPayload = function (payload, type) {
   if (normalizeLessonPayloadBeforeV871) payload = normalizeLessonPayloadBeforeV871(payload, type);
 
   if (type === "lesson" && payload?.lesson_type === "actual") {
@@ -11236,7 +11240,7 @@ makeActualFromPlanned = makeActualFromPlannedV871;
 // Add import fields into lesson whitelist if previous code has whitelist sanitizer.
 const normalizePayloadBeforeImportBatchV871 = typeof normalizePayload === "function" ? normalizePayload : null;
 if (normalizePayloadBeforeImportBatchV871) {
-  normalizePayload = function(payload, type) {
+  normalizePayload = function (payload, type) {
     payload = normalizePayloadBeforeImportBatchV871(payload, type);
     return payload;
   };
@@ -11493,7 +11497,7 @@ bindLessonPairButtonsV59 = bindLessonButtonsV871;
 
 const renderLessonsBeforeV871 = typeof renderLessons === "function" ? renderLessons : null;
 if (renderLessonsBeforeV871) {
-  renderLessons = function() {
+  renderLessons = function () {
     renderLessonsBeforeV871();
     bindLessonButtonsV871();
     bindLessonExcelActionsV871();
@@ -11510,7 +11514,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV871 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV871) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV871();
     bindLessonButtonsV871();
     bindLessonExcelActionsV871();
@@ -11628,7 +11632,7 @@ document.addEventListener("submit", (e) => {
 }, true);
 
 const normalizeLessonPayloadBeforeV872 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
-normalizeLessonPayload = function(payload, type) {
+normalizeLessonPayload = function (payload, type) {
   if (normalizeLessonPayloadBeforeV872) payload = normalizeLessonPayloadBeforeV872(payload, type);
 
   if (type === "lesson" && payload?.lesson_type === "actual" && !state.editing?.id) {
@@ -11644,7 +11648,7 @@ normalizeLessonPayload = function(payload, type) {
 };
 
 const repairLessonPlannedLinkAfterSaveBeforeV872 = typeof repairLessonPlannedLinkAfterSave === "function" ? repairLessonPlannedLinkAfterSave : null;
-repairLessonPlannedLinkAfterSave = async function(type, payload, saved) {
+repairLessonPlannedLinkAfterSave = async function (type, payload, saved) {
   if (repairLessonPlannedLinkAfterSaveBeforeV872) {
     await repairLessonPlannedLinkAfterSaveBeforeV872(type, payload, saved);
   }
@@ -11807,7 +11811,7 @@ bindLessonPairButtonsV59 = bindLessonButtonsStrictV872;
 
 const closeModalBeforeV872 = typeof closeModal === "function" ? closeModal : null;
 if (closeModalBeforeV872) {
-  closeModal = function() {
+  closeModal = function () {
     closeModalBeforeV872();
     setTimeout(clearPendingActualPlanV872, 1500);
   };
@@ -11822,7 +11826,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV872 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV872) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV872();
     renderLessonsStrictV872();
   };
@@ -11996,7 +12000,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV873 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV873) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV873();
     renderLessonsStrictV873();
   };
@@ -12013,7 +12017,7 @@ function settlementRlsHelpV874(message) {
 
 const lockSettlementBeforeV874 = typeof lockSettlementV87 === "function" ? lockSettlementV87 : null;
 if (lockSettlementBeforeV874) {
-  lockSettlementV87 = async function() {
+  lockSettlementV87 = async function () {
     try {
       await lockSettlementBeforeV874();
     } catch (error) {
@@ -12057,7 +12061,7 @@ function normalizeSettlementAdjustmentInputV876() {
 
 const updateSettlementLockPreviewBeforeV876 = typeof updateSettlementLockPreviewV87 === "function" ? updateSettlementLockPreviewV87 : null;
 if (updateSettlementLockPreviewBeforeV876) {
-  updateSettlementLockPreviewV87 = function() {
+  updateSettlementLockPreviewV87 = function () {
     normalizeSettlementAdjustmentInputV876();
     updateSettlementLockPreviewBeforeV876();
     const input = document.getElementById("settlementAdjustmentAmountV87");
@@ -12080,7 +12084,7 @@ function bindSettlementAdjustmentInputV876() {
 
 const ensureSettlementPanelBeforeV876 = typeof ensureSettlementPanelV87 === "function" ? ensureSettlementPanelV87 : null;
 if (ensureSettlementPanelBeforeV876) {
-  ensureSettlementPanelV87 = function() {
+  ensureSettlementPanelV87 = function () {
     ensureSettlementPanelBeforeV876();
     bindSettlementAdjustmentInputV876();
   };
@@ -12095,7 +12099,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV876 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV876) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV876();
     bindSettlementAdjustmentInputV876();
   };
@@ -12103,189 +12107,60 @@ if (renderAllBeforeV876) {
 
 
 // === v8.8 completed lesson import + reimbursed expense label ===
-function tx88(v){return String(v||"").trim().replace(/\s+/g,"");}
-function num88(v){if(typeof v==="number")return v; const n=Number(String(v||"").replace(/[,，円￥¥]/g,"").trim()); return Number.isFinite(n)?n:0;}
-function dt88(v,baseYear){
-  if(!v&&v!==0)return "";
-  if(v instanceof Date&&!Number.isNaN(v.getTime()))return formatDateYmd(v);
-  if(typeof v==="number"){const d=new Date(Math.round((v-25569)*86400*1000)); if(!Number.isNaN(d.getTime()))return formatDateYmd(d);}
-  let s=String(v).trim().replace(/周|週|星期|礼拜/g,"").replace(/[年月]/g,"-").replace(/日/g,"").replace(/\//g,"-");
-  if(/^\d{4}-\d{1,2}-\d{1,2}$/.test(s)){const [y,m,d]=s.split("-").map(Number); return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;}
-  if(/^\d{1,2}[-.]\d{1,2}$/.test(s)){const [m,d]=s.replace(".","-").split("-").map(Number); const y=Number(baseYear||new Date().getFullYear()); return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;}
+function tx88(v) { return String(v || "").trim().replace(/\s+/g, ""); }
+function num88(v) { if (typeof v === "number") return v; const n = Number(String(v || "").replace(/[,，円￥¥]/g, "").trim()); return Number.isFinite(n) ? n : 0; }
+function dt88(v, baseYear) {
+  if (!v && v !== 0) return "";
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return formatDateYmd(v);
+  if (typeof v === "number") { const d = new Date(Math.round((v - 25569) * 86400 * 1000)); if (!Number.isNaN(d.getTime())) return formatDateYmd(d); }
+  let s = String(v).trim().replace(/周|週|星期|礼拜/g, "").replace(/[年月]/g, "-").replace(/日/g, "").replace(/\//g, "-");
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(s)) { const [y, m, d] = s.split("-").map(Number); return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`; }
+  if (/^\d{1,2}[-.]\d{1,2}$/.test(s)) { const [m, d] = s.replace(".", "-").split("-").map(Number); const y = Number(baseYear || new Date().getFullYear()); return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`; }
   return "";
 }
-function timeRange88(v){const m=String(v||"").match(/(\d{1,2}:\d{2})\s*[-~〜～]\s*(\d{1,2}:\d{2})/); return m?{start:m[1],end:m[2]}:{start:"",end:""};}
-function headerMap88(h){
-  const m={};
-  (h||[]).forEach((c,i)=>{const k=tx88(c); if(!k)return;
-    if((/学生|学生姓名|生徒/.test(k) || (i===0 && /姓名/.test(k))) && m.student===undefined)m.student=i;
-    if(/担当|老师|教師|先生/.test(k)&&m.teacher===undefined)m.teacher=i;
-    if(/科目|课程|講座/.test(k)&&m.subject===undefined)m.subject=i;
-    if((/预定.*日期|予定.*日|^日期$|^周$|^週$/.test(k))&&m.plannedDate===undefined)m.plannedDate=i;
-    if(/实际.*日期|実際.*日|实际上课日期|上课日/.test(k)&&m.actualDate===undefined)m.actualDate=i;
-    if(/时间帯|时间段|時間帯|时段/.test(k)&&m.timeRange===undefined)m.timeRange=i;
-    if(/开始|開始/.test(k)&&m.start===undefined)m.start=i;
-    if(/结束|終了/.test(k)&&m.end===undefined)m.end=i;
-    if(/时长|時間数|课时|授業時間/.test(k)&&m.duration===undefined)m.duration=i;
-    if(/单价|単価/.test(k)&&m.unitPrice===undefined)m.unitPrice=i;
-    if(/应收|课时费|授業料|金額|金额/.test(k)&&m.lessonFee===undefined)m.lessonFee=i;
-    if(/内容|授業内容/.test(k)){ if(/预定|予定/.test(k)&&m.plannedContent===undefined)m.plannedContent=i; else if(/实际|実際/.test(k)&&m.actualContent===undefined)m.actualContent=i; else if(m.content===undefined)m.content=i;}
-    if(/状态|ステータス/.test(k)&&m.status===undefined)m.status=i;
-    if(/备注|備考|メモ/.test(k)&&m.note===undefined)m.note=i;
+function timeRange88(v) { const m = String(v || "").match(/(\d{1,2}:\d{2})\s*[-~〜～]\s*(\d{1,2}:\d{2})/); return m ? { start: m[1], end: m[2] } : { start: "", end: "" }; }
+function headerMap88(h) {
+  const m = {};
+  (h || []).forEach((c, i) => {
+    const k = tx88(c); if (!k) return;
+    if ((/学生|学生姓名|生徒/.test(k) || (i === 0 && /姓名/.test(k))) && m.student === undefined) m.student = i;
+    if (/担当|老师|教師|先生/.test(k) && m.teacher === undefined) m.teacher = i;
+    if (/科目|课程|講座/.test(k) && m.subject === undefined) m.subject = i;
+    if ((/预定.*日期|予定.*日|^日期$|^周$|^週$/.test(k)) && m.plannedDate === undefined) m.plannedDate = i;
+    if (/实际.*日期|実際.*日|实际上课日期|上课日/.test(k) && m.actualDate === undefined) m.actualDate = i;
+    if (/时间帯|时间段|時間帯|时段/.test(k) && m.timeRange === undefined) m.timeRange = i;
+    if (/开始|開始/.test(k) && m.start === undefined) m.start = i;
+    if (/结束|終了/.test(k) && m.end === undefined) m.end = i;
+    if (/时长|時間数|课时|授業時間/.test(k) && m.duration === undefined) m.duration = i;
+    if (/单价|単価/.test(k) && m.unitPrice === undefined) m.unitPrice = i;
+    if (/应收|课时费|授業料|金額|金额/.test(k) && m.lessonFee === undefined) m.lessonFee = i;
+    if (/内容|授業内容/.test(k)) { if (/预定|予定/.test(k) && m.plannedContent === undefined) m.plannedContent = i; else if (/实际|実際/.test(k) && m.actualContent === undefined) m.actualContent = i; else if (m.content === undefined) m.content = i; }
+    if (/状态|ステータス/.test(k) && m.status === undefined) m.status = i;
+    if (/备注|備考|メモ/.test(k) && m.note === undefined) m.note = i;
   });
   return m;
 }
-function findHeader88(rows){for(let i=0;i<Math.min(rows.length,25);i++){const t=(rows[i]||[]).map(tx88).join("|"); if(/科目/.test(t)&&(/日期|予定|预定|上课|実際|实际/.test(t))&&(/时长|時間|单价|课时费|金额/.test(t)))return i;} return -1;}
-function status88(v){const t=tx88(v); if(/休|取消|キャンセル|请假|欠席/.test(t))return"cancelled"; if(/预|予定|未/.test(t))return"planned"; return"completed";}
+function findHeader88(rows) { for (let i = 0; i < Math.min(rows.length, 25); i++) { const t = (rows[i] || []).map(tx88).join("|"); if (/科目/.test(t) && (/日期|予定|预定|上课|実際|实际/.test(t)) && (/时长|時間|单价|课时费|金额/.test(t))) return i; } return -1; }
+function status88(v) { const t = tx88(v); if (/休|取消|キャンセル|请假|欠席/.test(t)) return "cancelled"; if (/预|予定|未/.test(t)) return "planned"; return "completed"; }
 
-function ensureCompletedImportButtonV88(){
-  const btn=document.getElementById("lessonImportCompletedExcelBtnV88");
-  const input=document.getElementById("lessonImportCompletedExcelInputV88");
-  if(!btn||!input)return;
-  btn.disabled=false;
+function ensureCompletedImportButtonV88() {
+  const btn = document.getElementById("lessonImportCompletedExcelBtnV88");
+  const input = document.getElementById("lessonImportCompletedExcelInputV88");
+  if (!btn || !input) return;
+  btn.disabled = false;
   btn.classList.remove("disabled");
   btn.removeAttribute("title");
   btn.removeAttribute("aria-disabled");
-  if(btn.dataset.boundCompletedImportV9814==="true")return;
-  btn.dataset.boundCompletedImportV9814="true";
-  btn.onclick=()=>{input.click();};
-  input.onchange=async e=>{const f=e.target.files?.[0]; if(f) await importCompletedLessonExcelV88(f); e.target.value="";};
+  if (btn.dataset.boundCompletedImportV9814 === "true") return;
+  btn.dataset.boundCompletedImportV9814 = "true";
+  btn.onclick = () => { input.click(); };
+  input.onchange = async e => { const f = e.target.files?.[0]; if (f) await importCompletedLessonExcelV88(f); e.target.value = ""; };
 }
-async function importCompletedLessonExcelV88(file){
-  if (typeof importCompletedLessonExcelV886 === "function") return importCompletedLessonExcelV886(file);
-  showMessage("完整课时导入函数未初始化。", "error");
+async function importCompletedLessonExcelV88(file) {
+  return importCompletedLessonExcelV8810(file);
 }
 async function importCompletedLessonExcelV884(file) {
-  if (!lessonExcelRequireXLSX()) return;
-
-  const studentId = normalizeLessonSelectedStudentFilterV9812();
-  if (!studentId) {
-    showMessage("请先选择学生。", "error");
-    return;
-  }
-
-  const student = (state.students || []).find(x => x.id === studentId);
-  const studentName = document.getElementById("lessonStudentFilter")?.selectedOptions?.[0]?.textContent || student?.display_name || student?.name || "";
-  const businessEntityId = student?.business_entity_id || state.businessEntities?.[0]?.id || null;
-  const batchId = typeof newImportBatchIdV871 === "function" ? newImportBatchIdV871() : `completed_import_${Date.now()}`;
-  const importedAt = new Date().toISOString();
-
-  const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
-  const sheetName = wb.SheetNames[0];
-  const sheet = wb.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
-
-  const hi = findHeader88(rows);
-  if (hi < 0) {
-    showMessage("没有找到完整课时模板表头。请确认包含科目、日期、时长、单价等列。", "error");
-    return;
-  }
-
-  const col = headerMap88(rows[hi]);
-  const records = [];
-  let curT = "";
-  let curS = "";
-  let skipped = 0;
-  const baseYear = Number(document.getElementById("lessonMonthFilter")?.value?.slice(0, 4) || new Date().getFullYear());
-
-  for (let r = hi + 1; r < rows.length; r++) {
-    const row = rows[r] || [];
-    const line = row.map(x => String(x || "").trim()).join("");
-    if (!line || /合计|总计|總計|小计|小計/.test(line)) continue;
-
-    const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
-    const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
-    if (teacherCell) curT = teacherCell;
-    if (subjectCell) curS = subjectCell;
-
-    const plannedDate = dt88(col.plannedDate !== undefined ? row[col.plannedDate] : row[col.actualDate], baseYear);
-    const actualDate = dt88(col.actualDate !== undefined ? row[col.actualDate] : plannedDate, baseYear) || plannedDate;
-    const duration = num88(col.duration !== undefined ? row[col.duration] : "");
-    const subjectId = subjectIdFromExcelName(curS) || document.getElementById("lessonSubjectFilter")?.value || "";
-    const teacherId = teacherIdFromExcelName(curT) || document.getElementById("lessonTeacherFilter")?.value || "";
-
-    if (!plannedDate || !duration || !subjectId || !teacherId) {
-      skipped++;
-      continue;
-    }
-
-    const tr = timeRange88(col.timeRange !== undefined ? row[col.timeRange] : "");
-    const start = col.start !== undefined ? String(row[col.start] || "") : tr.start;
-    const end = col.end !== undefined ? String(row[col.end] || "") : tr.end;
-    const unit = num88(col.unitPrice !== undefined ? row[col.unitPrice] : "");
-    const fee = num88(col.lessonFee !== undefined ? row[col.lessonFee] : "") || (unit && duration ? unit * duration : 0);
-    const plannedContent = String((col.plannedContent !== undefined ? row[col.plannedContent] : row[col.content]) || "");
-    const actualContent = String((col.actualContent !== undefined ? row[col.actualContent] : row[col.content]) || "");
-    const note = String(col.note !== undefined ? row[col.note] || "" : "");
-    const plannedId = uuidV884("planned");
-    const actualId = uuidV884("actual");
-
-    const common = {
-      student_id: studentId,
-      teacher_id: teacherId,
-      subject_id: subjectId,
-      business_entity_id: businessEntityId,
-      start_time: start || "",
-      end_time: end || "",
-      duration_hours: duration,
-      unit_price: unit || 0,
-      lesson_fee: fee || 0,
-      is_billable: true,
-      note: note || `完整课时导入：${sheetName}`,
-      import_batch_id: batchId,
-      import_source: file.name || sheetName,
-      imported_at: importedAt,
-    };
-
-    records.push({
-      id: plannedId,
-      lesson_type: "planned",
-      lesson_date: plannedDate,
-      year_month: plannedDate.slice(0, 7),
-      lesson_content: plannedContent,
-      status: "planned",
-      planned_lesson_id: null,
-      ...common,
-    });
-
-    records.push({
-      id: actualId,
-      lesson_type: "actual",
-      planned_lesson_id: plannedId,
-      lesson_date: actualDate,
-      year_month: actualDate.slice(0, 7),
-      lesson_content: actualContent,
-      status: status88(col.status !== undefined ? row[col.status] : "已上"),
-      ...common,
-    });
-  }
-
-  if (!records.length) {
-    showMessage("没有读取到可导入的完整课时记录。", "error");
-    return;
-  }
-
-  const plannedCount = records.filter(x => x.lesson_type === "planned").length;
-  const actualCount = records.filter(x => x.lesson_type === "actual").length;
-  const total = records.filter(x => x.lesson_type === "actual").reduce((s, x) => s + Number(x.lesson_fee || 0), 0);
-
-  const ok = confirm(`即将导入完整课时记录：\n\n学生：${studentName}\n文件：${file.name}\n预定课时：${plannedCount} 条\n实际课时：${actualCount} 条\n实际课时费合计：${total.toLocaleString()} JPY\n跳过行数：${skipped}\n\n确认导入吗？`);
-  if (!ok) return;
-
-  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
-  const { error } = await client.from(tables.lessons).insert(records);
-  if (error) {
-    showMessage(`导入失败：${error.message}`, "error");
-    return;
-  }
-
-  if (typeof saveLastImportBatchV871 === "function") {
-    saveLastImportBatchV871({ batchId, studentId, studentName, fileName: file.name, count: records.length, importedAt });
-  }
-
-  await loadAll();
-  renderAll();
-  showMessage(`已导入完整课时记录：预定 ${plannedCount} 条 / 实际 ${actualCount} 条。`, "ok");
+  return importCompletedLessonExcelV8810(file);
 }
 
 importCompletedLessonExcelV88 = importCompletedLessonExcelV884;
@@ -12298,7 +12173,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV884 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV884) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV884();
     ensureCompletedImportButtonV884();
   };
@@ -12342,7 +12217,7 @@ if (typeof lessonStatusOptions === "function") {
 }
 
 if (typeof lessonStatusLabel === "function") {
-  lessonStatusLabel = function(status) {
+  lessonStatusLabel = function (status) {
     return lessonStatusLabelV885(status);
   };
 }
@@ -12369,7 +12244,7 @@ function patchLessonStatusSelectV885() {
 
 const openCreateModalBeforeV885 = typeof openCreateModal === "function" ? openCreateModal : null;
 if (openCreateModalBeforeV885) {
-  openCreateModal = function(type, prefill = {}) {
+  openCreateModal = function (type, prefill = {}) {
     if (type === "lesson") {
       if (prefill.lesson_type === "planned" && !prefill.status) prefill.status = "completed";
       if (prefill.lesson_type === "actual" && !prefill.status) prefill.status = "completed";
@@ -12381,7 +12256,7 @@ if (openCreateModalBeforeV885) {
 
 const openEditModalBeforeV885 = typeof openEditModal === "function" ? openEditModal : null;
 if (openEditModalBeforeV885) {
-  openEditModal = function(type, id) {
+  openEditModal = function (type, id) {
     openEditModalBeforeV885(type, id);
     if (type === "lesson") setTimeout(patchLessonStatusSelectV885, 0);
   };
@@ -12406,7 +12281,7 @@ function isActualGeneratedFromStatusV885(status, actualDate) {
 // Header map override: support 回数 and 工资结算备注
 const headerMapBeforeV885 = typeof headerMap88 === "function" ? headerMap88 : null;
 if (headerMapBeforeV885) {
-  headerMap88 = function(header) {
+  headerMap88 = function (header) {
     const map = headerMapBeforeV885(header);
     (header || []).forEach((cell, idx) => {
       const key = tx88(cell);
@@ -12425,159 +12300,7 @@ if (headerMapBeforeV885) {
 // - actual year_month follows planned year_month
 // - count / normal note / salary note saved into note
 async function importCompletedLessonExcelV885(file) {
-  if (!lessonExcelRequireXLSX()) return;
-
-  const studentId = normalizeLessonSelectedStudentFilterV9812();
-  if (!studentId) {
-    showMessage("请先选择学生。", "error");
-    return;
-  }
-
-  const student = (state.students || []).find(x => x.id === studentId);
-  const studentName = document.getElementById("lessonStudentFilter")?.selectedOptions?.[0]?.textContent || student?.display_name || student?.name || "";
-  const businessEntityId = student?.business_entity_id || state.businessEntities?.[0]?.id || null;
-  const batchId = typeof newImportBatchIdV871 === "function" ? newImportBatchIdV871() : `completed_import_${Date.now()}`;
-  const importedAt = new Date().toISOString();
-
-  const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
-  const sheetName = wb.SheetNames[0];
-  const sheet = wb.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
-
-  const hi = findHeader88(rows);
-  if (hi < 0) {
-    showMessage("没有找到完整课时模板表头。请确认包含科目、日期、回数、时长、单价等列。", "error");
-    return;
-  }
-
-  const col = headerMap88(rows[hi]);
-  const records = [];
-  let curT = "";
-  let curS = "";
-  let skipped = 0;
-  let actualSkipped = 0;
-  const baseYear = Number(document.getElementById("lessonMonthFilter")?.value?.slice(0, 4) || new Date().getFullYear());
-
-  for (let r = hi + 1; r < rows.length; r++) {
-    const row = rows[r] || [];
-    const line = row.map(x => String(x || "").trim()).join("");
-    if (!line || /合计|总计|總計|小计|小計/.test(line)) continue;
-
-    const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
-    const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
-    if (teacherCell) curT = teacherCell;
-    if (subjectCell) curS = subjectCell;
-
-    const plannedDate = dt88(col.plannedDate !== undefined ? row[col.plannedDate] : row[col.actualDate], baseYear);
-    const rawActualDate = col.actualDate !== undefined ? row[col.actualDate] : "";
-    const actualDate = dt88(rawActualDate, baseYear);
-
-    const duration = num88(col.duration !== undefined ? row[col.duration] : "");
-    const actualDuration = num88(col.actualDuration !== undefined ? row[col.actualDuration] : (col.duration !== undefined ? row[col.duration] : ""));
-
-    const subjectId = subjectIdFromExcelName(curS) || document.getElementById("lessonSubjectFilter")?.value || "";
-    const teacherId = teacherIdFromExcelName(curT) || document.getElementById("lessonTeacherFilter")?.value || "";
-
-    if (!plannedDate || !duration || !subjectId || !teacherId) {
-      skipped++;
-      continue;
-    }
-
-    const tr = timeRange88(col.timeRange !== undefined ? row[col.timeRange] : "");
-    const start = col.start !== undefined ? String(row[col.start] || "") : tr.start;
-    const end = col.end !== undefined ? String(row[col.end] || "") : tr.end;
-    const unit = num88(col.unitPrice !== undefined ? row[col.unitPrice] : "");
-    const fee = num88(col.lessonFee !== undefined ? row[col.lessonFee] : "") || (unit && duration ? unit * duration : 0);
-
-    const plannedContent = String((col.plannedContent !== undefined ? row[col.plannedContent] : row[col.content]) || "");
-    const actualContent = String((col.actualContent !== undefined ? row[col.actualContent] : row[col.content]) || "");
-    const count = col.count !== undefined ? row[col.count] : "";
-    const normalNote = String(col.note !== undefined ? row[col.note] || "" : "");
-    const salaryNote = String(col.salaryNote !== undefined ? row[col.salaryNote] || "" : "");
-    const teacherSettlementMonth = normalizeTeacherSettlementMonthV916
-      ? normalizeTeacherSettlementMonthV916(col.teacherSettlementMonth !== undefined ? row[col.teacherSettlementMonth] : "")
-      : "";
-    const status = normalizeLessonStatusTextV885(col.status !== undefined ? row[col.status] : "");
-
-    const plannedId = uuidV884("planned");
-    const actualId = uuidV884("actual");
-    const plannedYm = plannedDate.slice(0, 7);
-    const baseNote = `完整课时导入：${sheetName}`;
-    const mergedNote = buildCompletedLessonNoteV885(baseNote, count, normalNote, salaryNote);
-
-    const common = {
-      student_id: studentId,
-      teacher_id: teacherId,
-      subject_id: subjectId,
-      business_entity_id: businessEntityId,
-      start_time: start || "",
-      end_time: end || "",
-      duration_hours: duration,
-      unit_price: unit || 0,
-      lesson_fee: fee || 0,
-      is_billable: true,
-      note: mergedNote,
-      import_batch_id: batchId,
-      import_source: file.name || sheetName,
-      imported_at: importedAt,
-    };
-
-    records.push({
-      id: plannedId,
-      lesson_type: "planned",
-      lesson_date: plannedDate,
-      year_month: plannedYm,
-      lesson_content: plannedContent,
-      status: status || "completed",
-      planned_lesson_id: null,
-      ...common,
-    });
-
-    if (isActualGeneratedFromStatusV885(status, actualDate)) {
-      records.push({
-        id: actualId,
-        lesson_type: "actual",
-        planned_lesson_id: plannedId,
-        lesson_date: actualDate,
-        year_month: plannedYm,
-        lesson_content: actualContent,
-        status: status || "completed",
-        duration_hours: actualDuration || duration,
-        lesson_fee: unit && (actualDuration || duration) ? unit * (actualDuration || duration) : fee,
-        teacher_settlement_month: teacherSettlementMonth || (actualDate ? actualDate.slice(0, 7) : plannedYm),
-        ...common,
-      });
-    } else {
-      actualSkipped++;
-    }
-  }
-
-  if (!records.length) {
-    showMessage("没有读取到可导入的完整课时记录。", "error");
-    return;
-  }
-
-  const plannedCount = records.filter(x => x.lesson_type === "planned").length;
-  const actualCount = records.filter(x => x.lesson_type === "actual").length;
-  const total = records.filter(x => x.lesson_type === "actual").reduce((s, x) => s + Number(x.lesson_fee || 0), 0);
-
-  const ok = confirm(`即将导入完整课时记录：\n\n学生：${studentName}\n文件：${file.name}\n预定课时：${plannedCount} 条\n实际课时：${actualCount} 条\n实际课时费合计：${total.toLocaleString()} JPY\n跳过行数：${skipped}\n未生成实际课时：${actualSkipped} 条\n\n确认导入吗？`);
-  if (!ok) return;
-
-  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
-  const { error } = await client.from(tables.lessons).insert(records);
-  if (error) {
-    showMessage(`导入失败：${error.message}`, "error");
-    return;
-  }
-
-  if (typeof saveLastImportBatchV871 === "function") {
-    saveLastImportBatchV871({ batchId, studentId, studentName, fileName: file.name, count: records.length, importedAt });
-  }
-
-  await loadAll();
-  renderAll();
-  showMessage(`已导入完整课时记录：预定 ${plannedCount} 条 / 实际 ${actualCount} 条。`, "ok");
+  return importCompletedLessonExcelV8810(file);
 }
 
 importCompletedLessonExcelV88 = importCompletedLessonExcelV885;
@@ -12595,7 +12318,7 @@ function patchLessonStatusTextV885() {
 
 const renderLessonsBeforeV885 = typeof renderLessons === "function" ? renderLessons : null;
 if (renderLessonsBeforeV885) {
-  renderLessons = function() {
+  renderLessons = function () {
     renderLessonsBeforeV885();
     setTimeout(patchLessonStatusTextV885, 0);
   };
@@ -12609,7 +12332,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const renderAllBeforeV885 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV885) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV885();
     patchLessonStatusTextV885();
   };
@@ -12655,7 +12378,7 @@ function patchLessonCountFieldV886() {
 
 // Ensure saveForm includes lesson_count even if schoolGetFieldsV24 doesn't know this new field.
 const normalizeLessonPayloadBeforeV886 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
-normalizeLessonPayload = function(payload, type) {
+normalizeLessonPayload = function (payload, type) {
   if (normalizeLessonPayloadBeforeV886) payload = normalizeLessonPayloadBeforeV886(payload, type);
 
   if (type === "lesson") {
@@ -12687,8 +12410,8 @@ function studentFromExcelNameV9810(name) {
     const n2 = normalizePersonNameV9810(s.display_name);
     const n3 = normalizePersonNameV9810(s.full_name);
     return (n1 && (n1 === text || n1.includes(text) || text.includes(n1))) ||
-           (n2 && (n2 === text || n2.includes(text) || text.includes(n2))) ||
-           (n3 && (n3 === text || n3.includes(text) || text.includes(n3)));
+      (n2 && (n2 === text || n2.includes(text) || text.includes(n2))) ||
+      (n3 && (n3 === text || n3.includes(text) || text.includes(n3)));
   }) || null;
 }
 
@@ -12916,7 +12639,7 @@ function updateLessonImportButtonsV886() {
 
 const ensureCompletedImportButtonBeforeV886 = typeof ensureCompletedImportButtonV884 === "function" ? ensureCompletedImportButtonV884 : (typeof ensureCompletedImportButtonV88 === "function" ? ensureCompletedImportButtonV88 : null);
 if (ensureCompletedImportButtonBeforeV886) {
-  ensureCompletedImportButtonV884 = function() {
+  ensureCompletedImportButtonV884 = function () {
     ensureCompletedImportButtonBeforeV886();
     updateLessonImportButtonsV886();
   };
@@ -12929,7 +12652,7 @@ document.addEventListener("change", (e) => {
 
 const renderLessonsBeforeV886 = typeof renderLessons === "function" ? renderLessons : null;
 if (renderLessonsBeforeV886) {
-  renderLessons = function() {
+  renderLessons = function () {
     renderLessonsBeforeV886();
     patchLessonCountDisplayV886();
     patchLessonCountFieldV886();
@@ -12939,7 +12662,7 @@ if (renderLessonsBeforeV886) {
 
 const renderAllBeforeV886 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV886) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV886();
     patchLessonCountDisplayV886();
     updateLessonImportButtonsV886();
@@ -13098,7 +12821,7 @@ document.addEventListener("change", (e) => {
 // - actual duration column can be absent
 const headerMapBeforeV887 = typeof headerMap88 === "function" ? headerMap88 : null;
 if (headerMapBeforeV887) {
-  headerMap88 = function(header) {
+  headerMap88 = function (header) {
     const map = headerMapBeforeV887(header);
     (header || []).forEach((cell, idx) => {
       const key = tx88(cell);
@@ -13225,70 +12948,7 @@ function buildCompletedImportRecordsV887(file, rows, sheetName, col, context) {
 }
 
 async function importCompletedLessonExcelV887(file) {
-  if (!lessonExcelRequireXLSX()) return;
-
-  const studentId = normalizeLessonSelectedStudentFilterV9812();
-  if (!studentId) {
-    showMessage("请先选择学生。", "error");
-    return;
-  }
-
-  const student = (state.students || []).find(x => x.id === studentId);
-  const studentName = document.getElementById("lessonStudentFilter")?.selectedOptions?.[0]?.textContent || student?.display_name || student?.name || "";
-  const businessEntityId = student?.business_entity_id || state.businessEntities?.[0]?.id || null;
-  const batchId = typeof newImportBatchIdV871 === "function" ? newImportBatchIdV871() : `completed_import_${Date.now()}`;
-  const importedAt = new Date().toISOString();
-
-  const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
-  const sheetName = wb.SheetNames[0];
-  const sheet = wb.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
-
-  const hi = findHeader88(rows);
-  if (hi < 0) {
-    showMessage("没有找到完整课时模板表头。请确认包含科目、日期、回数、时长、单价等列。", "error");
-    return;
-  }
-
-  const col = headerMap88(rows[hi]);
-  const baseYear = Number(document.getElementById("lessonMonthFilter")?.value?.slice(0, 4) || new Date().getFullYear());
-
-  const { records, skipped, actualSkipped } = buildCompletedImportRecordsV887(file, rows, sheetName, col, {
-    studentId,
-    studentName,
-    businessEntityId,
-    batchId,
-    importedAt,
-    baseYear,
-    headerIndex: hi,
-  });
-
-  if (!records.length) {
-    showMessage("没有读取到可导入的完整课时记录。", "error");
-    return;
-  }
-
-  const plannedCount = records.filter(x => x.lesson_type === "planned").length;
-  const actualCount = records.filter(x => x.lesson_type === "actual").length;
-  const total = records.filter(x => x.lesson_type === "actual").reduce((s, x) => s + Number(x.lesson_fee || 0), 0);
-
-  const ok = confirm(`即将导入完整课时记录：\n\n学生：${studentName}\n文件：${file.name}\n预定课时：${plannedCount} 条\n实际课时：${actualCount} 条\n实际课时费合计：${total.toLocaleString()} JPY\n跳过行数：${skipped}\n未生成实际课时：${actualSkipped} 条\n\n确认导入吗？`);
-  if (!ok) return;
-
-  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
-  const { error } = await client.from(tables.lessons).insert(records);
-  if (error) {
-    showMessage(`导入失败：${error.message}`, "error");
-    return;
-  }
-
-  if (typeof saveLastImportBatchV871 === "function") {
-    saveLastImportBatchV871({ batchId, studentId, studentName, fileName: file.name, count: records.length, importedAt });
-  }
-
-  await loadAll();
-  renderAll();
-  showMessage(`已导入完整课时记录：预定 ${plannedCount} 条 / 实际 ${actualCount} 条。`, "ok");
+  return importCompletedLessonExcelV8810(file);
 }
 
 importCompletedLessonExcelV88 = importCompletedLessonExcelV887;
@@ -13298,7 +12958,7 @@ importCompletedLessonExcelV886 = importCompletedLessonExcelV887;
 
 const renderAllBeforeV887 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV887) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV887();
     hideCancelHolidayStatV887();
     patchActualTimeDisplayV887();
@@ -13308,7 +12968,7 @@ if (renderAllBeforeV887) {
 
 const renderLessonsBeforeV887 = typeof renderLessons === "function" ? renderLessons : null;
 if (renderLessonsBeforeV887) {
-  renderLessons = function() {
+  renderLessons = function () {
     renderLessonsBeforeV887();
     hideCancelHolidayStatV887();
     patchActualTimeDisplayV887();
@@ -13390,7 +13050,7 @@ function patchBrokenExcelDateTimeTextV888() {
 
 const buildCompletedImportRecordsBeforeV888 = typeof buildCompletedImportRecordsV887 === "function" ? buildCompletedImportRecordsV887 : null;
 if (buildCompletedImportRecordsBeforeV888) {
-  buildCompletedImportRecordsV887 = function(file, rows, sheetName, col, context) {
+  buildCompletedImportRecordsV887 = function (file, rows, sheetName, col, context) {
     const result = buildCompletedImportRecordsBeforeV888(file, rows, sheetName, col, context);
     (result.records || []).forEach(row => {
       row.start_time = cleanTimeForDisplayV888(row.start_time);
@@ -13448,14 +13108,14 @@ async function repairLessonTimeStringsV888() {
 
 const renderAllBeforeV888 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV888) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV888();
     setTimeout(patchActualTimeDisplayV888, 0);
   };
 }
 const renderLessonsBeforeV888 = typeof renderLessons === "function" ? renderLessons : null;
 if (renderLessonsBeforeV888) {
-  renderLessons = function() {
+  renderLessons = function () {
     renderLessonsBeforeV888();
     setTimeout(patchActualTimeDisplayV888, 0);
   };
@@ -13509,7 +13169,7 @@ function sumLessonFeeForSettlementV889(rows) {
 }
 
 // Patch lock/preview calculation.
-sumLessonsForSettlementV87 = function(studentId, month, type) {
+sumLessonsForSettlementV87 = function (studentId, month, type) {
   const rows = type === "planned"
     ? settlementPlannedLessonsV889(studentId, month)
     : settlementActualLessonsV889(studentId, month);
@@ -13531,8 +13191,8 @@ function renderStudentSettlementV889() {
 
   if (!studentId || !student) {
     ["settlementPlannedHours", "settlementActualHours", "settlementPlannedJpy", "settlementActualJpy",
-     "settlementPrevBalanceCny", "settlementExchangeRate", "settlementPlannedJpy2", "settlementPlannedCny",
-     "settlementPlannedTotalCny", "settlementActualJpy2", "settlementActualCny", "settlementReceivedCny", "settlementReceivedJpy"].forEach(id => setOptionalText(id, "0"));
+      "settlementPrevBalanceCny", "settlementExchangeRate", "settlementPlannedJpy2", "settlementPlannedCny",
+      "settlementPlannedTotalCny", "settlementActualJpy2", "settlementActualCny", "settlementReceivedCny", "settlementReceivedJpy"].forEach(id => setOptionalText(id, "0"));
     const tbody = document.getElementById("settlementLessonsTable");
     if (tbody) tbody.innerHTML = `<tr><td colspan="12" class="empty-row">请先选择学生</td></tr>`;
     return;
@@ -13599,7 +13259,7 @@ bindStudentSettlementV834 = bindStudentSettlementV889;
 
 const renderAllBeforeV889 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV889) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV889();
     bindStudentSettlementV889();
   };
@@ -13607,7 +13267,7 @@ if (renderAllBeforeV889) {
 
 const switchPageBeforeV889 = typeof switchPage === "function" ? switchPage : null;
 if (switchPageBeforeV889) {
-  switchPage = function(page) {
+  switchPage = function (page) {
     switchPageBeforeV889(page);
     if (page === "student-settlement") {
       bindStudentSettlementV889();
@@ -13685,7 +13345,7 @@ function defaultBillableByStatusV8810(status) {
 // Header map override: support 计费 column
 const headerMapBeforeV8810 = typeof headerMap88 === "function" ? headerMap88 : null;
 if (headerMapBeforeV8810) {
-  headerMap88 = function(header) {
+  headerMap88 = function (header) {
     const map = headerMapBeforeV8810(header);
     (header || []).forEach((cell, idx) => {
       const key = tx88(cell);
@@ -13703,15 +13363,9 @@ if (headerMapBeforeV8810) {
 async function importCompletedLessonExcelV8810(file) {
   if (!lessonExcelRequireXLSX()) return;
 
-  const studentId = normalizeLessonSelectedStudentFilterV9812();
-  if (!studentId) {
-    showMessage("请先选择学生。", "error");
-    return;
-  }
+  const importedStudents = new Map();
+  const missingStudents = new Set();
 
-  const student = (state.students || []).find(x => x.id === studentId);
-  const studentName = document.getElementById("lessonStudentFilter")?.selectedOptions?.[0]?.textContent || student?.display_name || student?.name || "";
-  const businessEntityId = student?.business_entity_id || state.businessEntities?.[0]?.id || null;
   const batchId = typeof newImportBatchIdV871 === "function" ? newImportBatchIdV871() : `completed_import_${Date.now()}`;
   const importedAt = new Date().toISOString();
 
@@ -13738,7 +13392,19 @@ async function importCompletedLessonExcelV8810(file) {
     const row = rows[r] || [];
     const line = row.map(x => String(x || "").trim()).join("");
     if (!line || /合计|总计|總計|小计|小計/.test(line)) continue;
+    const studentCell = String((col.student !== undefined ? row[col.student] : row[0]) || "").trim();
+    const student = studentFromExcelNameV9810(studentCell);
 
+    if (!student) {
+      if (studentCell) missingStudents.add(studentCell);
+      skipped++;
+      continue;
+    }
+
+    const studentId = student.id;
+    const studentName = student.display_name || student.name || "";
+    const businessEntityId = student.business_entity_id || state.businessEntities?.[0]?.id || null;
+    importedStudents.set(studentId, studentName);
     const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
     const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
     if (teacherCell) curT = teacherCell;
@@ -13838,7 +13504,8 @@ async function importCompletedLessonExcelV8810(file) {
   }
 
   if (!records.length) {
-    showMessage("没有读取到可导入的完整课时记录。", "error");
+    const extra = missingStudents.size ? ` 未识别学生：${Array.from(missingStudents).join("、")}` : "";
+    showMessage(`没有读取到可导入的完整课时记录。${extra}`, "error");
     return;
   }
 
@@ -13847,8 +13514,9 @@ async function importCompletedLessonExcelV8810(file) {
   const total = records.filter(x => x.lesson_type === "actual").reduce((s, x) => s + Number(x.lesson_fee || 0), 0);
   const billableCount = records.filter(x => x.lesson_type === "planned" && x.is_billable !== false).length;
   const nonBillableCount = records.filter(x => x.lesson_type === "planned" && x.is_billable === false).length;
-
-  const ok = confirm(`即将导入完整课时记录：\n\n学生：${studentName}\n文件：${file.name}\n预定课时：${plannedCount} 条\n实际课时：${actualCount} 条\n实际课时费合计：${total.toLocaleString()} JPY\n计费预定：${billableCount} 条\n不计费预定：${nonBillableCount} 条\n跳过行数：${skipped}\n未生成实际课时：${actualSkipped} 条\n\n确认导入吗？`);
+  const studentNameText = Array.from(importedStudents.values()).filter(Boolean).join("、") || "自动识别";
+  const firstStudentId = Array.from(importedStudents.keys())[0] || "";
+  const ok = confirm(`即将导入完整课时记录：\n\n学生：${studentNameText}\n文件：${file.name}\n预定课时：${plannedCount} 条\n实际课时：${actualCount} 条\n实际课时费合计：${total.toLocaleString()} JPY\n计费预定：${billableCount} 条\n不计费预定：${nonBillableCount} 条\n跳过行数：${skipped}\n未生成实际课时：${actualSkipped} 条\n\n确认导入吗？`);
   if (!ok) return;
 
   const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
@@ -13859,7 +13527,14 @@ async function importCompletedLessonExcelV8810(file) {
   }
 
   if (typeof saveLastImportBatchV871 === "function") {
-    saveLastImportBatchV871({ batchId, studentId, studentName, fileName: file.name, count: records.length, importedAt });
+    saveLastImportBatchV871({
+      batchId,
+      studentId: firstStudentId,
+      studentName: studentNameText,
+      fileName: file.name,
+      count: records.length,
+      importedAt
+    });
   }
 
   await loadAll();
@@ -13887,7 +13562,7 @@ function patchLessonStatusSelectV8810() {
 // 4) 收入分类为学费时，必须指定学生
 const saveFormBeforeV8810 = typeof saveForm === "function" ? saveForm : null;
 if (saveFormBeforeV8810) {
-  saveForm = async function(e) {
+  saveForm = async function (e) {
     const form = document.getElementById("modalForm");
     const type = state.editing?.type;
     if (form && type === "income") {
@@ -13906,7 +13581,7 @@ if (saveFormBeforeV8810) {
 // 之前出现“删到最后一个字自动回到初始状态”，不是业务设置，属于预览刷新时回填的问题。
 const updateSettlementLockPreviewBeforeV8810 = typeof updateSettlementLockPreviewV87 === "function" ? updateSettlementLockPreviewV87 : null;
 if (updateSettlementLockPreviewBeforeV8810) {
-  updateSettlementLockPreviewV87 = function() {
+  updateSettlementLockPreviewV87 = function () {
     const reasonInput = document.getElementById("settlementAdjustmentReasonV87");
     const userReason = reasonInput ? reasonInput.value : "";
     updateSettlementLockPreviewBeforeV8810();
@@ -13918,7 +13593,7 @@ if (updateSettlementLockPreviewBeforeV8810) {
 
 const adjustmentFromPanelBeforeV8810 = typeof adjustmentFromPanelV87 === "function" ? adjustmentFromPanelV87 : null;
 if (adjustmentFromPanelBeforeV8810) {
-  adjustmentFromPanelV87 = function() {
+  adjustmentFromPanelV87 = function () {
     const result = adjustmentFromPanelBeforeV8810();
     const reasonInput = document.getElementById("settlementAdjustmentReasonV87");
     if (reasonInput) {
@@ -13936,7 +13611,7 @@ document.addEventListener("input", (e) => {
 
 const renderAllBeforeV8810 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV8810) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV8810();
     setTimeout(patchLessonStatusSelectV8810, 0);
   };
@@ -13944,7 +13619,7 @@ if (renderAllBeforeV8810) {
 
 const openCreateModalBeforeV8810 = typeof openCreateModal === "function" ? openCreateModal : null;
 if (openCreateModalBeforeV8810) {
-  openCreateModal = function(type, prefill = {}) {
+  openCreateModal = function (type, prefill = {}) {
     openCreateModalBeforeV8810(type, prefill);
     if (type === "lesson") setTimeout(patchLessonStatusSelectV8810, 0);
   };
@@ -13952,7 +13627,7 @@ if (openCreateModalBeforeV8810) {
 
 const openEditModalBeforeV8810 = typeof openEditModal === "function" ? openEditModal : null;
 if (openEditModalBeforeV8810) {
-  openEditModal = function(type, id) {
+  openEditModal = function (type, id) {
     openEditModalBeforeV8810(type, id);
     if (type === "lesson") setTimeout(patchLessonStatusSelectV8810, 0);
   };
@@ -14030,9 +13705,9 @@ function bindIncomeTuitionValidationV8811() {
 
 const saveFormBeforeV8811 = typeof saveForm === "function" ? saveForm : null;
 if (saveFormBeforeV8811) {
-  saveForm = async function(...args) {
+  saveForm = async function (...args) {
     if (!validateIncomeTuitionStudentV8811()) return;
-    if (!args.length || !args[0]) args = [{ preventDefault(){}, stopPropagation(){}, stopImmediatePropagation(){}, target: document.getElementById("modalForm") }];
+    if (!args.length || !args[0]) args = [{ preventDefault() { }, stopPropagation() { }, stopImmediatePropagation() { }, target: document.getElementById("modalForm") }];
     return saveFormBeforeV8811.apply(this, args);
   };
 }
@@ -14055,7 +13730,7 @@ document.addEventListener("click", (e) => {
 
 const openCreateModalBeforeV8811 = typeof openCreateModal === "function" ? openCreateModal : null;
 if (openCreateModalBeforeV8811) {
-  openCreateModal = function(type, prefill = {}) {
+  openCreateModal = function (type, prefill = {}) {
     openCreateModalBeforeV8811(type, prefill);
     const form = document.getElementById("modalForm");
     if (form) form.dataset.type = type;
@@ -14065,7 +13740,7 @@ if (openCreateModalBeforeV8811) {
 
 const openEditModalBeforeV8811 = typeof openEditModal === "function" ? openEditModal : null;
 if (openEditModalBeforeV8811) {
-  openEditModal = function(type, id) {
+  openEditModal = function (type, id) {
     openEditModalBeforeV8811(type, id);
     const form = document.getElementById("modalForm");
     if (form) form.dataset.type = type;
@@ -14205,7 +13880,7 @@ renderLessonStats = renderLessonStatsV8812;
 
 const renderLessonsBeforeV8812 = typeof renderLessons === "function" ? renderLessons : null;
 if (renderLessonsBeforeV8812) {
-  renderLessons = function() {
+  renderLessons = function () {
     renderLessonsBeforeV8812();
     const rows = typeof filterLessons === "function" ? filterLessons().slice() : (state.lessonRecords || []);
     renderLessonStatsV8812(rows);
@@ -14214,7 +13889,7 @@ if (renderLessonsBeforeV8812) {
 
 const renderAllBeforeV8812 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV8812) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV8812();
     if (typeof filterLessons === "function") {
       setTimeout(() => renderLessonStatsV8812(filterLessons().slice()), 0);
@@ -14351,7 +14026,7 @@ renderLessonStatsV8812 = renderLessonStatsV8813;
 
 const renderLessonsBeforeV8813 = typeof renderLessons === "function" ? renderLessons : null;
 if (renderLessonsBeforeV8813) {
-  renderLessons = function() {
+  renderLessons = function () {
     renderLessonsBeforeV8813();
     const rows = typeof filterLessons === "function" ? filterLessons().slice() : (state.lessonRecords || []);
     renderLessonStatsV8813(rows);
@@ -14360,7 +14035,7 @@ if (renderLessonsBeforeV8813) {
 
 const renderAllBeforeV8813 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV8813) {
-  renderAll = function() {
+  renderAll = function () {
     renderAllBeforeV8813();
     if (typeof filterLessons === "function") {
       setTimeout(() => renderLessonStatsV8813(filterLessons().slice()), 0);

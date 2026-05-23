@@ -62,9 +62,7 @@ window.normalizeTeacherSettlementMonthV916 = normalizeTeacherSettlementMonthV916
   }
 
   function confirmImportMonthV917(month) {
-    return confirm(
-      `当前选择年月：${month}\n\n系统将按 ${month.slice(0, 4)} 年解析模板中的日期。\n例如 3.30周、4.1 会按 ${month.slice(0, 4)} 年处理。\n\n确认继续导入吗？`
-    );
+    return true;
   }
 
   function patchCompletedImportButtonV917() {
@@ -77,26 +75,17 @@ window.normalizeTeacherSettlementMonthV916 = normalizeTeacherSettlementMonthV916
     btn.classList.remove("disabled");
     btn.removeAttribute("title");
     btn.removeAttribute("aria-disabled");
+    btn.disabled = false;
+    btn.classList.remove("disabled");
+    btn.removeAttribute("title");
+    btn.removeAttribute("aria-disabled");
     btn.onclick = () => {
-      const month = requireCompletedImportMonthV917();
-      if (!month) return;
-
-      if (!confirmImportMonthV917(month)) return;
       input.click();
     };
   }
 
   function wrapCompletedImportFunctionV917(name) {
-    const fn = window[name] || (typeof globalThis !== "undefined" ? globalThis[name] : null);
-    if (typeof fn !== "function" || fn.__monthRequiredV917) return;
-
-    const wrapped = async function(file) {
-      const month = requireCompletedImportMonthV917();
-      if (!month) return;
-      return fn.call(this, file);
-    };
-    wrapped.__monthRequiredV917 = true;
-    window[name] = wrapped;
+    // v9.8-final.14: no month/student restriction wrapper for completed import.
   }
 
   function applyCompletedImportMonthRequiredV917() {

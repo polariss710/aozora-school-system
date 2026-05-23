@@ -518,7 +518,7 @@ function renderExpensesTable() {
 
 
 function updateLessonFilters() {
-  const month = document.getElementById("lessonMonthFilter")?.value || "";
+  const month = document.getElementById("lessonMonthFilter")?.value || currentYearMonth();
   const studentEl = document.getElementById("lessonStudentFilter");
   const teacherEl = document.getElementById("lessonTeacherFilter");
   const subjectEl = document.getElementById("lessonSubjectFilter");
@@ -5174,87 +5174,19 @@ if (renderAllBeforeV81) {
 
 // === v8.2 lesson import dialog + student required final override ===
 function updateLessonStudentRequiredStateV82() {
-  const studentId = normalizeLessonSelectedStudentFilterV9812();
-  const addBtn = document.getElementById("lessonAddBtn");
-  const importBtn = document.getElementById("lessonImportExcelBtn");
-  const hint = document.getElementById("lessonStudentRequiredHint");
-
-  const disabled = !studentId;
-  if (addBtn) {
-    addBtn.disabled = disabled;
-    addBtn.title = disabled ? "请先选择学生" : "";
-  }
-  if (importBtn) {
-    importBtn.disabled = disabled;
-    importBtn.title = disabled ? "请先选择学生" : "";
-  }
-  if (hint) {
-    hint.classList.toggle("ok", !disabled);
-    hint.textContent = disabled ? "学生必选" : "已选择学生";
-  }
+  // v9.8-final.14: removed student-required UI restriction from lesson management.
 }
 
 function bindLessonStudentRequiredV82() {
-  const studentFilter = document.getElementById("lessonStudentFilter");
-  if (studentFilter && studentFilter.dataset.boundRequiredV82 !== "true") {
-    studentFilter.dataset.boundRequiredV82 = "true";
-    studentFilter.addEventListener("change", updateLessonStudentRequiredStateV82);
-  }
-  updateLessonStudentRequiredStateV82();
+  // v9.8-final.14: no student-required binding.
 }
 
 function openLessonExcelUploadDialogV82() {
-  const studentId = normalizeLessonSelectedStudentFilterV9812();
-  if (!studentId) {
-    showMessage("请先在课时管理筛选中选择学生。", "error");
-    updateLessonStudentRequiredStateV82();
-    return;
-  }
-
-  const lessonInput = document.getElementById("lessonImportExcelInput");
-  if (!lessonInput) return;
-
-  const opener = typeof openUploadDialogV81 === "function" ? openUploadDialogV81 : openUploadDialogV80;
-  opener({
-    title: "导入课时 Excel",
-    hint: "将 Excel 文件拖入这里",
-    acceptText: "支持 .xlsx / .xls。点击下方按钮选择文件。",
-    input: lessonInput,
-    onFile: async file => {
-      if (!/\.(xlsx|xls)$/i.test(file.name)) {
-        showMessage("暂时只支持 .xlsx / .xls 文件。", "error");
-        return;
-      }
-      await importLessonExcelFile(file);
-    },
-  });
+  // v9.8-final.14: old lesson Excel import entry removed.
 }
 
 function bindLessonUploadDialogFinalV82() {
-  const lessonBtn = document.getElementById("lessonImportExcelBtn");
-  const lessonInput = document.getElementById("lessonImportExcelInput");
-
-  if (lessonBtn) {
-    // Final override: click the page button only opens the upload dialog.
-    // It never opens the OS file picker directly.
-    lessonBtn.onclick = event => {
-      event.preventDefault();
-      event.stopPropagation();
-      openLessonExcelUploadDialogV82();
-    };
-  }
-
-  if (lessonInput) {
-    lessonInput.onchange = async () => {
-      const file = lessonInput.files && lessonInput.files[0];
-      lessonInput.value = "";
-      if (!file) return;
-      await importLessonExcelFile(file);
-      if (typeof closeUploadDialogV80 === "function") closeUploadDialogV80();
-    };
-  }
-
-  bindLessonStudentRequiredV82();
+  // v9.8-final.14: old lesson Excel import binding removed.
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -12181,7 +12113,7 @@ function timeRange88(v){const m=String(v||"").match(/(\d{1,2}:\d{2})\s*[-~〜～
 function headerMap88(h){
   const m={};
   (h||[]).forEach((c,i)=>{const k=tx88(c); if(!k)return;
-    if(/学生|学生姓名|生徒|姓名/.test(k)&&m.student===undefined)m.student=i;
+    if((/学生|学生姓名|生徒/.test(k) || (i===0 && /姓名/.test(k))) && m.student===undefined)m.student=i;
     if(/担当|老师|教師|先生/.test(k)&&m.teacher===undefined)m.teacher=i;
     if(/科目|课程|講座/.test(k)&&m.subject===undefined)m.subject=i;
     if((/预定.*日期|予定.*日|^日期$|^周$|^週$/.test(k))&&m.plannedDate===undefined)m.plannedDate=i;
@@ -12202,672 +12134,22 @@ function findHeader88(rows){for(let i=0;i<Math.min(rows.length,25);i++){const t=
 function status88(v){const t=tx88(v); if(/休|取消|キャンセル|请假|欠席/.test(t))return"cancelled"; if(/预|予定|未/.test(t))return"planned"; return"completed";}
 
 function ensureCompletedImportButtonV88(){
-  const page=document.getElementById("page-lessons")||document.querySelector("[data-page='lessons']");
-  if(!page||document.getElementById("lessonImportCompletedExcelBtnV88"))return;
-  const exportBtn=document.getElementById("lessonExportExcelBtn");
-  const html=`<button class="secondary-btn" id="lessonImportCompletedExcelBtnV88">导入完整课时</button><input type="file" id="lessonImportCompletedExcelInputV88" accept=".xlsx,.xls" style="display:none" />`;
-  if(exportBtn) exportBtn.insertAdjacentHTML("beforebegin",html);
-  else {
-    const anchor=page.querySelector(".panel-actions")||page.querySelector(".section-title-row")||page;
-    anchor.insertAdjacentHTML("beforeend",html);
-  }
-  document.getElementById("lessonImportCompletedExcelBtnV88").disabled=false;
-  document.getElementById("lessonImportCompletedExcelBtnV88").classList.remove("disabled");
-  document.getElementById("lessonImportCompletedExcelBtnV88").onclick=()=>{document.getElementById("lessonImportCompletedExcelInputV88")?.click();};
-  document.getElementById("lessonImportCompletedExcelInputV88").onchange=async e=>{const f=e.target.files?.[0]; if(f) await importCompletedLessonExcelV88(f); e.target.value="";};
+  const btn=document.getElementById("lessonImportCompletedExcelBtnV88");
+  const input=document.getElementById("lessonImportCompletedExcelInputV88");
+  if(!btn||!input)return;
+  btn.disabled=false;
+  btn.classList.remove("disabled");
+  btn.removeAttribute("title");
+  btn.removeAttribute("aria-disabled");
+  if(btn.dataset.boundCompletedImportV9814==="true")return;
+  btn.dataset.boundCompletedImportV9814="true";
+  btn.onclick=()=>{input.click();};
+  input.onchange=async e=>{const f=e.target.files?.[0]; if(f) await importCompletedLessonExcelV88(f); e.target.value="";};
 }
 async function importCompletedLessonExcelV88(file){
-  if(!lessonExcelRequireXLSX())return;
-  const studentId=document.getElementById("lessonStudentFilter")?.value||""; if(!studentId){showMessage("请先选择学生。","error");return;}
-  const student=(state.students||[]).find(x=>x.id===studentId);
-  const studentName=document.getElementById("lessonStudentFilter")?.selectedOptions?.[0]?.textContent||student?.display_name||student?.name||"";
-  const businessEntityId=student?.business_entity_id||state.businessEntities?.[0]?.id||null;
-  const batchId=typeof newImportBatchIdV871==="function"?newImportBatchIdV871():`completed_import_${Date.now()}`;
-  const importedAt=new Date().toISOString();
-  const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:true});
-  const sheetName=wb.SheetNames[0], sheet=wb.Sheets[sheetName];
-  const rows=XLSX.utils.sheet_to_json(sheet,{header:1,raw:true,defval:""});
-  const hi=findHeader88(rows); if(hi<0){showMessage("没有找到完整课时模板表头。","error");return;}
-  const col=headerMap88(rows[hi]), records=[]; let curT="",curS="",skipped=0;
-  const baseYear=Number(document.getElementById("lessonMonthFilter")?.value?.slice(0,4)||new Date().getFullYear());
-  for(let r=hi+1;r<rows.length;r++){
-    const row=rows[r]||[], line=row.map(x=>String(x||"").trim()).join("");
-    if(!line||/合计|总计|總計|小计|小計/.test(line))continue;
-    const tc=col.teacher!==undefined?String(row[col.teacher]||"").trim():"", sc=col.subject!==undefined?String(row[col.subject]||"").trim():"";
-    if(tc)curT=tc; if(sc)curS=sc;
-    const plannedDate=dt88(col.plannedDate!==undefined?row[col.plannedDate]:row[col.actualDate],baseYear);
-    const actualDate=dt88(col.actualDate!==undefined?row[col.actualDate]:plannedDate,baseYear)||plannedDate;
-    const duration=num88(col.duration!==undefined?row[col.duration]:"");
-    const subjectId=subjectIdFromExcelName(curS)||document.getElementById("lessonSubjectFilter")?.value||"";
-    const teacherId=teacherIdFromExcelName(curT)||document.getElementById("lessonTeacherFilter")?.value||"";
-    if(!plannedDate||!duration||!subjectId||!teacherId){skipped++; continue;}
-    const tr=timeRange88(col.timeRange!==undefined?row[col.timeRange]:"");
-    const start=col.start!==undefined?String(row[col.start]||""):tr.start, end=col.end!==undefined?String(row[col.end]||""):tr.end;
-    const unit=num88(col.unitPrice!==undefined?row[col.unitPrice]:"");
-    const fee=num88(col.lessonFee!==undefined?row[col.lessonFee]:"")||(unit&&duration?unit*duration:0);
-    const plannedContent=String((col.plannedContent!==undefined?row[col.plannedContent]:row[col.content])||"");
-    const actualContent=String((col.actualContent!==undefined?row[col.actualContent]:row[col.content])||"");
-    const note=String(col.note!==undefined?row[col.note]||"":"");
-    const plannedId=crypto.randomUUID?crypto.randomUUID():`p_${Date.now()}_${r}`;
-    const common={student_id:studentId,teacher_id:teacherId,subject_id:subjectId,business_entity_id:businessEntityId,start_time:start||"",end_time:end||"",duration_hours:duration,unit_price:unit||0,lesson_fee:fee||0,is_billable:true,note:note||`完整课时导入：${sheetName}`,import_batch_id:batchId,import_source:file.name||sheetName,imported_at:importedAt};
-    records.push({id:plannedId,lesson_type:"planned",lesson_date:plannedDate,year_month:plannedDate.slice(0,7),lesson_content:plannedContent,status:"planned",...common});
-    records.push({lesson_type:"actual",planned_lesson_id:plannedId,lesson_date:actualDate,year_month:actualDate.slice(0,7),lesson_content:actualContent,status:status88(col.status!==undefined?row[col.status]:"已上"),...common});
-  }
-  if(!records.length){showMessage("没有读取到可导入的完整课时记录。","error");return;}
-  const pc=records.filter(x=>x.lesson_type==="planned").length, ac=records.filter(x=>x.lesson_type==="actual").length;
-  const total=records.filter(x=>x.lesson_type==="actual").reduce((s,x)=>s+Number(x.lesson_fee||0),0);
-  if(!confirm(`即将导入完整课时记录：\n\n学生：${studentName}\n文件：${file.name}\n预定课时：${pc} 条\n实际课时：${ac} 条\n实际课时费合计：${total.toLocaleString()} JPY\n跳过行数：${skipped}\n\n确认导入吗？`))return;
-  const client=(typeof db!=="undefined"&&db?.from)?db:supabase;
-  const {error}=await client.from(tables.lessons).insert(records);
-  if(error){showMessage(`导入失败：${error.message}`,"error");return;}
-  if(typeof saveLastImportBatchV871==="function")saveLastImportBatchV871({batchId,studentId,studentName,fileName:file.name,count:records.length,importedAt});
-  await loadAll(); renderAll(); showMessage(`已导入完整课时记录：预定 ${pc} 条 / 实际 ${ac} 条。`,"ok");
+  if (typeof importCompletedLessonExcelV886 === "function") return importCompletedLessonExcelV886(file);
+  showMessage("完整课时导入函数未初始化。", "error");
 }
-function isExpenseReimbursedV88(item){const t=`${item.status||""} ${item.reimbursement_status||""}`.toLowerCase(); return Boolean(item.reimbursement_id||item.reimbursed_at||item.reimbursement_record_id||t.includes("reimbursed")||t.includes("已报销"));}
-function applyReimbursedLabelsV88(){
-  document.querySelectorAll("tr").forEach(tr=>{
-    const id=tr.querySelector("[data-edit][data-type='expense']")?.dataset?.edit||tr.querySelector("[data-delete][data-type='expense']")?.dataset?.delete;
-    if(!id)return; const item=(state.expenseRecords||[]).find(x=>String(x.id)===String(id));
-    if(!item||!isExpenseReimbursedV88(item)||tr.querySelector(".expense-reimbursed-badge-v88"))return;
-    const cell=Array.from(tr.children).find(td=>/已支付|未支付|待确认|paid|pending/i.test(td.textContent||""))||tr.children[tr.children.length-2];
-    if(cell)cell.insertAdjacentHTML("beforeend",`<span class="badge green expense-reimbursed-badge-v88">已报销</span>`);
-  });
-}
-document.addEventListener("DOMContentLoaded",()=>setTimeout(()=>{ensureCompletedImportButtonV88();applyReimbursedLabelsV88();},1000));
-const renderAllBeforeV88=typeof renderAll==="function"?renderAll:null;
-if(renderAllBeforeV88){renderAll=function(){renderAllBeforeV88();ensureCompletedImportButtonV88();applyReimbursedLabelsV88();};}
-
-
-
-// === v8.8.1 expense reimbursed status robust fix ===
-// 之前只是尝试根据 expense 本身是否带 reimbursement_id / reimbursed_at 来显示“已报销”。
-// 实际报销流程可能只在报销记录或报销明细里保存关联，所以支出本身不会自动有这些字段。
-// 本版改为从报销记录 + 明细 + 本地状态多路径判断。
-
-function collectReimbursedExpenseIdsV881() {
-  const ids = new Set();
-
-  const addId = (value) => {
-    if (value !== null && value !== undefined && String(value).trim()) ids.add(String(value).trim());
-  };
-
-  // 1. expense 自身字段
-  (state.expenseRecords || []).forEach(exp => {
-    const statusText = `${exp.status || ""} ${exp.reimbursement_status || ""}`.toLowerCase();
-    if (
-      exp.reimbursement_id ||
-      exp.reimbursed_at ||
-      exp.reimbursement_record_id ||
-      statusText.includes("reimbursed") ||
-      statusText.includes("已报销")
-    ) {
-      addId(exp.id);
-    }
-  });
-
-  // 2. 报销记录中可能直接保存 expense_ids / expenseIds / expense_id
-  (state.reimbursementRecords || state.reimbursements || []).forEach(reim => {
-    const statusText = `${reim.status || ""}`.toLowerCase();
-    const isActive = !/cancel|delete|void|取消|删除|作废/.test(statusText);
-    if (!isActive) return;
-
-    addId(reim.expense_id);
-
-    const possibleArrays = [
-      reim.expense_ids,
-      reim.expenseIds,
-      reim.expenses,
-      reim.selected_expense_ids,
-      reim.reimbursed_expense_ids,
-    ];
-
-    possibleArrays.forEach(arr => {
-      if (Array.isArray(arr)) {
-        arr.forEach(x => {
-          if (typeof x === "object") addId(x.id || x.expense_id);
-          else addId(x);
-        });
-      } else if (typeof arr === "string") {
-        try {
-          const parsed = JSON.parse(arr);
-          if (Array.isArray(parsed)) parsed.forEach(x => typeof x === "object" ? addId(x.id || x.expense_id) : addId(x));
-        } catch {
-          arr.split(",").forEach(addId);
-        }
-      }
-    });
-  });
-
-  // 3. 报销明细表/本地明细状态
-  const detailLists = [
-    state.reimbursementExpenseRecords,
-    state.reimbursementExpenseLinks,
-    state.reimbursementDetails,
-    state.reimbursementItems,
-    state.reimbursementExpenseItems,
-  ];
-
-  detailLists.forEach(list => {
-    (list || []).forEach(row => {
-      const statusText = `${row.status || ""}`.toLowerCase();
-      const isActive = !/cancel|delete|void|取消|删除|作废/.test(statusText);
-      if (isActive) addId(row.expense_id || row.expense_record_id || row.id);
-    });
-  });
-
-  return ids;
-}
-
-function isExpenseReimbursedV881(item) {
-  if (!item) return false;
-  const ids = collectReimbursedExpenseIdsV881();
-  return ids.has(String(item.id));
-}
-
-function expenseStatusTextV881(item) {
-  const base = typeof expenseStatusLabel === "function"
-    ? expenseStatusLabel(item.status)
-    : (item.status === "paid" ? "已支付" : item.status === "unpaid" ? "未支付" : (item.status || ""));
-  return isExpenseReimbursedV881(item) ? `${base} / 已报销` : base;
-}
-
-function applyReimbursedLabelsV881() {
-  const reimbursedIds = collectReimbursedExpenseIdsV881();
-
-  document.querySelectorAll("tr").forEach(tr => {
-    const editBtn = tr.querySelector("[data-edit][data-type='expense']");
-    const delBtn = tr.querySelector("[data-delete][data-type='expense']");
-    const id = editBtn?.dataset?.edit || delBtn?.dataset?.delete;
-    if (!id || !reimbursedIds.has(String(id))) return;
-
-    if (tr.querySelector(".expense-reimbursed-badge-v88, .expense-reimbursed-badge-v881")) return;
-
-    // 优先放到包含状态文字的单元格，找不到就放到操作列前一格
-    const statusCell =
-      Array.from(tr.children).find(td => /已支付|未支付|待确认|paid|pending|报销/i.test(td.textContent || "")) ||
-      tr.children[Math.max(0, tr.children.length - 2)];
-
-    if (statusCell) {
-      statusCell.insertAdjacentHTML("beforeend", `<span class="badge green expense-reimbursed-badge-v881">已报销</span>`);
-    }
-  });
-}
-
-// 如果页面渲染支出状态时调用了某些状态格式化函数，尽量覆盖为带“已报销”的状态。
-if (typeof expenseStatusLabel === "function") {
-  const expenseStatusLabelBeforeV881 = expenseStatusLabel;
-  expenseStatusLabel = function(status, item) {
-    const base = expenseStatusLabelBeforeV881(status, item);
-    if (item && isExpenseReimbursedV881(item)) return `${base} / 已报销`;
-    return base;
-  };
-}
-
-// 部分版本有独立 renderExpenses，渲染后补标识。
-const renderExpensesBeforeV881 = typeof renderExpenses === "function" ? renderExpenses : null;
-if (renderExpensesBeforeV881) {
-  renderExpenses = function() {
-    renderExpensesBeforeV881();
-    setTimeout(applyReimbursedLabelsV881, 0);
-  };
-}
-
-const renderReimbursementsBeforeV881 = typeof renderReimbursements === "function" ? renderReimbursements : null;
-if (renderReimbursementsBeforeV881) {
-  renderReimbursements = function() {
-    renderReimbursementsBeforeV881();
-    setTimeout(applyReimbursedLabelsV881, 0);
-  };
-}
-
-// 如果报销保存后没有刷新完整数据，补一次刷新和状态标记。
-const renderAllBeforeV881 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV881) {
-  renderAll = function() {
-    renderAllBeforeV881();
-    setTimeout(applyReimbursedLabelsV881, 0);
-  };
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(applyReimbursedLabelsV881, 1000);
-});
-
-// 调试辅助：在 console 可执行 debugReimbursedExpenseIdsV881()
-function debugReimbursedExpenseIdsV881() {
-  const ids = Array.from(collectReimbursedExpenseIdsV881());
-  console.log("reimbursed expense ids", ids);
-  return ids;
-}
-
-
-
-// === v8.8.2 reimbursement-expense link table ===
-tables.reimbursementExpenses = "school_reimbursement_expenses";
-state.reimbursementExpenseLinks = state.reimbursementExpenseLinks || [];
-
-async function loadReimbursementExpenseLinksV882() {
-  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
-  const { data, error } = await client
-    .from(tables.reimbursementExpenses)
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.warn("Reimbursement link table load failed.", error);
-    state.reimbursementExpenseLinks = [];
-    return;
-  }
-  state.reimbursementExpenseLinks = data || [];
-}
-
-const loadAllBeforeV882 = typeof loadAll === "function" ? loadAll : null;
-if (loadAllBeforeV882) {
-  loadAll = async function() {
-    await loadAllBeforeV882();
-    await loadReimbursementExpenseLinksV882();
-  };
-}
-
-function activeReimbursementLinksV882() {
-  const activeReimbursementIds = new Set(
-    (state.reimbursements || [])
-      .filter(r => !/cancel|delete|void|取消|删除|作废/.test(String(r.status || "").toLowerCase()))
-      .map(r => String(r.id))
-  );
-
-  return (state.reimbursementExpenseLinks || []).filter(link =>
-    activeReimbursementIds.has(String(link.reimbursement_id))
-  );
-}
-
-function reimbursedExpenseIdsV882() {
-  return new Set(activeReimbursementLinksV882().map(x => String(x.expense_id)));
-}
-
-const pendingReimbursementExpensesBeforeV882 = typeof pendingReimbursementExpenses === "function" ? pendingReimbursementExpenses : null;
-if (pendingReimbursementExpensesBeforeV882) {
-  pendingReimbursementExpenses = function() {
-    const linked = reimbursedExpenseIdsV882();
-    return pendingReimbursementExpensesBeforeV882().filter(x => !linked.has(String(x.id)));
-  };
-}
-
-async function saveReimbursementExpenseLinksV882(reimbursement) {
-  const ids = (state.pendingReimbursementExpenseIds || []).slice();
-  if (!reimbursement?.id || !ids.length) return;
-
-  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
-
-  // 删除当前报销记录旧关联，重新写入
-  await client
-    .from(tables.reimbursementExpenses)
-    .delete()
-    .eq("reimbursement_id", reimbursement.id);
-
-  const rows = ids.map(expenseId => {
-    const expense = (state.expenseRecords || []).find(x => String(x.id) === String(expenseId));
-    return {
-      reimbursement_id: reimbursement.id,
-      expense_id: expenseId,
-      amount: Number(expense?.amount || 0),
-    };
-  });
-
-  const { error } = await client
-    .from(tables.reimbursementExpenses)
-    .insert(rows);
-
-  if (error) {
-    console.warn("Failed to save reimbursement-expense links", error);
-    showMessage(`报销关联保存失败：${error.message}`, "error");
-  }
-}
-
-const saveReimbursementItemsBeforeV882 = typeof saveReimbursementItems === "function" ? saveReimbursementItems : null;
-saveReimbursementItems = async function(reimbursement) {
-  const idsBackup = (state.pendingReimbursementExpenseIds || []).slice();
-
-  if (saveReimbursementItemsBeforeV882) {
-    await saveReimbursementItemsBeforeV882(reimbursement);
-  }
-
-  // 旧函数会清空 pendingReimbursementExpenseIds，所以这里用备份恢复写入新关联表
-  const oldIds = state.pendingReimbursementExpenseIds;
-  state.pendingReimbursementExpenseIds = idsBackup;
-  await saveReimbursementExpenseLinksV882(reimbursement);
-  state.pendingReimbursementExpenseIds = oldIds && oldIds.length ? oldIds : [];
-};
-
-function collectReimbursedExpenseIdsV882() {
-  const ids = new Set();
-  reimbursedExpenseIdsV882().forEach(id => ids.add(String(id)));
-
-  // 兼容旧数据/旧字段
-  if (typeof collectReimbursedExpenseIdsV881 === "function") {
-    collectReimbursedExpenseIdsV881().forEach(id => ids.add(String(id)));
-  }
-
-  return ids;
-}
-
-function isExpenseReimbursedV882(item) {
-  if (!item) return false;
-  return collectReimbursedExpenseIdsV882().has(String(item.id));
-}
-
-function applyReimbursedLabelsV882() {
-  const ids = collectReimbursedExpenseIdsV882();
-
-  document.querySelectorAll("tr").forEach(tr => {
-    const editBtn = tr.querySelector("[data-edit][data-type='expense']");
-    const delBtn = tr.querySelector("[data-delete][data-type='expense']");
-    const id = editBtn?.dataset?.edit || delBtn?.dataset?.delete;
-    if (!id || !ids.has(String(id))) return;
-
-    if (tr.querySelector(".expense-reimbursed-badge-v88, .expense-reimbursed-badge-v881, .expense-reimbursed-badge-v882")) return;
-
-    const statusCell =
-      Array.from(tr.children).find(td => /已支付|未支付|待确认|paid|pending|报销/i.test(td.textContent || "")) ||
-      tr.children[Math.max(0, tr.children.length - 2)];
-
-    if (statusCell) {
-      statusCell.insertAdjacentHTML("beforeend", `<span class="badge green expense-reimbursed-badge-v882">已报销</span>`);
-    }
-  });
-}
-
-isExpenseReimbursedV88 = isExpenseReimbursedV882;
-isExpenseReimbursedV881 = isExpenseReimbursedV882;
-applyReimbursedLabelsV88 = applyReimbursedLabelsV882;
-applyReimbursedLabelsV881 = applyReimbursedLabelsV882;
-collectReimbursedExpenseIdsV881 = collectReimbursedExpenseIdsV882;
-
-// 删除报销时，关联表有 ON DELETE CASCADE；这里额外先删一次，确保刷新前状态准确。
-const deleteRecordBeforeV882 = typeof deleteRecord === "function" ? deleteRecord : null;
-if (deleteRecordBeforeV882) {
-  deleteRecord = async function(type, id) {
-    if (type === "reimbursement") {
-      const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
-      await client.from(tables.reimbursementExpenses).delete().eq("reimbursement_id", id);
-    }
-    return deleteRecordBeforeV882(type, id);
-  };
-}
-
-const renderAllBeforeV882 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV882) {
-  renderAll = function() {
-    renderAllBeforeV882();
-    setTimeout(applyReimbursedLabelsV882, 0);
-  };
-}
-
-const renderExpensesBeforeV882 = typeof renderExpensesTable === "function" ? renderExpensesTable : null;
-if (renderExpensesBeforeV882) {
-  renderExpensesTable = function() {
-    renderExpensesBeforeV882();
-    setTimeout(applyReimbursedLabelsV882, 0);
-  };
-}
-
-const renderReimbursementsBeforeV882 = typeof renderReimbursements === "function" ? renderReimbursements : null;
-if (renderReimbursementsBeforeV882) {
-  renderReimbursements = function() {
-    renderReimbursementsBeforeV882();
-    setTimeout(applyReimbursedLabelsV882, 0);
-  };
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(applyReimbursedLabelsV882, 1000);
-});
-
-function debugReimbursementLinksV882() {
-  console.log("reimbursement links", state.reimbursementExpenseLinks || []);
-  console.log("reimbursed expense ids", Array.from(collectReimbursedExpenseIdsV882()));
-  return {
-    links: state.reimbursementExpenseLinks || [],
-    ids: Array.from(collectReimbursedExpenseIdsV882()),
-  };
-}
-
-
-
-// === v8.8.3 reimbursement recursion fix ===
-function collectLegacyReimbursedExpenseIdsV883() {
-  const ids = new Set();
-  const add = (v) => {
-    if (v !== null && v !== undefined && String(v).trim()) ids.add(String(v).trim());
-  };
-
-  (state.expenseRecords || []).forEach(exp => {
-    const rs = String(exp.reimbursement_status || "").toLowerCase();
-    if (
-      exp.reimbursement_id ||
-      exp.reimbursed_at ||
-      exp.reimbursement_record_id ||
-      rs === "paid" ||
-      rs.includes("reimbursed") ||
-      rs.includes("已报销")
-    ) {
-      add(exp.id);
-    }
-  });
-
-  (state.reimbursements || []).forEach(reim => {
-    const s = String(reim.status || "").toLowerCase();
-    if (/cancel|delete|void|取消|删除|作废/.test(s)) return;
-
-    (reim.items || []).forEach(item => add(item.expense_id || item.expense_record_id));
-
-    ["expense_ids", "expenseIds", "expenses", "selected_expense_ids", "reimbursed_expense_ids"].forEach(key => {
-      const val = reim[key];
-      if (Array.isArray(val)) {
-        val.forEach(x => typeof x === "object" ? add(x.id || x.expense_id) : add(x));
-      } else if (typeof val === "string") {
-        try {
-          const parsed = JSON.parse(val);
-          if (Array.isArray(parsed)) parsed.forEach(x => typeof x === "object" ? add(x.id || x.expense_id) : add(x));
-        } catch {
-          val.split(",").forEach(add);
-        }
-      }
-    });
-  });
-
-  return ids;
-}
-
-function collectReimbursedExpenseIdsV883() {
-  const ids = new Set();
-  const activeReimIds = new Set(
-    (state.reimbursements || [])
-      .filter(r => !/cancel|delete|void|取消|删除|作废/.test(String(r.status || "").toLowerCase()))
-      .map(r => String(r.id))
-  );
-
-  (state.reimbursementExpenseLinks || []).forEach(link => {
-    if (activeReimIds.has(String(link.reimbursement_id)) && link.expense_id) {
-      ids.add(String(link.expense_id));
-    }
-  });
-
-  collectLegacyReimbursedExpenseIdsV883().forEach(id => ids.add(String(id)));
-  return ids;
-}
-
-function isExpenseReimbursedV883(item) {
-  return !!item && collectReimbursedExpenseIdsV883().has(String(item.id));
-}
-
-function applyReimbursedLabelsV883() {
-  const ids = collectReimbursedExpenseIdsV883();
-
-  document.querySelectorAll("tr").forEach(tr => {
-    const editBtn = tr.querySelector("[data-edit][data-type='expense']");
-    const delBtn = tr.querySelector("[data-delete][data-type='expense']");
-    const id = editBtn?.dataset?.edit || delBtn?.dataset?.delete;
-    if (!id || !ids.has(String(id))) return;
-
-    if (tr.querySelector(".expense-reimbursed-badge-v88, .expense-reimbursed-badge-v881, .expense-reimbursed-badge-v882, .expense-reimbursed-badge-v883")) return;
-
-    const statusCell =
-      Array.from(tr.children).find(td => /已支付|未支付|待确认|paid|pending|报销/i.test(td.textContent || "")) ||
-      tr.children[Math.max(0, tr.children.length - 2)];
-
-    if (statusCell) {
-      statusCell.insertAdjacentHTML("beforeend", `<span class="badge green expense-reimbursed-badge-v883">已报销</span>`);
-    }
-  });
-}
-
-collectReimbursedExpenseIdsV881 = collectReimbursedExpenseIdsV883;
-collectReimbursedExpenseIdsV882 = collectReimbursedExpenseIdsV883;
-isExpenseReimbursedV88 = isExpenseReimbursedV883;
-isExpenseReimbursedV881 = isExpenseReimbursedV883;
-isExpenseReimbursedV882 = isExpenseReimbursedV883;
-applyReimbursedLabelsV88 = applyReimbursedLabelsV883;
-applyReimbursedLabelsV881 = applyReimbursedLabelsV883;
-applyReimbursedLabelsV882 = applyReimbursedLabelsV883;
-
-const renderAllBeforeV883 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV883) {
-  renderAll = function() {
-    renderAllBeforeV883();
-    setTimeout(applyReimbursedLabelsV883, 0);
-  };
-}
-
-const renderExpensesBeforeV883 = typeof renderExpensesTable === "function" ? renderExpensesTable : null;
-if (renderExpensesBeforeV883) {
-  renderExpensesTable = function() {
-    renderExpensesBeforeV883();
-    setTimeout(applyReimbursedLabelsV883, 0);
-  };
-}
-
-const renderReimbursementsBeforeV883 = typeof renderReimbursements === "function" ? renderReimbursements : null;
-if (renderReimbursementsBeforeV883) {
-  renderReimbursements = function() {
-    renderReimbursementsBeforeV883();
-    setTimeout(applyReimbursedLabelsV883, 0);
-  };
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(applyReimbursedLabelsV883, 1000);
-});
-
-function debugReimbursementLinksV883() {
-  const ids = Array.from(collectReimbursedExpenseIdsV883());
-  console.log("reimbursement links", state.reimbursementExpenseLinks || []);
-  console.log("legacy ids", Array.from(collectLegacyReimbursedExpenseIdsV883()));
-  console.log("reimbursed expense ids", ids);
-  return { links: state.reimbursementExpenseLinks || [], ids };
-}
-
-
-
-// === v8.8.4 completed lesson import fix / default month / drop dialog ===
-function ensureLessonMonthDefaultV884() {
-  const input = document.getElementById("lessonMonthFilter");
-  if (input && !input.value) {
-    input.value = currentYearMonth();
-  }
-}
-
-function uuidV884(prefix = "id") {
-  if (window.crypto?.randomUUID) return crypto.randomUUID();
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function openCompletedImportDialogV884() {
-  const studentId = normalizeLessonSelectedStudentFilterV9812();
-  if (!studentId) {
-    showMessage("请先选择学生，再导入完整课时记录。", "error");
-    return;
-  }
-
-  let modal = document.getElementById("completedImportDialogV884");
-  if (!modal) {
-    document.body.insertAdjacentHTML("beforeend", `
-      <div class="import-dialog-mask-v884" id="completedImportDialogV884">
-        <div class="import-dialog-v884">
-          <div class="import-dialog-head-v884">
-            <div>
-              <h3>导入完整课时</h3>
-              <p>可拖入 Excel 文件，也可以点击选择文件。</p>
-            </div>
-            <button class="icon-btn" id="closeCompletedImportDialogV884">×</button>
-          </div>
-          <div class="import-drop-v884" id="completedImportDropV884">
-            <div class="import-drop-title-v884">把完整课时 Excel 拖到这里</div>
-            <div class="muted-small">支持 .xlsx / .xls。请先在课时管理筛选中选择学生。</div>
-            <button class="primary-btn" id="chooseCompletedImportFileV884">选择文件</button>
-            <input type="file" id="completedImportFileInputV884" accept=".xlsx,.xls" style="display:none" />
-          </div>
-        </div>
-      </div>
-    `);
-
-    modal = document.getElementById("completedImportDialogV884");
-    const close = () => modal.classList.remove("show");
-    document.getElementById("closeCompletedImportDialogV884")?.addEventListener("click", close);
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) close();
-    });
-
-    const input = document.getElementById("completedImportFileInputV884");
-    document.getElementById("chooseCompletedImportFileV884")?.addEventListener("click", () => input?.click());
-    input?.addEventListener("change", async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      close();
-      await importCompletedLessonExcelV884(file);
-      e.target.value = "";
-    });
-
-    const drop = document.getElementById("completedImportDropV884");
-    ["dragenter", "dragover"].forEach(evt => {
-      drop.addEventListener(evt, (e) => {
-        e.preventDefault();
-        drop.classList.add("dragging");
-      });
-    });
-    ["dragleave", "drop"].forEach(evt => {
-      drop.addEventListener(evt, (e) => {
-        e.preventDefault();
-        drop.classList.remove("dragging");
-      });
-    });
-    drop.addEventListener("drop", async (e) => {
-      const file = e.dataTransfer?.files?.[0];
-      if (!file) return;
-      close();
-      await importCompletedLessonExcelV884(file);
-    });
-  }
-
-  modal.classList.add("show");
-}
-
-function ensureCompletedImportButtonV884() {
-  const page = document.getElementById("page-lessons") || document.querySelector("[data-page='lessons']");
-  if (!page) return;
-
-  const oldBtn = document.getElementById("lessonImportCompletedExcelBtnV88");
-  if (oldBtn) {
-    oldBtn.onclick = openCompletedImportDialogV884;
-    oldBtn.textContent = "导入完整课时";
-    return;
-  }
-
-  const anchor = document.getElementById("lessonImportExcelBtn")?.parentElement || page.querySelector(".section-title-row") || page;
-  anchor.insertAdjacentHTML("beforeend", `<button class="secondary-btn" id="lessonImportCompletedExcelBtnV88">导入完整课时</button>`);
-  document.getElementById("lessonImportCompletedExcelBtnV88").onclick = openCompletedImportDialogV884;
-}
-
 async function importCompletedLessonExcelV884(file) {
   if (!lessonExcelRequireXLSX()) return;
 
@@ -13415,7 +12697,6 @@ function selectedStudentFallbackV9810() {
 async function importCompletedLessonExcelV886(file) {
   if (!lessonExcelRequireXLSX()) return;
 
-  const fallbackStudent = selectedStudentFallbackV9810();
   const batchId = typeof newImportBatchIdV871 === "function" ? newImportBatchIdV871() : `completed_import_${Date.now()}`;
   const importedAt = new Date().toISOString();
 
@@ -13446,14 +12727,14 @@ async function importCompletedLessonExcelV886(file) {
     const line = row.map(x => String(x || "").trim()).join("");
     if (!line || /合计|总计|總計|小计|小計/.test(line)) continue;
 
-    const studentCell = col.student !== undefined ? String(row[col.student] || "").trim() : "";
+    const studentCell = String((col.student !== undefined ? row[col.student] : row[0]) || "").trim();
     const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
     const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
     if (studentCell) curStudentText = studentCell;
     if (teacherCell) curT = teacherCell;
     if (subjectCell) curS = subjectCell;
 
-    const student = studentFromExcelNameV9810(curStudentText) || fallbackStudent;
+    const student = studentFromExcelNameV9810(curStudentText);
     if (!student) {
       if (curStudentText) missingStudents.add(curStudentText);
       skipped++;
@@ -13626,22 +12907,7 @@ function patchLessonCountDisplayV886() {
 
 // Full import button disabled when no student selected.
 function updateLessonImportButtonsV886() {
-  const studentId = normalizeLessonSelectedStudentFilterV9812();
-  const addBtn = document.getElementById("addLessonBtn");
-  if (addBtn) {
-    addBtn.disabled = !studentId;
-    addBtn.classList.toggle("disabled", !studentId);
-    if (!studentId) addBtn.title = "请先选择学生";
-    else addBtn.removeAttribute("title");
-  }
-
-  const importBtn = document.getElementById("lessonImportCompletedExcelBtnV88");
-  if (importBtn) {
-    importBtn.disabled = false;
-    importBtn.classList.remove("disabled");
-    importBtn.removeAttribute("title");
-    importBtn.removeAttribute("aria-disabled");
-  }
+  // v9.8-final.14: removed import/add student-required disabled controls.
 }
 
 

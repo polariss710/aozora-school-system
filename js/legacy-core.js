@@ -567,7 +567,7 @@ function updateLessonFilters() {
 
 function filterLessons() {
   const month = document.getElementById("lessonMonthFilter")?.value || "";
-  const student = document.getElementById("lessonStudentFilter")?.value || "";
+  const student = normalizeLessonSelectedStudentFilterV9812();
   const teacher = document.getElementById("lessonTeacherFilter")?.value || "";
   const subject = document.getElementById("lessonSubjectFilter")?.value || "";
   const type = document.getElementById("lessonTypeFilter")?.value || "";
@@ -613,6 +613,18 @@ function renderLessonStats(rows) {
   setOptionalText("lessonCompletedCount", completedCount);
   setOptionalText("lessonCancelledCount", cancelledCount);
   setOptionalText("lessonRecordCount", rows.length);
+}
+
+
+function normalizeLessonSelectedStudentFilterV9812() {
+  const select = document.getElementById("lessonStudentFilter");
+  if (!select || !select.value) return "";
+  const ok = Array.from(select.options || []).some(opt => opt.value === select.value && opt.value);
+  if (!ok) {
+    select.value = "";
+    return "";
+  }
+  return select.value;
 }
 
 function renderLessons() {
@@ -4011,7 +4023,7 @@ function buildLessonImportColumnMap(headerRow) {
 
 function selectedLessonImportContext() {
   const month = document.getElementById("lessonMonthFilter")?.value || currentYearMonth();
-  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  const studentId = normalizeLessonSelectedStudentFilterV9812();
   const teacherId = document.getElementById("lessonTeacherFilter")?.value || "";
   const subjectId = document.getElementById("lessonSubjectFilter")?.value || "";
 
@@ -4770,7 +4782,7 @@ function bindLessonExcelActionsV79() {
     "lessonExcelDropZone",
     "lessonImportExcelInput",
     async (file) => {
-      const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+      const studentId = normalizeLessonSelectedStudentFilterV9812();
       if (!studentId) {
         showMessage("请先在课时管理筛选中选择学生，再导入 Excel。", "error");
         return;
@@ -4981,7 +4993,7 @@ function bindUploadDialogButtonsV80() {
   if (lessonBtn && lessonInput && lessonBtn.dataset.boundDialogV80 !== "true") {
     lessonBtn.dataset.boundDialogV80 = "true";
     lessonBtn.onclick = () => {
-      const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+      const studentId = normalizeLessonSelectedStudentFilterV9812();
       if (!studentId) {
         showMessage("请先在课时管理筛选中选择学生，再导入 Excel。", "error");
         return;
@@ -5114,7 +5126,7 @@ function bindUploadDialogButtonsV81() {
   const lessonInput = document.getElementById("lessonImportExcelInput");
   if (lessonBtn && lessonInput) {
     lessonBtn.onclick = () => {
-      const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+      const studentId = normalizeLessonSelectedStudentFilterV9812();
       if (!studentId) {
         showMessage("请先在课时管理筛选中选择学生，再导入 Excel。", "error");
         return;
@@ -5162,7 +5174,7 @@ if (renderAllBeforeV81) {
 
 // === v8.2 lesson import dialog + student required final override ===
 function updateLessonStudentRequiredStateV82() {
-  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  const studentId = normalizeLessonSelectedStudentFilterV9812();
   const addBtn = document.getElementById("lessonAddBtn");
   const importBtn = document.getElementById("lessonImportExcelBtn");
   const hint = document.getElementById("lessonStudentRequiredHint");
@@ -5192,7 +5204,7 @@ function bindLessonStudentRequiredV82() {
 }
 
 function openLessonExcelUploadDialogV82() {
-  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  const studentId = normalizeLessonSelectedStudentFilterV9812();
   if (!studentId) {
     showMessage("请先在课时管理筛选中选择学生。", "error");
     updateLessonStudentRequiredStateV82();
@@ -11503,7 +11515,7 @@ function bindLessonExcelActionsV871() {
 
   if (importBtn) {
     importBtn.onclick = () => {
-      const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+      const studentId = normalizeLessonSelectedStudentFilterV9812();
       if (!studentId) {
         showMessage("请先在课时管理筛选中选择学生，再导入 Excel。", "error");
         return;
@@ -12771,7 +12783,7 @@ function uuidV884(prefix = "id") {
 }
 
 function openCompletedImportDialogV884() {
-  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  const studentId = normalizeLessonSelectedStudentFilterV9812();
   if (!studentId) {
     showMessage("请先选择学生，再导入完整课时记录。", "error");
     return;
@@ -12859,7 +12871,7 @@ function ensureCompletedImportButtonV884() {
 async function importCompletedLessonExcelV884(file) {
   if (!lessonExcelRequireXLSX()) return;
 
-  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  const studentId = normalizeLessonSelectedStudentFilterV9812();
   if (!studentId) {
     showMessage("请先选择学生。", "error");
     return;
@@ -13130,7 +13142,7 @@ if (headerMapBeforeV885) {
 async function importCompletedLessonExcelV885(file) {
   if (!lessonExcelRequireXLSX()) return;
 
-  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  const studentId = normalizeLessonSelectedStudentFilterV9812();
   if (!studentId) {
     showMessage("请先选择学生。", "error");
     return;
@@ -13396,7 +13408,7 @@ function studentFromExcelNameV9810(name) {
 }
 
 function selectedStudentFallbackV9810() {
-  const id = document.getElementById("lessonStudentFilter")?.value || "";
+  const id = normalizeLessonSelectedStudentFilterV9812();
   return id ? (state.students || []).find(s => s.id === id) || null : null;
 }
 
@@ -13614,7 +13626,7 @@ function patchLessonCountDisplayV886() {
 
 // Full import button disabled when no student selected.
 function updateLessonImportButtonsV886() {
-  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  const studentId = normalizeLessonSelectedStudentFilterV9812();
   const addBtn = document.getElementById("addLessonBtn");
   if (addBtn) {
     addBtn.disabled = !studentId;
@@ -13776,7 +13788,7 @@ function updateMakeupStatLabelV887() {
 
 // Robustly disable import/add buttons when no student selected.
 function lessonStudentSelectedV887() {
-  return Boolean(document.getElementById("lessonStudentFilter")?.value || "");
+  return Boolean(normalizeLessonSelectedStudentFilterV9812());
 }
 
 function updateLessonButtonsDisabledV887() {
@@ -13948,7 +13960,7 @@ function buildCompletedImportRecordsV887(file, rows, sheetName, col, context) {
 async function importCompletedLessonExcelV887(file) {
   if (!lessonExcelRequireXLSX()) return;
 
-  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  const studentId = normalizeLessonSelectedStudentFilterV9812();
   if (!studentId) {
     showMessage("请先选择学生。", "error");
     return;
@@ -14424,7 +14436,7 @@ if (headerMapBeforeV8810) {
 async function importCompletedLessonExcelV8810(file) {
   if (!lessonExcelRequireXLSX()) return;
 
-  const studentId = document.getElementById("lessonStudentFilter")?.value || "";
+  const studentId = normalizeLessonSelectedStudentFilterV9812();
   if (!studentId) {
     showMessage("请先选择学生。", "error");
     return;

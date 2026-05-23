@@ -189,6 +189,31 @@
 
 
 
+
+### v9.8.12
+- 学生月度结算数据来源整理第一版：统一 DB RPC 作为核心数据出口。
+- 修正页面报错：
+  - `column s.status does not exist`
+- 重新创建 RPC：
+  - `school_get_student_monthly_settlement_summary(student_id, year_month)`
+- RPC 统一输出：
+  - 上月结转
+  - 预定课时数
+  - 实际课时数
+  - 预定课时费
+  - 实际课时费
+  - 已收学费
+  - 结算差额
+  - 锁定后的调整结转金额
+- 学生月度结算页面、锁定快照、课时费通知单导出统一读取该 RPC 的核心金额。
+- 修正课时费通知单导出中的合计课时：
+  - 预定课时合计读取 DB planned_hours
+  - 实际课时合计读取 DB actual_hours
+- 本版先修复和统一数据出口，不做大瘦身。
+- 新增 SQL：
+  - `school_v9_8_12_student_settlement_summary_rpc_unified.sql`
+- 本版包含当前新增 SQL 文件，不包含旧 SQL 文件。
+
 ### v9.8.11
 - 本版优先修复 v9.8.10 后发现的两个 bug，暂不做瘦身整理。
 - 修正学生月度结算课时统计口径：

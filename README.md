@@ -198,6 +198,23 @@
 
 
 
+
+### v9.8-stable-final.1-student-settlement-pdf
+- 学生月度结算输出优化第一版。
+- 新增按钮：
+  - `导出PDF`
+- PDF 输出采用接近课时管理列表的上下分组格式：
+  - 月度结算摘要
+  - 月初预定结算
+  - 月底实际结算
+  - 预定课时明细表
+  - 实际课时明细表
+- PDF 核心统计继续读取 DB RPC：
+  - `school_get_student_monthly_settlement_summary(student_id, year_month)`
+- 本版不修改 SQL。
+- 本版不处理小屏幕页面响应式显示。
+- PDF 输出目前使用浏览器打印窗口保存为 PDF，后续可以再改成直接下载 PDF 文件。
+
 ### v9.8-stable-final-student-settlement
 - 学生月度结算 DB 化阶段稳定版。
 - 基于：

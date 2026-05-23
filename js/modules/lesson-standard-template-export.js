@@ -1,4 +1,4 @@
-// === v9.8-stable-final.9-clean-lesson-import lesson standard template export ===
+// === v9.8-stable-final.10-clean-lesson-import-template lesson standard template export ===
 // 课时管理「导出Excel」改为导出标准课时登记模板。
 // 用于未来月份预登记：只生成该月每个周一代表的周，默认时长 2H，其他业务字段留空。
 
@@ -47,23 +47,25 @@
     const rows = [
       [monthLabel(ym)],
       ["预定课时"],
-      ["担当老师", "科目", "日期", "内容", "时长（H）", "课程单价", "应收课时费"],
+      ["学生姓名", "担当老师", "科目", "日期", "回数", "内容", "时长（H）", "课程单价", "应收课时费"],
     ];
 
     const labels = mondayLabelsOfMonth(ym);
     labels.forEach(label => {
-      rows.push(["", "", label, "", 2, "", 0]);
+      rows.push(["", "", "", label, "", "", 2, "", 0]);
     });
 
     const totalRowIndex = rows.length + 1;
-    rows.push(["", "", "", "", { f: `SUM(E4:E${totalRowIndex - 1})` }, "", ""]);
+    rows.push(["", "", "", "", "", "", { f: `SUM(G4:G${totalRowIndex - 1})` }, "", ""]);
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
 
     ws["!cols"] = [
+      { wch: 14 }, // 学生姓名
       { wch: 14 }, // 担当老师
       { wch: 14 }, // 科目
       { wch: 12 }, // 日期
+      { wch: 8 },  // 回数
       { wch: 24 }, // 内容
       { wch: 10 }, // 时长
       { wch: 12 }, // 课程单价
@@ -71,7 +73,7 @@
     ];
 
     ws["!merges"] = [
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
     ];
 
     const wb = XLSX.utils.book_new();
@@ -136,7 +138,7 @@
   document.addEventListener("DOMContentLoaded", () => setTimeout(bind, 800));
 
   window.SchoolLessonStandardTemplateExport = {
-    version: "9.8-stable-final.9-clean-lesson-import",
+    version: "9.8-stable-final.10-clean-lesson-import-template",
     export: exportStandardLessonTemplate,
     mondayLabelsOfMonth,
   };

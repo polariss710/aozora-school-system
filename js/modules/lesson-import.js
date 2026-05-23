@@ -74,11 +74,6 @@ window.normalizeTeacherSettlementMonthV916 = normalizeTeacherSettlementMonthV916
 
     btn.dataset.boundMonthRequiredV917 = "true";
     btn.onclick = () => {
-      if (!document.getElementById("lessonStudentFilter")?.value) {
-        showMessage("请先选择学生，再导入完整课时记录。", "error");
-        return;
-      }
-
       const month = requireCompletedImportMonthV917();
       if (!month) return;
 

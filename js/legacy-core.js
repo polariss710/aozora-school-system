@@ -518,7 +518,12 @@ function renderExpensesTable() {
 
 
 function updateLessonFilters() {
-  const month = document.getElementById("lessonMonthFilter")?.value || currentYearMonth();
+  const monthEl = document.getElementById("lessonMonthFilter");
+if (monthEl && !monthEl.value) {
+  monthEl.value = currentYearMonth();
+}
+
+const month = monthEl?.value || "";
   const studentEl = document.getElementById("lessonStudentFilter");
   const teacherEl = document.getElementById("lessonTeacherFilter");
   const subjectEl = document.getElementById("lessonSubjectFilter");
@@ -635,7 +640,7 @@ function renderLessons() {
   if (monthEl && !monthEl.value) {
     monthEl.value = currentYearMonth();
   }
-  
+
   updateLessonFilters();
   const rows = filterLessons().slice().sort((a, b) => {
     const da = String(a.lesson_date || "");

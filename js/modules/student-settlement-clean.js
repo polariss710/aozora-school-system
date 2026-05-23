@@ -1,4 +1,4 @@
-// === v9.8-stable-final.3-student-settlement-list-css ===
+// === v9.8-stable-final.4-student-settlement-match-lesson-list ===
 // 学生月度结算清理版：只保留一个渲染入口。
 // 核心统计和金额读取 DB RPC；JS 只负责读取、显示、课时明细排版和锁定触发。
 
@@ -97,6 +97,21 @@
     if (!row) return "";
     if (typeof displayRecordDate === "function") return displayRecordDate(row.lesson_date || "");
     return String(row.lesson_date || "").slice(0, 10);
+  }
+
+  function lessonDateWithCount(row) {
+    if (!row) return "";
+    const date = lessonDate(row);
+    const count = row.lesson_count === null || row.lesson_count === undefined || row.lesson_count === ""
+      ? ""
+      : `第${row.lesson_count}回`;
+    return count ? `${date}<br><span class="muted-small">${escText(count)}</span>` : date;
+  }
+
+  function settlementMonthLabel(ym) {
+    if (typeof expenseMonthLabel === "function") return expenseMonthLabel(ym);
+    const [y, m] = String(ym || "").split("-");
+    return y && m ? `${y}年${Number(m)}月` : (ym || "未归属月份");
   }
 
   function timeText(row) {
@@ -265,8 +280,8 @@
     }
 
     const actions = `
-      <div class="table-actions lesson-actions">
-        ${row.lesson_type === "planned" ? `<button class="secondary-btn" data-create-actual="${escAttribute(row.id)}">生成实际</button>` : ""}
+      <div class="table-actions lesson-actions settlement-action-grid">
+        ${row.lesson_type === "planned" ? `<button class="secondary-btn" data-create-actual="${escAttribute(row.id)}">生成</button>` : ""}
         <button class="secondary-btn" data-copy-lesson="${escAttribute(row.id)}">复制</button>
         <button class="secondary-btn" data-edit="${escAttribute(row.id)}" data-type="lesson">编辑</button>
         <button class="danger-btn" data-delete="${escAttribute(row.id)}" data-type="lesson">删除</button>
@@ -274,10 +289,7 @@
     `;
 
     return `
-      <td class="date-col">
-        <strong>${escText(lessonDate(row))}</strong><br>
-        <span class="muted-small">${escText(row.lesson_date || "")}</span>
-      </td>
+      <td class="date-col">${lessonDateWithCount(row)}</td>
       <td>${escText(lessonStudentName(row))}</td>
       <td>${escText(lessonTeacherName(row))}</td>
       <td>
@@ -337,6 +349,10 @@
     });
 
     const html = [];
+
+    if (rows.length) {
+      html.push(`<tr class="month-group-row settlement-month-title"><td colspan="14">${escText(settlementMonthLabel(month))}</td></tr>`);
+    }
 
     plannedRows.forEach(plan => {
       const actuals = actualByPlan.get(plan.id) || [];
@@ -437,7 +453,7 @@
   }
 
   window.SchoolStudentSettlementClean = {
-    version: "v9.8-stable-final.3-student-settlement-list-css",
+    version: "v9.8-stable-final.4-student-settlement-match-lesson-list",
     render: renderCleanStudentSettlement,
     fetchSummary: fetchDbSummary,
   };

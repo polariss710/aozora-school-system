@@ -10883,8 +10883,8 @@ function ensureSettlementPanelV87() {
           <div class="settlement-lock-row-v87"><span>结算状态</span><strong id="settlementStatusTextV87">暂未计算</strong></div>
         </div>
         <div class="settlement-lock-form-v87">
-          <label><span>差额处理方式</span><select id="settlementAdjustModeV87"><option value="carry">结转到下月</option><option value="clear">抹平差额</option><option value="custom">手动调整</option></select></label>
-          <label><span>调整金额（人民币）</span><input id="settlementAdjustmentAmountV87" type="number" step="1" value="0" /></label>
+          <label><span>差额处理方式</span><select id="settlementAdjustModeV87"><option value="carry">按最终差额结转</option><option value="clear">抹平差额</option><option value="custom">手动调整</option></select></label>
+          <label><span>手动调整金额（人民币）</span><input id="settlementAdjustmentAmountV87" type="number" step="1" value="0" /></label>
           <label class="full"><span>调整原因 / 备注</span><textarea id="settlementAdjustmentReasonV87" rows="2" placeholder="例：汇率差额抹平"></textarea></label>
           <div class="settlement-lock-actions-v87"><button class="secondary-btn" id="previewSettlementLockV87">预览结果</button><button class="primary-btn" id="lockSettlementV87">确认并锁定本月结算</button><button class="danger-btn" id="unlockSettlementV932" type="button">撤销本月锁定</button></div>
         </div>
@@ -10914,9 +10914,16 @@ function updateSettlementLockPreviewV87() {
     const reason = document.getElementById("settlementAdjustmentReasonV87");
     if (reason && !reason.value) reason.value = "汇率差额/尾差抹平";
   }
-  if (mode === "carry") {
-    const input = document.getElementById("settlementAdjustmentAmountV87");
-    if (input) input.value = "0";
+  const input = document.getElementById("settlementAdjustmentAmountV87");
+  if (input) {
+    if (mode === "carry") {
+      input.value = "0";
+      input.disabled = true;
+      input.title = "按最终差额结转时，结转金额等于系统计算差额，不再单独修改。需要修正时请选择手动调整。";
+    } else {
+      input.disabled = false;
+      input.title = "";
+    }
   }
   const adj = adjustmentFromPanelV87();
   const result = computeSettlementSnapshotV87(adj.adjustment, adj.reason);
@@ -10970,7 +10977,7 @@ function bindSettlementLockPanelV87() {
   document.getElementById("lockSettlementV87")?.addEventListener("click", lockSettlementV87);
   document.getElementById("unlockSettlementV932")?.addEventListener("click", unlockSettlementV932);
   document.getElementById("settlementAdjustModeV87")?.addEventListener("change", updateSettlementLockPreviewV87);
-  document.getElementById("settlementAdjustmentAmountV87")?.addEventListener("input", () => { const mode = document.getElementById("settlementAdjustModeV87"); if (mode) mode.value = "custom"; updateSettlementLockPreviewV87(); });
+  document.getElementById("settlementAdjustmentAmountV87")?.addEventListener("input", (e) => { if (e.target?.disabled) return; const mode = document.getElementById("settlementAdjustModeV87"); if (mode) mode.value = "custom"; updateSettlementLockPreviewV87(); });
   document.getElementById("settlementAdjustmentReasonV87")?.addEventListener("input", updateSettlementLockPreviewV87);
 }
 const renderStudentSettlementBeforeV87 = typeof renderStudentSettlement === "function" ? renderStudentSettlement : null;

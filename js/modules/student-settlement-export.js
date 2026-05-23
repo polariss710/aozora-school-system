@@ -1,7 +1,8 @@
-// === v9.8.5 student tuition notice Excel export ===
+// === v9.8.6 student tuition notice Excel export ===
 (function () {
   const COLORS = { green: "92D050", title: "EAF4FF", border: "000000" };
 
+  function dbClientV986(){ if(typeof db !== "undefined" && db?.from) return db; if(typeof supabase !== "undefined" && supabase?.from) return supabase; if(window.db?.from) return window.db; if(window.supabase?.from) return window.supabase; return null; }
   function n(v){ const x = Number(v || 0); return Number.isFinite(x) ? x : 0; }
   function round(v){ return Math.round(n(v)); }
   function safeFileName(v){ return String(v || "").replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "_").slice(0,80) || "settlement"; }
@@ -11,8 +12,8 @@
   function prevMonth(ym){ const [y,m]=String(ym).split("-").map(Number); const d=new Date(y,m-2,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
   async function fetchPrevCarryover(studentId, ym, student){
     const pm = prevMonth(ym);
-    if(!studentId || !pm || !window.db?.from) return n(student.previous_balance_cny);
-    const { data, error } = await db.from("school_student_monthly_settlements")
+    const client = dbClientV986(); if(!studentId || !pm || !client?.from) return n(student.previous_balance_cny);
+    const { data, error } = await client.from("school_student_monthly_settlements")
       .select("carryover_amount_cny,carryover_cny,balance_cny,settlement_status,status,locked_at,updated_at")
       .eq("student_id", studentId)
       .eq("year_month", pm)
@@ -122,5 +123,5 @@
   const switchPageBeforeV983=typeof switchPage==="function"?switchPage:null; if(switchPageBeforeV983){ window.switchPage=function(page){ switchPageBeforeV983(page); if(page==="student-settlement") setTimeout(bindExportButton,0); }; }
   const renderAllBeforeV983=typeof renderAll==="function"?renderAll:null; if(renderAllBeforeV983){ window.renderAll=function(){ renderAllBeforeV983(); if(document.getElementById("page-student-settlement")?.classList.contains("active")) setTimeout(bindExportButton,0); }; }
   document.addEventListener("DOMContentLoaded",()=>setTimeout(bindExportButton,1000));
-  window.SchoolStudentSettlementExportV983={version:"9.8.5",exportExcel};
+  window.SchoolStudentSettlementExportV983={version:"9.8.6",exportExcel};
 })();

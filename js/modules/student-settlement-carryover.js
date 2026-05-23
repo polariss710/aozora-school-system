@@ -1,9 +1,17 @@
-// === v9.8.5 student previous settlement carryover ===
+// === v9.8.6 student previous settlement carryover ===
 // 修正学生月度结算页面：当前月的上月结余/补交优先读取上一月份已锁定结算。
 // 约定：上月 carryover_amount_cny > 0 表示需补交，应加到本月应收合计；<0 表示结余，应抵扣。
 
 (function () {
   const TABLE = "school_student_monthly_settlements";
+
+  function dbClientV986() {
+    if (typeof db !== "undefined" && db?.from) return db;
+    if (typeof supabase !== "undefined" && supabase?.from) return supabase;
+    if (window.db?.from) return window.db;
+    if (window.supabase?.from) return window.supabase;
+    return null;
+  }
 
   function n(v) {
     const x = Number(v || 0);
@@ -44,9 +52,10 @@
 
   async function fetchPrevCarryover(studentId, month, student) {
     const pm = prevMonth(month);
-    if (!studentId || !pm || !window.db?.from) return n(student?.previous_balance_cny);
+    const client = dbClientV986();
+    if (!studentId || !pm || !client?.from) return n(student?.previous_balance_cny);
 
-    const { data, error } = await db
+    const { data, error } = await client
       .from(TABLE)
       .select("carryover_amount_cny,carryover_cny,balance_cny,settlement_status,status,locked_at,updated_at")
       .eq("student_id", studentId)
@@ -105,5 +114,5 @@
     setTimeout(scheduleApply, 1000);
   });
 
-  window.SchoolStudentSettlementCarryoverV984 = { version: "9.8.5", apply: applyPrevCarryover, fetchPrevCarryover };
+  window.SchoolStudentSettlementCarryoverV984 = { version: "9.8.6", apply: applyPrevCarryover, fetchPrevCarryover };
 })();

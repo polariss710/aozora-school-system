@@ -2921,3 +2921,48 @@ button:disabled {
 .settlement-lessons-readonly-table td:nth-child(8) {
   border-left: 1px solid #bfdbfe;
 }
+
+
+/* v9.8-stable-final.17 仅修正学生月度结算一览竖线过粗 */
+/* 统一所有单元格边框，取消旧版本在分界线、内容列、备注列上的叠加边框效果。 */
+.settlement-lessons-table,
+.settlement-lessons-readonly-table {
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+}
+
+.settlement-lessons-table th,
+.settlement-lessons-table td,
+.settlement-lessons-readonly-table th,
+.settlement-lessons-readonly-table td {
+  border: 1px solid #dbeafe !important;
+}
+
+/* 取消上课内容列/备注列之间的特殊边框处理 */
+.settlement-lessons-table th:nth-child(6),
+.settlement-lessons-table td:nth-child(6),
+.settlement-lessons-table th:nth-child(7),
+.settlement-lessons-table td:nth-child(7),
+.settlement-lessons-table th:nth-child(13),
+.settlement-lessons-table td:nth-child(13),
+.settlement-lessons-table th:nth-child(14),
+.settlement-lessons-table td:nth-child(14),
+.settlement-lessons-readonly-table th:nth-child(6),
+.settlement-lessons-readonly-table td:nth-child(6),
+.settlement-lessons-readonly-table th:nth-child(7),
+.settlement-lessons-readonly-table td:nth-child(7),
+.settlement-lessons-readonly-table th:nth-child(13),
+.settlement-lessons-readonly-table td:nth-child(13),
+.settlement-lessons-readonly-table th:nth-child(14),
+.settlement-lessons-readonly-table td:nth-child(14) {
+  border-left: 1px solid #dbeafe !important;
+  border-right: 1px solid #dbeafe !important;
+}
+
+/* 取消左右两块之间第8列的加重左边框，避免看起来像粗线 */
+.settlement-lessons-table th:nth-child(8),
+.settlement-lessons-table td:nth-child(8),
+.settlement-lessons-readonly-table th:nth-child(8),
+.settlement-lessons-readonly-table td:nth-child(8) {
+  border-left: 1px solid #dbeafe !important;
+}

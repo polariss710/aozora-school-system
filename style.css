@@ -2647,40 +2647,41 @@ button:disabled {
 .settlement-lessons-table td:nth-child(14) { width: 76px; }
 
 
-/* v9.8-stable-final.4 学生月度结算一览：贴近课时管理一览 */
-.settlement-lessons-table {
-  min-width: 1280px;
+/* v9.8-stable-final.5 学生月度结算一览只读化 + 行高压缩 */
+.settlement-lessons-readonly-table {
+  min-width: 1240px;
   table-layout: fixed;
   font-size: 12px;
 }
 
-.settlement-lessons-table th,
-.settlement-lessons-table td {
-  padding: 5px 7px;
+.settlement-lessons-readonly-table th,
+.settlement-lessons-readonly-table td {
+  padding: 4px 6px;
   vertical-align: middle;
-  line-height: 1.25;
+  line-height: 1.18;
 }
 
-.settlement-lessons-table .lesson-pair-head {
+.settlement-lessons-readonly-table .lesson-pair-head {
   padding: 5px 8px;
   text-align: center;
   background: #e8f6ff;
   color: #0f6091;
 }
 
-.settlement-lessons-table .lesson-pair-head.actual {
+.settlement-lessons-readonly-table .lesson-pair-head.actual {
   background: #effaf3;
   color: #16784c;
 }
 
-.settlement-lessons-table .lesson-sub-head th {
+.settlement-lessons-readonly-table .lesson-sub-head th {
   padding: 4px 6px;
   font-size: 11px;
   background: #f8fbff;
+  color: #475569;
 }
 
-.settlement-lessons-table .settlement-month-title td,
-.settlement-lessons-table tr.month-group-row td {
+.settlement-lessons-readonly-table .settlement-month-title td,
+.settlement-lessons-readonly-table tr.month-group-row td {
   padding: 6px 10px;
   background: #dff2ff;
   color: #0f6091;
@@ -2688,83 +2689,95 @@ button:disabled {
   text-align: left;
 }
 
-.settlement-lessons-table .lesson-pair-row td {
+.settlement-lessons-readonly-table .lesson-pair-row td {
   height: auto;
   min-height: 0;
 }
 
-.settlement-lessons-table .date-col {
+.settlement-lessons-readonly-table .date-col {
   white-space: nowrap;
   font-weight: 700;
 }
 
-.settlement-lessons-table .muted-small {
+.settlement-date-main {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.settlement-date-sub {
+  color: #64748b;
   font-size: 10px;
   line-height: 1.15;
 }
 
-.settlement-lessons-table .lesson-content-cell {
-  white-space: normal;
-  word-break: break-word;
-  line-height: 1.25;
+.settlement-lessons-readonly-table .muted-small {
+  font-size: 10px;
+  line-height: 1.15;
 }
 
-.settlement-lessons-table .settlement-action-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.settlement-lessons-readonly-table .settlement-status-inline {
+  display: inline-flex;
+  flex-wrap: nowrap;
   gap: 3px;
   align-items: center;
+  justify-content: center;
 }
 
-.settlement-lessons-table .settlement-action-grid button {
-  min-width: 0;
-  width: 100%;
-  padding: 3px 4px;
+.settlement-lessons-readonly-table .settlement-status-inline .badge {
   font-size: 10px;
-  line-height: 1.15;
-  border-radius: 6px;
-  margin: 0;
+  line-height: 1.1;
+  padding: 2px 5px;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
-.settlement-lessons-table .empty-row {
-  padding: 12px 6px;
+.settlement-lessons-readonly-table .lesson-content-cell {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.2;
+  max-height: 3.6em;
+  overflow: hidden;
+}
+
+.settlement-lessons-readonly-table .empty-row {
+  padding: 10px 6px;
   text-align: center;
   color: #94a3b8;
   background: #f8fafc;
 }
 
-/* 左右各 7 列：日期/姓名/老师/科目/状态/内容/操作 */
-.settlement-lessons-table th:nth-child(1),
-.settlement-lessons-table th:nth-child(8),
-.settlement-lessons-table td:nth-child(1),
-.settlement-lessons-table td:nth-child(8) { width: 92px; }
+/* 左右各 7 列：日期/姓名/担当老师/科目/状态/上课内容/备注 */
+.settlement-lessons-readonly-table th:nth-child(1),
+.settlement-lessons-readonly-table th:nth-child(8),
+.settlement-lessons-readonly-table td:nth-child(1),
+.settlement-lessons-readonly-table td:nth-child(8) { width: 96px; }
 
-.settlement-lessons-table th:nth-child(2),
-.settlement-lessons-table th:nth-child(9),
-.settlement-lessons-table td:nth-child(2),
-.settlement-lessons-table td:nth-child(9) { width: 78px; }
+.settlement-lessons-readonly-table th:nth-child(2),
+.settlement-lessons-readonly-table th:nth-child(9),
+.settlement-lessons-readonly-table td:nth-child(2),
+.settlement-lessons-readonly-table td:nth-child(9) { width: 72px; }
 
-.settlement-lessons-table th:nth-child(3),
-.settlement-lessons-table th:nth-child(10),
-.settlement-lessons-table td:nth-child(3),
-.settlement-lessons-table td:nth-child(10) { width: 82px; }
+.settlement-lessons-readonly-table th:nth-child(3),
+.settlement-lessons-readonly-table th:nth-child(10),
+.settlement-lessons-readonly-table td:nth-child(3),
+.settlement-lessons-readonly-table td:nth-child(10) { width: 82px; }
 
-.settlement-lessons-table th:nth-child(4),
-.settlement-lessons-table th:nth-child(11),
-.settlement-lessons-table td:nth-child(4),
-.settlement-lessons-table td:nth-child(11) { width: 142px; }
+.settlement-lessons-readonly-table th:nth-child(4),
+.settlement-lessons-readonly-table th:nth-child(11),
+.settlement-lessons-readonly-table td:nth-child(4),
+.settlement-lessons-readonly-table td:nth-child(11) { width: 132px; }
 
-.settlement-lessons-table th:nth-child(5),
-.settlement-lessons-table th:nth-child(12),
-.settlement-lessons-table td:nth-child(5),
-.settlement-lessons-table td:nth-child(12) { width: 70px; text-align: center; }
+.settlement-lessons-readonly-table th:nth-child(5),
+.settlement-lessons-readonly-table th:nth-child(12),
+.settlement-lessons-readonly-table td:nth-child(5),
+.settlement-lessons-readonly-table td:nth-child(12) { width: 78px; text-align: center; }
 
-.settlement-lessons-table th:nth-child(6),
-.settlement-lessons-table th:nth-child(13),
-.settlement-lessons-table td:nth-child(6),
-.settlement-lessons-table td:nth-child(13) { width: 108px; }
+.settlement-lessons-readonly-table th:nth-child(6),
+.settlement-lessons-readonly-table th:nth-child(13),
+.settlement-lessons-readonly-table td:nth-child(6),
+.settlement-lessons-readonly-table td:nth-child(13) { width: 120px; }
 
-.settlement-lessons-table th:nth-child(7),
-.settlement-lessons-table th:nth-child(14),
-.settlement-lessons-table td:nth-child(7),
-.settlement-lessons-table td:nth-child(14) { width: 82px; }
+.settlement-lessons-readonly-table th:nth-child(7),
+.settlement-lessons-readonly-table th:nth-child(14),
+.settlement-lessons-readonly-table td:nth-child(7),
+.settlement-lessons-readonly-table td:nth-child(14) { width: 100px; }

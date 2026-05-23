@@ -1,4 +1,4 @@
-// === v9.8-stable-final.4-student-settlement-match-lesson-list ===
+// === v9.8-stable-final.5-student-settlement-readonly-list ===
 // 学生月度结算清理版：只保留一个渲染入口。
 // 核心统计和金额读取 DB RPC；JS 只负责读取、显示、课时明细排版和锁定触发。
 
@@ -99,19 +99,51 @@
     return String(row.lesson_date || "").slice(0, 10);
   }
 
-  function lessonDateWithCount(row) {
-    if (!row) return "";
-    const date = lessonDate(row);
-    const count = row.lesson_count === null || row.lesson_count === undefined || row.lesson_count === ""
-      ? ""
-      : `第${row.lesson_count}回`;
-    return count ? `${date}<br><span class="muted-small">${escText(count)}</span>` : date;
+  function settlementWeekText(row) {
+    const raw = String(row?.lesson_date || "").slice(0, 10);
+    if (!raw) return "";
+    const d = new Date(`${raw}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return "";
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return `${d.getFullYear()}-${d.getMonth() + 1}-${monday.getDate()}周`;
+  }
+
+  function settlementDateText(row) {
+    return String(row?.lesson_date || "").slice(0, 10);
+  }
+
+  function settlementCountText(row) {
+    const c = row?.lesson_count;
+    return c === null || c === undefined || c === "" ? "" : `第${c}回`;
+  }
+
+  function settlementDateCell(row) {
+    const week = settlementWeekText(row);
+    const date = settlementDateText(row);
+    const count = settlementCountText(row);
+    return `
+      <div class="settlement-date-main">${escText(week || date)}</div>
+      <div class="settlement-date-sub">${escText(date)}</div>
+      ${count ? `<div class="settlement-date-sub">${escText(count)}</div>` : ""}
+    `;
   }
 
   function settlementMonthLabel(ym) {
     if (typeof expenseMonthLabel === "function") return expenseMonthLabel(ym);
     const [y, m] = String(ym || "").split("-");
     return y && m ? `${y}年${Number(m)}月` : (ym || "未归属月份");
+  }
+
+  function statusInlineHtml(row) {
+    if (!row) return "";
+    const label = typeof lessonStatusLabel === "function" ? lessonStatusLabel(row.status) : row.status;
+    const statusClass = row.status === "cancelled" || row.status === "holiday" ? "red" : "";
+    const statusBadge = typeof badge === "function" ? badge(label, statusClass) : label;
+    const billableBadge = row.is_billable !== false
+      ? (typeof badge === "function" ? badge("计费") : "计费")
+      : (typeof badge === "function" ? badge("不计费", "gray") : "不计费");
+    return `<div class="settlement-status-inline">${statusBadge}${billableBadge}</div>`;
   }
 
   function timeText(row) {
@@ -279,26 +311,17 @@
       return `<td colspan="7" class="empty-row">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
     }
 
-    const actions = `
-      <div class="table-actions lesson-actions settlement-action-grid">
-        ${row.lesson_type === "planned" ? `<button class="secondary-btn" data-create-actual="${escAttribute(row.id)}">生成</button>` : ""}
-        <button class="secondary-btn" data-copy-lesson="${escAttribute(row.id)}">复制</button>
-        <button class="secondary-btn" data-edit="${escAttribute(row.id)}" data-type="lesson">编辑</button>
-        <button class="danger-btn" data-delete="${escAttribute(row.id)}" data-type="lesson">删除</button>
-      </div>
-    `;
-
     return `
-      <td class="date-col">${lessonDateWithCount(row)}</td>
+      <td class="date-col">${settlementDateCell(row)}</td>
       <td>${escText(lessonStudentName(row))}</td>
       <td>${escText(lessonTeacherName(row))}</td>
       <td>
         <strong>${escText(lessonSubjectName(row))}</strong><br>
         <span class="muted-small">${escText(timeText(row))} / ${hours(row.duration_hours)}H<br>${jpy(lessonFee(row))}</span>
       </td>
-      <td>${statusHtml(row)}</td>
-      <td><div class="lesson-content-cell">${escText((row.lesson_content || row.note || "").slice(0, 42))}</div></td>
-      <td>${actions}</td>
+      <td>${statusInlineHtml(row)}</td>
+      <td><div class="lesson-content-cell">${escText((row.lesson_content || "").slice(0, 48))}</div></td>
+      <td><div class="lesson-content-cell">${escText((row.note || "").slice(0, 48))}</div></td>
     `;
   }
 
@@ -307,7 +330,7 @@
     const thead = table?.querySelector("thead");
     const wrap = table?.closest(".table-wrap");
     if (wrap) wrap.classList.add("settlement-lessons-wrap");
-    if (table) table.classList.add("settlement-lessons-table");
+    if (table) table.classList.add("settlement-lessons-table", "settlement-lessons-readonly-table");
     if (!thead || thead.dataset.cleanPairedHead === "true") return;
     thead.dataset.cleanPairedHead = "true";
     thead.innerHTML = `
@@ -316,8 +339,8 @@
         <th colspan="7" class="lesson-pair-head actual">实际课时</th>
       </tr>
       <tr class="lesson-sub-head">
-        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>上课内容</th><th>备注</th>
+        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>上课内容</th><th>备注</th>
       </tr>
     `;
   }
@@ -371,9 +394,6 @@
     });
 
     tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="14" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
-
-    if (typeof bindTableActionButtons === "function") bindTableActionButtons();
-    if (typeof bindLessonPairButtonsV43 === "function") bindLessonPairButtonsV43();
   }
 
   function computeSnapshotFromDb(adjustment = 0, reason = "") {
@@ -453,7 +473,7 @@
   }
 
   window.SchoolStudentSettlementClean = {
-    version: "v9.8-stable-final.4-student-settlement-match-lesson-list",
+    version: "v9.8-stable-final.5-student-settlement-readonly-list",
     render: renderCleanStudentSettlement,
     fetchSummary: fetchDbSummary,
   };

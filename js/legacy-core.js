@@ -12154,7 +12154,7 @@ function ensureCompletedImportButtonV88() {
   if (btn.dataset.boundCompletedImportV9814 === "true") return;
   btn.dataset.boundCompletedImportV9814 = "true";
   btn.onclick = () => { input.click(); };
-  input.onchange = async e => { const f = e.target.files?.[0]; if (f) await importCompletedLessonExcelV8810(f); e.target.value = ""; };
+  input.onchange = async e => { const f = e.target.files?.[0]; if (f) await importCompletedLessonExcel(f); e.target.value = ""; };
 }
 
 document.addEventListener("DOMContentLoaded", () => {

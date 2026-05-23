@@ -1,4 +1,4 @@
-// === v9.8.4 student tuition notice Excel export ===
+// === v9.8.5 student tuition notice Excel export ===
 (function () {
   const COLORS = { green: "92D050", title: "EAF4FF", border: "000000" };
 
@@ -8,19 +8,20 @@
   function currentMonth(){ return document.getElementById("settlementMonthFilter")?.value || new Date().toISOString().slice(0,7); }
   function currentStudentId(){ return document.getElementById("settlementStudentFilter")?.value || ""; }
   function nextMonth(ym){ const [y,m]=String(ym).split("-").map(Number); const d=new Date(y,m,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
-  function previousMonth(ym){ const [y,m]=String(ym).split("-").map(Number); const d=new Date(y,m-2,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
-  function lockedPreviousCarryover(studentId, ym){
-    const prev = previousMonth(ym);
-    const rows = (state.studentMonthlySettlements || state.student_monthly_settlements || state.monthlySettlements || []);
-    const found = rows.find(x => x.student_id === studentId && x.year_month === prev && (x.settlement_status === "locked" || x.status === "locked"));
-    if (!found) return null;
-    return n(found.carryover_amount_cny ?? found.carryover_cny ?? found.balance_cny ?? 0);
+  function prevMonth(ym){ const [y,m]=String(ym).split("-").map(Number); const d=new Date(y,m-2,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
+  async function fetchPrevCarryover(studentId, ym, student){
+    const pm = prevMonth(ym);
+    if(!studentId || !pm || !window.db?.from) return n(student.previous_balance_cny);
+    const { data, error } = await db.from("school_student_monthly_settlements")
+      .select("carryover_amount_cny,carryover_cny,balance_cny,settlement_status,status,locked_at,updated_at")
+      .eq("student_id", studentId)
+      .eq("year_month", pm)
+      .order("locked_at", { ascending: false })
+      .limit(5);
+    if(error) { console.warn("export previous carryover load failed", error); return n(student.previous_balance_cny); }
+    const row = (data || []).find(x => x.settlement_status === "locked" || x.status === "locked" || x.locked_at) || data?.[0];
+    return row ? n(row.carryover_amount_cny ?? row.carryover_cny ?? row.balance_cny) : n(student.previous_balance_cny);
   }
-  function previousBalance(studentId, ym, student){
-    const locked = lockedPreviousCarryover(studentId, ym);
-    return locked === null ? n(student.previous_balance_cny) : locked;
-  }
-
   function monthLabel(ym){ return `${Number(String(ym).split("-")[1] || 0)}月`; }
   function studentName(s){ return s?.display_name || s?.name || ""; }
   function formatDate(v){ if(!v) return ""; const d=String(v).slice(0,10); const dt=new Date(`${d}T00:00:00`); return Number.isNaN(dt.getTime()) ? d : `${dt.getMonth()+1}/${dt.getDate()}/${dt.getFullYear()}`; }
@@ -45,11 +46,11 @@
   function income(studentId, ym){ const rows=(state.incomeRecords||[]).filter(x=>x.student_id===studentId && x.year_month===ym && x.income_category==="tuition" && x.status==="received"); return {cny:rows.filter(x=>x.currency==="CNY").reduce((s,x)=>s+n(x.amount),0), jpy:rows.filter(x=>x.currency==="JPY").reduce((s,x)=>s+n(x.amount),0)}; }
   function paired(planned, actual){ const max=Math.max(planned.length, actual.length); return Array.from({length:max},(_,i)=>({p:planned[i]||null,a:actual[i]||null})); }
 
-  function data(){
+  function data(prevOverride = null){
     const ym=currentMonth(), nextYm=nextMonth(ym), studentId=currentStudentId();
     const student=(state.students||[]).find(x=>x.id===studentId);
     if(!student) return null;
-    const rate=n(student.preset_exchange_rate), prev=previousBalance(studentId, ym, student);
+    const rate=n(student.preset_exchange_rate), prev=(prevOverride === null ? n(student.previous_balance_cny) : n(prevOverride));
     const cur=getLessons(studentId,ym);
     const planned=sortRows(cur.filter(x=>x.lesson_type==="planned"));
     const actual=sortRows(cur.filter(x=>x.lesson_type==="actual" && ["completed","makeup","planned"].includes(x.status)));
@@ -108,7 +109,7 @@
 
   async function exportExcel(){
     if(!window.ExcelJS){ showMessage("Excel 导出库还没有加载完成，请稍后重试。","error"); return; }
-    const d=data(); if(!d){ showMessage("请先选择学生和月份。","error"); return; }
+    let d=data(); if(!d){ showMessage("请先选择学生和月份。","error"); return; } const carry = await fetchPrevCarryover(currentStudentId(), currentMonth(), d.student); d = data(carry);
     const wb=new ExcelJS.Workbook(); wb.creator="青空进学塾运营管理系统"; wb.created=new Date();
     setupCurrent(wb.addWorksheet(`${monthLabel(d.ym)}课时费小计`),d);
     setupNext(wb.addWorksheet(`${monthLabel(d.nextYm)}预定收费`),d);
@@ -121,5 +122,5 @@
   const switchPageBeforeV983=typeof switchPage==="function"?switchPage:null; if(switchPageBeforeV983){ window.switchPage=function(page){ switchPageBeforeV983(page); if(page==="student-settlement") setTimeout(bindExportButton,0); }; }
   const renderAllBeforeV983=typeof renderAll==="function"?renderAll:null; if(renderAllBeforeV983){ window.renderAll=function(){ renderAllBeforeV983(); if(document.getElementById("page-student-settlement")?.classList.contains("active")) setTimeout(bindExportButton,0); }; }
   document.addEventListener("DOMContentLoaded",()=>setTimeout(bindExportButton,1000));
-  window.SchoolStudentSettlementExportV984={version:"9.8.4",exportExcel};
+  window.SchoolStudentSettlementExportV983={version:"9.8.5",exportExcel};
 })();

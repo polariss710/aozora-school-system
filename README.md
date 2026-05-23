@@ -196,6 +196,26 @@
 
 
 
+
+### v9.8-stable4-clean-student-settlement
+- 学生月度结算 clean 版。
+- 本版不再继续追加补丁式 JS。
+- 删除 / 停用学生月度结算相关的旧前端补丁模块：
+  - `student-settlement.js`
+  - `student-settlement-carryover.js`
+  - `student-settlement-summary-db.js`
+  - `student-settlement-stable-view.js`
+- 新增单一入口：
+  - `student-settlement-clean.js`
+- 统一原则：
+  - 顶部统计、月初结算、月底结算、锁定快照读取 DB RPC
+  - DB RPC：`school_get_student_monthly_settlement_summary(student_id, year_month)`
+  - JS 只负责读取、显示、课时明细排版、锁定触发
+- 锁定快照改为使用 DB RPC 的结果，不再从前端课时列表重新计算核心金额。
+- 课时明细表仅做左右对照显示，不参与金额计算。
+- 本版不修改 SQL。
+- 本版不包含 SQL 文件。
+
 ### v9.8-stable2-student-settlement
 - 重新打包版本，基于 v9.8-stable.1-student-settlement。
 - 为避免 deploy 失败后混淆，本版使用不带小数点的 stable2 版本号。

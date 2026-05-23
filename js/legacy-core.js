@@ -10852,17 +10852,22 @@ function sumIncomeForSettlementV87(studentId, month, currency) {
 function computeSettlementSnapshotV87(adjustment = 0, reason = "") {
   const { month, studentId, student } = selectedSettlementContextV87();
   if (!studentId || !student) return null;
-  const rate = Number(student.preset_exchange_rate || 0);
-  const previousBalanceCny = currentSettlementCarryoverAmountV987(studentId, month, student);
-  const plannedJpy = sumLessonsForSettlementV87(studentId, month, "planned");
-  const actualJpy = sumLessonsForSettlementV87(studentId, month, "actual");
-  const plannedCny = plannedJpy * rate;
-  const actualCny = actualJpy * rate;
-  const receivedJpy = sumIncomeForSettlementV87(studentId, month, "JPY");
-  const receivedCny = sumIncomeForSettlementV87(studentId, month, "CNY");
-  const receivedEquivalentCny = receivedCny + receivedJpy * rate;
-  const systemDifferenceCny = actualCny - receivedEquivalentCny - previousBalanceCny;
+
+  const dbSummary = window.__studentSettlementSummaryDbV989;
+  const useDbSummary = dbSummary && dbSummary.studentId === studentId && dbSummary.month === month;
+
+  const rate = useDbSummary ? Number(dbSummary.rate || 0) : Number(student.preset_exchange_rate || 0);
+  const previousBalanceCny = useDbSummary ? Number(dbSummary.carryoverCny || 0) : currentSettlementCarryoverAmountV987(studentId, month, student);
+  const plannedJpy = useDbSummary ? Number(dbSummary.plannedFeeJpy || 0) : sumLessonsForSettlementV87(studentId, month, "planned");
+  const actualJpy = useDbSummary ? Number(dbSummary.actualFeeJpy || 0) : sumLessonsForSettlementV87(studentId, month, "actual");
+  const plannedCny = useDbSummary ? Number(dbSummary.plannedFeeCny || 0) : plannedJpy * rate;
+  const actualCny = useDbSummary ? Number(dbSummary.actualFeeCny || 0) : actualJpy * rate;
+  const receivedJpy = useDbSummary ? Number(dbSummary.receivedJpy || 0) : sumIncomeForSettlementV87(studentId, month, "JPY");
+  const receivedCny = useDbSummary ? Number(dbSummary.receivedCny || 0) : sumIncomeForSettlementV87(studentId, month, "CNY");
+  const receivedEquivalentCny = useDbSummary ? Number(dbSummary.receivedEquivalentCny || 0) : receivedCny + receivedJpy * rate;
+  const systemDifferenceCny = useDbSummary ? Number(dbSummary.finalDueCny || 0) : actualCny + previousBalanceCny - receivedEquivalentCny;
   const carryoverAmountCny = systemDifferenceCny + Number(adjustment || 0);
+
   return {
     student, student_id: studentId, year_month: month,
     business_entity_id: student.business_entity_id || null,

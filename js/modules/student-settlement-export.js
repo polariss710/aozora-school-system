@@ -1,8 +1,15 @@
-// === v9.8.8 student tuition notice Excel export ===
+// === v9.8.9 student tuition notice Excel export ===
 (function () {
   const COLORS = { green: "92D050", title: "EAF4FF", border: "000000" };
 
   function dbClientV986(){ if(typeof db !== "undefined" && db?.from) return db; if(typeof supabase !== "undefined" && supabase?.from) return supabase; if(window.db?.from) return window.db; if(window.supabase?.from) return window.supabase; return null; }
+  async function fetchDbSummaryV989(studentId, ym){
+    const client = dbClientV986();
+    if(!client?.rpc || !studentId || !ym) return null;
+    const { data, error } = await client.rpc("school_get_student_monthly_settlement_summary", { p_student_id: studentId, p_year_month: ym });
+    if(error){ console.warn("export settlement summary rpc failed", error); return null; }
+    return Array.isArray(data) ? data[0] : data;
+  }
   function n(v){ const x = Number(v || 0); return Number.isFinite(x) ? x : 0; }
   function round(v){ return Math.round(n(v)); }
   function safeFileName(v){ return String(v || "").replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "_").slice(0,80) || "settlement"; }
@@ -110,7 +117,20 @@
 
   async function exportExcel(){
     if(!window.ExcelJS){ showMessage("Excel 导出库还没有加载完成，请稍后重试。","error"); return; }
-    let d=data(); if(!d){ showMessage("请先选择学生和月份。","error"); return; } const carry = await fetchPrevCarryover(currentStudentId(), currentMonth(), d.student); d = data(carry);
+    let d=data(); if(!d){ showMessage("请先选择学生和月份。","error"); return; }
+    const dbSummary = await fetchDbSummaryV989(currentStudentId(), currentMonth());
+    if(dbSummary){
+      d.prev = n(dbSummary.carryover_cny);
+      d.plannedJpy = n(dbSummary.planned_fee_jpy);
+      d.plannedCny = n(dbSummary.planned_fee_cny);
+      d.actualJpy = n(dbSummary.actual_fee_jpy);
+      d.actualCny = n(dbSummary.actual_fee_cny);
+      d.needCny = n(dbSummary.final_due_cny);
+      d.nextTotalCny = d.nextCny + d.needCny;
+    } else {
+      const carry = await fetchPrevCarryover(currentStudentId(), currentMonth(), d.student);
+      d = data(carry);
+    }
     const wb=new ExcelJS.Workbook(); wb.creator="青空进学塾运营管理系统"; wb.created=new Date();
     setupCurrent(wb.addWorksheet(`${monthLabel(d.ym)}课时费小计`),d);
     setupNext(wb.addWorksheet(`${monthLabel(d.nextYm)}预定收费`),d);
@@ -123,5 +143,5 @@
   const switchPageBeforeV983=typeof switchPage==="function"?switchPage:null; if(switchPageBeforeV983){ window.switchPage=function(page){ switchPageBeforeV983(page); if(page==="student-settlement") setTimeout(bindExportButton,0); }; }
   const renderAllBeforeV983=typeof renderAll==="function"?renderAll:null; if(renderAllBeforeV983){ window.renderAll=function(){ renderAllBeforeV983(); if(document.getElementById("page-student-settlement")?.classList.contains("active")) setTimeout(bindExportButton,0); }; }
   document.addEventListener("DOMContentLoaded",()=>setTimeout(bindExportButton,1000));
-  window.SchoolStudentSettlementExportV987={version:"9.8.8",exportExcel};
+  window.SchoolStudentSettlementExportV987={version:"9.8.9",exportExcel};
 })();

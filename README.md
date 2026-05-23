@@ -209,6 +209,24 @@
 
 
 
+
+### v9.8-stable-final.13-clean-import-source-fix
+- 课时管理完整导入源头修正版。
+- 按钮位置：
+  - `导入完整课时` 改为 index.html 中的固定按钮，放在 `导出标准登记Excel` 左侧。
+  - 旧 JS 不再动态把按钮插到页面底部。
+- 导入函数：
+  - 旧 `importCompletedLessonExcelV88` 改为直接委托最新 `importCompletedLessonExcelV886`。
+  - 避免旧函数继续使用学生筛选栏导致学生识别失败。
+- 学生识别：
+  - Excel 有第一列学生姓名时，不再 fallback 到筛选栏旧学生。
+  - 第一列即使表头不是标准 `学生姓名`，也按学生姓名读取。
+- 活性控制：
+  - `导入完整课时` 保持激活。
+  - `新增课时` 的学生必选逻辑不变。
+- 本版不新增补丁式 JS，继续修改旧逻辑源头。
+- 本版不修改 DB。
+
 ### v9.8-stable-final.12-fix-lesson-selected-badge
 - 修复课时管理学生选择状态显示。
 - 问题：

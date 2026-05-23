@@ -197,6 +197,42 @@
 
 
 
+
+### v9.8-stable-final-student-settlement
+- 学生月度结算 DB 化阶段稳定版。
+- 基于：
+  - 前端：`v9.8-stable4-clean-student-settlement`
+  - DB RPC：`v9.8-stable6-planned-fee-all`
+- 稳定范围：
+  - 学生月度结算顶部统计
+  - 月初预定结算
+  - 月底实际结算
+  - 结转金额
+  - 锁定 / 撤销锁定
+  - 课时明细左右对照显示
+  - 课时费通知单 Excel 导出数据
+- 当前核心 DB 出口：
+  - `school_get_student_monthly_settlement_summary(student_id, year_month)`
+- 当前确认规则：
+  - `planned_hours` = 全部 planned 课时
+  - `planned_fee_jpy` = 全部 planned 课时费
+  - `actual_hours` = actual 有效计费课时 + planned 待补课计费课时
+  - `actual_fee_jpy` = actual 有效计费课时费 + planned 待补课计费课时费
+- 本阶段已确认：
+  - 2 月复杂场景：取消课 / 不计费 / 待补课
+  - 其他月份统计基本正确
+- 暂不处理：
+  - Excel 样式细节
+  - 小屏幕响应式显示优化
+  - 正式 PDF 输出格式
+- 后续原则：
+  - 学生月度结算核心计算逻辑暂不继续大改
+  - 后续输出格式另行讨论
+  - 下一阶段开始逐个模块 DB 化
+- 本版包含当前稳定 SQL：
+  - `school_v9_8_stable_final_student_settlement_rpc.sql`
+- 本版不包含旧 SQL 文件。
+
 ### v9.8-stable4-clean-student-settlement
 - 学生月度结算 clean 版。
 - 本版不再继续追加补丁式 JS。

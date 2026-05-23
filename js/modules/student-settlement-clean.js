@@ -1,4 +1,4 @@
-// === v9.8-stable4-clean-student-settlement ===
+// === v9.8-stable-final-student-settlement ===
 // 学生月度结算清理版：只保留一个渲染入口。
 // 核心统计和金额读取 DB RPC；JS 只负责读取、显示、课时明细排版和锁定触发。
 
@@ -410,7 +410,7 @@
   }
 
   window.SchoolStudentSettlementClean = {
-    version: "v9.8-stable4-clean-student-settlement",
+    version: "v9.8-stable-final-student-settlement",
     render: renderCleanStudentSettlement,
     fetchSummary: fetchDbSummary,
   };

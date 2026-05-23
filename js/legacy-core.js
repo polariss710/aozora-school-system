@@ -12889,8 +12889,9 @@ function buildCompletedImportRecordsV887(file, rows, sheetName, col, context) {
     const salaryNote = String(col.salaryNote !== undefined ? row[col.salaryNote] || "" : "");
     const status = normalizeLessonStatusTextV885(col.status !== undefined ? row[col.status] : "");
 
-    const plannedId = uuidV884("planned");
-    const actualId = uuidV884("actual");
+    const plannedId = crypto.randomUUID();
+
+    const actualId = crypto.randomUUID();
     const plannedYm = plannedDate.slice(0, 7);
     const baseNote = `完整课时导入：${sheetName}`;
     const mergedNote = buildCompletedLessonNoteV885(baseNote, "", normalNote, salaryNote);
@@ -13442,8 +13443,8 @@ async function importCompletedLessonExcelV8810(file) {
     const explicitBillable = col.billable !== undefined ? row[col.billable] : "";
     const billable = parseBillableTextV8810(explicitBillable, defaultBillableByStatusV8810(status || "completed"));
 
-    const plannedId = uuidV884("planned");
-    const actualId = uuidV884("actual");
+    const plannedId = crypto.randomUUID();
+    const actualId = crypto.randomUUID();
     const plannedYm = plannedDate.slice(0, 7);
     const baseNote = `完整课时导入：${sheetName}`;
     const mergedNote = buildCompletedLessonNoteV885(baseNote, "", normalNote, salaryNote);

@@ -205,6 +205,22 @@
 
 
 
+
+### v9.8-stable-final.9-clean-lesson-import
+- 课时管理未来月份导入 clean 修正版。
+- 基于 v9.8-stable-final.8。
+- 不采用 v9.8-stable-final.9 的追加覆盖 JS。
+- 直接修改旧逻辑源头：
+  - `legacy-core.js` 的 `bindLessonExcelActions()`
+- 导入按钮逻辑改为：
+  - 原来：必须选择学生筛选，才允许导入
+  - 现在：只要选择月份，就允许打开 Excel 文件选择框
+- 删除额外的导入按钮覆盖模块：
+  - `lesson-future-month-entry.js`
+- 保留标准课时登记 Excel 导出。
+- 不修改 DB。
+- 不修改学生月度结算核心逻辑。
+
 ### v9.8-stable-final.8-standard-lesson-template-export
 - 课时管理 Excel 导出功能调整。
 - 原「导出Excel」不再导出当前课时记录。

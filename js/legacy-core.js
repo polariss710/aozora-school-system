@@ -4186,9 +4186,9 @@ function bindLessonExcelActions() {
   if (importBtn && importBtn.dataset.boundExcelV73 !== "true") {
     importBtn.dataset.boundExcelV73 = "true";
     importBtn.onclick = () => {
-      const studentId = document.getElementById("lessonStudentFilter")?.value || "";
-      if (!studentId) {
-        showMessage("请先在课时管理筛选中选择学生，再导入 Excel。", "error");
+      const month = document.getElementById("lessonMonthFilter")?.value || "";
+      if (!month) {
+        showMessage("请先在课时管理筛选中选择月份，再导入 Excel。", "error");
         return;
       }
       importInput?.click();

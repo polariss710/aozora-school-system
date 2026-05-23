@@ -5457,7 +5457,7 @@ function renderStudentSettlement() {
   }
 
   const rate = Number(student.preset_exchange_rate || 0);
-  const prevBalanceCny = Number(student.previous_balance_cny || 0);
+  const prevBalanceCny = previousBalanceForSettlementV984(studentId, month, student);
   const plannedJpy = sumLessonFeeV83(planned);
   const actualJpy = sumLessonFeeV83(actual);
   const plannedCny = plannedJpy * rate;
@@ -10833,11 +10833,47 @@ function sumIncomeForSettlementV87(studentId, month, currency) {
     .filter(x => x.student_id === studentId && (x.settlement_month || x.year_month) === month && x.income_category === "tuition" && x.status === "received" && (x.payment_currency || x.currency || "CNY") === currency && x.include_in_student_settlement !== false)
     .reduce((sum, x) => sum + Number(x.amount || 0), 0);
 }
+
+function previousMonthV984(ym) {
+  const parts = String(ym || "").split("-");
+  const y = Number(parts[0]);
+  const m = Number(parts[1]);
+  if (!y || !m) return "";
+  const d = new Date(y, m - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function lockedSettlementCarryoverV984(studentId, month) {
+  const prevMonth = previousMonthV984(month);
+  if (!studentId || !prevMonth) return null;
+
+  const rows = (
+    state.studentMonthlySettlements ||
+    state.student_monthly_settlements ||
+    state.monthlySettlements ||
+    []
+  );
+
+  const found = rows.find(x =>
+    x.student_id === studentId &&
+    x.year_month === prevMonth &&
+    (x.settlement_status === "locked" || x.status === "locked")
+  );
+
+  if (!found) return null;
+  return Number(found.carryover_amount_cny ?? found.carryover_cny ?? found.balance_cny ?? 0);
+}
+
+function previousBalanceForSettlementV984(studentId, month, student) {
+  const locked = lockedSettlementCarryoverV984(studentId, month);
+  return locked === null ? Number(student?.previous_balance_cny || 0) : locked;
+}
+
 function computeSettlementSnapshotV87(adjustment = 0, reason = "") {
   const { month, studentId, student } = selectedSettlementContextV87();
   if (!studentId || !student) return null;
   const rate = Number(student.preset_exchange_rate || 0);
-  const previousBalanceCny = Number(student.previous_balance_cny || 0);
+  const previousBalanceCny = previousBalanceForSettlementV984(studentId, month, student);
   const plannedJpy = sumLessonsForSettlementV87(studentId, month, "planned");
   const actualJpy = sumLessonsForSettlementV87(studentId, month, "actual");
   const plannedCny = plannedJpy * rate;

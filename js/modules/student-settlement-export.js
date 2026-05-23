@@ -1,4 +1,4 @@
-// === v9.8.3 student tuition notice Excel export ===
+// === v9.8.4 student tuition notice Excel export ===
 (function () {
   const COLORS = { green: "92D050", title: "EAF4FF", border: "000000" };
 
@@ -8,6 +8,19 @@
   function currentMonth(){ return document.getElementById("settlementMonthFilter")?.value || new Date().toISOString().slice(0,7); }
   function currentStudentId(){ return document.getElementById("settlementStudentFilter")?.value || ""; }
   function nextMonth(ym){ const [y,m]=String(ym).split("-").map(Number); const d=new Date(y,m,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
+  function previousMonth(ym){ const [y,m]=String(ym).split("-").map(Number); const d=new Date(y,m-2,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
+  function lockedPreviousCarryover(studentId, ym){
+    const prev = previousMonth(ym);
+    const rows = (state.studentMonthlySettlements || state.student_monthly_settlements || state.monthlySettlements || []);
+    const found = rows.find(x => x.student_id === studentId && x.year_month === prev && (x.settlement_status === "locked" || x.status === "locked"));
+    if (!found) return null;
+    return n(found.carryover_amount_cny ?? found.carryover_cny ?? found.balance_cny ?? 0);
+  }
+  function previousBalance(studentId, ym, student){
+    const locked = lockedPreviousCarryover(studentId, ym);
+    return locked === null ? n(student.previous_balance_cny) : locked;
+  }
+
   function monthLabel(ym){ return `${Number(String(ym).split("-")[1] || 0)}月`; }
   function studentName(s){ return s?.display_name || s?.name || ""; }
   function formatDate(v){ if(!v) return ""; const d=String(v).slice(0,10); const dt=new Date(`${d}T00:00:00`); return Number.isNaN(dt.getTime()) ? d : `${dt.getMonth()+1}/${dt.getDate()}/${dt.getFullYear()}`; }
@@ -36,7 +49,7 @@
     const ym=currentMonth(), nextYm=nextMonth(ym), studentId=currentStudentId();
     const student=(state.students||[]).find(x=>x.id===studentId);
     if(!student) return null;
-    const rate=n(student.preset_exchange_rate), prev=n(student.previous_balance_cny);
+    const rate=n(student.preset_exchange_rate), prev=previousBalance(studentId, ym, student);
     const cur=getLessons(studentId,ym);
     const planned=sortRows(cur.filter(x=>x.lesson_type==="planned"));
     const actual=sortRows(cur.filter(x=>x.lesson_type==="actual" && ["completed","makeup","planned"].includes(x.status)));
@@ -108,5 +121,5 @@
   const switchPageBeforeV983=typeof switchPage==="function"?switchPage:null; if(switchPageBeforeV983){ window.switchPage=function(page){ switchPageBeforeV983(page); if(page==="student-settlement") setTimeout(bindExportButton,0); }; }
   const renderAllBeforeV983=typeof renderAll==="function"?renderAll:null; if(renderAllBeforeV983){ window.renderAll=function(){ renderAllBeforeV983(); if(document.getElementById("page-student-settlement")?.classList.contains("active")) setTimeout(bindExportButton,0); }; }
   document.addEventListener("DOMContentLoaded",()=>setTimeout(bindExportButton,1000));
-  window.SchoolStudentSettlementExportV983={version:"9.8.3",exportExcel};
+  window.SchoolStudentSettlementExportV984={version:"9.8.4",exportExcel};
 })();

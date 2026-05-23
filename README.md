@@ -194,6 +194,24 @@
 
 
 
+
+### v9.8-stable.1-student-settlement
+- 学生月度结算 stable 修正版 1。
+- 修正课时明细表为空的问题：
+  - 原因是新增稳定显示模块读取了 `window.state`
+  - 但当前项目中的 `state` 是全局 const，不一定挂在 `window` 上
+  - 本版改为优先读取全局 `state`
+- 保持左右对照课时明细显示：
+  - 左侧预定课时
+  - 右侧实际课时
+- 微调 DB RPC 金额口径：
+  - 课时费优先使用 `lesson_fee`
+  - 如果 `lesson_fee` 为空，再使用 `unit_price × duration_hours`
+  - 这样与历史页面显示和已有数据更一致
+- 本版包含当前 SQL：
+  - `school_v9_8_stable_1_student_settlement_rpc_fee_fallback.sql`
+- 本版不包含旧 SQL 文件。
+
 ### v9.8-stable-student-settlement
 - 学生月度结算 DB 化阶段稳定版。
 - 基于 v9.8.16。

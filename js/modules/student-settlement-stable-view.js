@@ -1,8 +1,13 @@
-// === v9.8-stable-student-settlement student settlement stable paired view ===
+// === v9.8-stable.1-student-settlement student settlement stable paired view ===
 // 恢复学生月度结算课时明细的左右对照显示稳定性。
 // 核心统计金额仍读取 DB RPC；这里仅负责课时明细排版。
 
 (function () {
+  function appStateV981Stable1() {
+    if (typeof state !== "undefined" && state) return state;
+    return window.state || {};
+  }
+
   function getMonth() {
     return document.getElementById("settlementMonthFilter")?.value || "";
   }
@@ -117,6 +122,12 @@
       p.year_month === actual.year_month &&
       String(p.lesson_date || "") === String(actual.lesson_date || "") &&
       String(p.start_time || "") === String(actual.start_time || "")
+    ) || plannedRows.find(p =>
+      p.student_id === actual.student_id &&
+      p.teacher_id === actual.teacher_id &&
+      p.subject_id === actual.subject_id &&
+      p.year_month === actual.year_month &&
+      String(p.start_time || "") === String(actual.start_time || "")
     ) || null;
   }
 
@@ -128,7 +139,7 @@
     const studentId = getStudentId();
     if (!month || !studentId) return;
 
-    const rows = (window.state?.lessonRecords || []).filter(x =>
+    const rows = (appStateV981Stable1().lessonRecords || []).filter(x =>
       x.student_id === studentId &&
       x.year_month === month
     );
@@ -202,7 +213,7 @@
   });
 
   window.SchoolStudentSettlementStableViewV9814 = {
-    version: "9.8-stable-student-settlement",
+    version: "9.8-stable.1-student-settlement",
     render: renderStableTable,
   };
 })();

@@ -187,6 +187,24 @@
 
 
 
+
+### v9.8.10
+- 修正学生月度结算实际课时统计口径。
+- 问题：
+  - 课时管理 2026-03 实际课时显示 41.84
+  - 学生月度结算 2026-03 实际课时显示 38
+- 原因：
+  - 课时管理统计口径是 actual 且非 cancelled / holiday
+  - v9.8.9 DB RPC 只统计 completed / makeup / planned
+- 本版统一口径：
+  - lesson_type = actual
+  - status != cancelled
+  - status != holiday
+- 学生月度结算页面、锁定快照、课时费通知单导出同步使用该口径。
+- 新增 SQL：
+  - `school_v9_8_10_student_settlement_summary_rpc_actual_status.sql`
+- 本版包含当前新增 SQL 文件，不包含旧 SQL 文件。
+
 ### v9.8.9
 - 学生月度结算核心汇总改为 DB RPC 输出。
 - 新增 SQL：

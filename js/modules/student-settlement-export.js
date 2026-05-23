@@ -1,4 +1,4 @@
-// === v9.8.9 student tuition notice Excel export ===
+// === v9.8.10 student tuition notice Excel export ===
 (function () {
   const COLORS = { green: "92D050", title: "EAF4FF", border: "000000" };
 
@@ -61,7 +61,7 @@
     const rate=n(student.preset_exchange_rate), prev=(prevOverride === null ? n(student.previous_balance_cny) : n(prevOverride));
     const cur=getLessons(studentId,ym);
     const planned=sortRows(cur.filter(x=>x.lesson_type==="planned"));
-    const actual=sortRows(cur.filter(x=>x.lesson_type==="actual" && ["completed","makeup","planned"].includes(x.status)));
+    const actual=sortRows(cur.filter(x=>x.lesson_type==="actual" && x.status!=="cancelled" && x.status!=="holiday"));
     const nextPlanned=sortRows(getLessons(studentId,nextYm).filter(x=>x.lesson_type==="planned"));
     const inc=income(studentId,ym);
     const plannedJpy=sumFee(planned), actualJpy=sumFee(actual), plannedCny=plannedJpy*rate, actualCny=actualJpy*rate;
@@ -143,5 +143,5 @@
   const switchPageBeforeV983=typeof switchPage==="function"?switchPage:null; if(switchPageBeforeV983){ window.switchPage=function(page){ switchPageBeforeV983(page); if(page==="student-settlement") setTimeout(bindExportButton,0); }; }
   const renderAllBeforeV983=typeof renderAll==="function"?renderAll:null; if(renderAllBeforeV983){ window.renderAll=function(){ renderAllBeforeV983(); if(document.getElementById("page-student-settlement")?.classList.contains("active")) setTimeout(bindExportButton,0); }; }
   document.addEventListener("DOMContentLoaded",()=>setTimeout(bindExportButton,1000));
-  window.SchoolStudentSettlementExportV987={version:"9.8.9",exportExcel};
+  window.SchoolStudentSettlementExportV987={version:"9.8.10",exportExcel};
 })();

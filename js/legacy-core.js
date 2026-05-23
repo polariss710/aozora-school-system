@@ -5411,7 +5411,8 @@ function settlementRowsV83() {
   const planned = lessons.filter(x => x.lesson_type === "planned");
   const actual = lessons.filter(x =>
     x.lesson_type === "actual" &&
-    (x.status === "completed" || x.status === "makeup" || x.status === "planned")
+    x.status !== "cancelled" &&
+    x.status !== "holiday"
   );
   return { month, studentId, lessons, planned, actual };
 }
@@ -10839,7 +10840,7 @@ function selectedSettlementContextV87() {
 }
 function sumLessonsForSettlementV87(studentId, month, type) {
   return (state.lessonRecords || [])
-    .filter(x => x.student_id === studentId && x.year_month === month && x.lesson_type === type && x.is_billable !== false && (type === "planned" || x.status === "completed" || x.status === "makeup"))
+    .filter(x => x.student_id === studentId && x.year_month === month && x.lesson_type === type && x.is_billable !== false && (type === "planned" || (x.status !== "cancelled" && x.status !== "holiday")))
     .reduce((sum, x) => sum + Number(x.lesson_fee || (Number(x.unit_price || 0) * Number(x.duration_hours || 0)) || 0), 0);
 }
 function sumIncomeForSettlementV87(studentId, month, currency) {

@@ -632,6 +632,64 @@ function normalizeLessonSelectedStudentFilterV9812() {
   return select.value;
 }
 
+function renderLessons() {
+  const tbody = document.getElementById("lessonsTable");
+  if (!tbody) return;
+
+  const monthEl = document.getElementById("lessonMonthFilter");
+  if (monthEl && !monthEl.value) {
+    monthEl.value = currentYearMonth();
+  }
+
+  updateLessonFilters();
+  const rows = filterLessons().slice().sort((a, b) => {
+    const da = String(a.lesson_date || "");
+    const db = String(b.lesson_date || "");
+    if (da !== db) return db.localeCompare(da);
+    const ac = Number(String(a.lesson_count ?? "").replace(/[^\d.-]/g, ""));
+    const bc = Number(String(b.lesson_count ?? "").replace(/[^\d.-]/g, ""));
+    if (Number.isFinite(ac) || Number.isFinite(bc)) {
+      if (!Number.isFinite(ac)) return 1;
+      if (!Number.isFinite(bc)) return -1;
+      if (ac !== bc) return ac - bc;
+    }
+    return String(a.start_time || "").localeCompare(String(b.start_time || ""));
+  });
+
+  renderLessonStats(rows);
+
+  let lastMonth = "";
+  const html = [];
+
+  rows.forEach(item => {
+    const ym = item.year_month || "未归属月份";
+    if (ym !== lastMonth) {
+      lastMonth = ym;
+      html.push(`<tr class="month-group-row"><td colspan="12">${esc(expenseMonthLabel(ym))}</td></tr>`);
+    }
+
+    const timeText = [item.start_time, item.end_time].filter(Boolean).join(" - ");
+    html.push(`
+      <tr>
+        <td>${esc(displayRecordDate(item.lesson_date || item.created_at))}</td>
+        <td>${esc(item.year_month || "")}</td>
+        <td>${esc(lessonTypeLabel(item.lesson_type))}</td>
+        <td>${esc(item.student?.display_name || item.student?.name || "")}</td>
+        <td>${esc(item.teacher?.display_name || item.teacher?.name || "")}</td>
+        <td>${esc(item.subject?.name || "")}</td>
+        <td>${esc(timeText)}</td>
+        <td>${money(item.duration_hours)}</td>
+        <td>${badge(lessonStatusLabel(item.status), item.status === "cancelled" || item.status === "holiday" ? "red" : "")}</td>
+        <td>${item.is_billable ? badge("计费") : badge("不计费", "gray")}</td>
+        <td>${esc(short(item.lesson_content || item.note, 24))}</td>
+        <td>${actionButtons("lesson", item.id)}</td>
+      </tr>
+    `);
+  });
+
+  tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
+}
+
 function bindLessonFilters() {
   ["lessonMonthFilter", "lessonStudentFilter", "lessonTeacherFilter", "lessonSubjectFilter", "lessonTypeFilter", "lessonStatusFilter"].forEach(id => {
     const el = document.getElementById(id);

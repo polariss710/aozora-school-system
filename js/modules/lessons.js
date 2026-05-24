@@ -74,6 +74,57 @@
   });
 })();
 
+// === 清理旧函数-课程排序
+function comparePlannedLessonsV86(a, b) {
+  const month = String(a?.year_month || "").localeCompare(String(b?.year_month || ""));
+  if (month !== 0) return month;
+
+  const rank = subjectRankV86(a) - subjectRankV86(b);
+  if (rank !== 0) return rank;
+
+  const subject = String(a?.subject?.name || "").localeCompare(String(b?.subject?.name || ""));
+  if (subject !== 0) return subject;
+
+  const teacher = String(a?.teacher?.display_name || a?.teacher?.name || "")
+    .localeCompare(String(b?.teacher?.display_name || b?.teacher?.name || ""));
+  if (teacher !== 0) return teacher;
+
+  const dateTime = compareDateTimeV86(a, b);
+  if (dateTime !== 0) return dateTime;
+
+  const ac = Number(String(a?.lesson_count ?? "").replace(/[^\d.-]/g, ""));
+  const bc = Number(String(b?.lesson_count ?? "").replace(/[^\d.-]/g, ""));
+  if (Number.isFinite(ac) || Number.isFinite(bc)) {
+    if (!Number.isFinite(ac)) return 1;
+    if (!Number.isFinite(bc)) return -1;
+    if (ac !== bc) return ac - bc;
+  }
+
+  return String(a?.id || "").localeCompare(String(b?.id || ""));
+}
+
+// ===课程排序相关函数1
+function subjectRankV86(item) {
+  const order = lessonTrackV86(item) === "humanities"
+    ? SCHOOL_STABLE_V86.subjectOrderHumanities
+    : SCHOOL_STABLE_V86.subjectOrderScience;
+  const idx = order.indexOf(subjectKindV86(item));
+  return idx >= 0 ? idx : 999;
+}
+
+// ===课程排序相关函数2
+function compareDateTimeV86(a, b) {
+  const date = String(a?.lesson_date || "").localeCompare(String(b?.lesson_date || ""));
+  if (date !== 0) return date;
+  const start = String(a?.start_time || "").localeCompare(String(b?.start_time || ""));
+  if (start !== 0) return start;
+  const end = String(a?.end_time || "").localeCompare(String(b?.end_time || ""));
+  if (end !== 0) return end;
+  return String(a?.created_at || "").localeCompare(String(b?.created_at || ""));
+}
+
+
+
 
 // === v9.0.4 lesson count modal field ===
 // 新增/编辑课时时正式显示“回数”输入框。

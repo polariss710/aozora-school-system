@@ -9571,14 +9571,8 @@ function lessonTrackV86(item) {
   return lessonStudentV86(item)?.course_track || "science";
 }
 
-function subjectRankV86(item) {
-  const order = lessonTrackV86(item) === "humanities"
-    ? SCHOOL_STABLE_V86.subjectOrderHumanities
-    : SCHOOL_STABLE_V86.subjectOrderScience;
-  const idx = order.indexOf(subjectKindV86(item));
-  return idx >= 0 ? idx : 999;
-}
 
+/*
 function compareDateTimeV86(a, b) {
   const date = String(a?.lesson_date || "").localeCompare(String(b?.lesson_date || ""));
   if (date !== 0) return date;
@@ -9587,8 +9581,9 @@ function compareDateTimeV86(a, b) {
   const end = String(a?.end_time || "").localeCompare(String(b?.end_time || ""));
   if (end !== 0) return end;
   return String(a?.created_at || "").localeCompare(String(b?.created_at || ""));
-}
+}*/
 
+/*
 function comparePlannedLessonsV86(a, b) {
   const month = String(a?.year_month || "").localeCompare(String(b?.year_month || ""));
   if (month !== 0) return month;
@@ -9616,6 +9611,8 @@ function comparePlannedLessonsV86(a, b) {
 
   return String(a?.id || "").localeCompare(String(b?.id || ""));
 }
+*/
+
 
 function lessonFeeV86(item) {
   return Number(item?.lesson_fee || (Number(item?.unit_price || 0) * Number(item?.duration_hours || 0)) || 0);

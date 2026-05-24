@@ -5562,27 +5562,6 @@ function makeActualFromPlannedCompactV833(id) {
 
 makeActualFromPlanned = makeActualFromPlannedCompactV833;
 
-function bindLessonPairButtonsCompactV833() {
-  document.querySelectorAll("[data-create-actual]").forEach(btn => {
-    btn.onclick = () => makeActualFromPlannedCompactV833(btn.dataset.createActual);
-  });
-  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
-    btn.onclick = () => copyLessonRecordV59(btn.dataset.copyLesson);
-  });
-}
-
-bindLessonPairButtonsV59 = bindLessonPairButtonsCompactV833;
-
-const renderLessonsBeforeV833 = typeof renderLessons === "function" ? renderLessons : null;
-if (renderLessonsBeforeV833) {
-  renderLessons = function () {
-    renderLessonsBeforeV833();
-    bindLessonPairButtonsCompactV833();
-  };
-}
-
-
-
 // === v8.3.4 settlement calculation and paired detail fix ===
 function rateErrorTextV834(student) {
   const rate = Number(student?.preset_exchange_rate || 0);
@@ -5866,87 +5845,6 @@ function makeActualFromPlannedFinalV835(id) {
 
 makeActualFromPlanned = makeActualFromPlannedFinalV835;
 
-function bindLessonPairButtonsFinalV835() {
-  document.querySelectorAll("[data-create-actual]").forEach(btn => {
-    btn.onclick = () => makeActualFromPlannedFinalV835(btn.dataset.createActual);
-  });
-  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
-    btn.onclick = () => copyLessonRecordV59(btn.dataset.copyLesson);
-  });
-}
-
-bindLessonPairButtonsV59 = bindLessonPairButtonsFinalV835;
-
-function renderLessonRowsFinalV835(rows) {
-  const plannedRows = rows.filter(x => x.lesson_type === "planned");
-  const actualRows = rows.filter(x => x.lesson_type === "actual");
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actualRows.forEach(actual => {
-    let planId = actual.planned_lesson_id;
-
-    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
-      const matched = schoolStableFindMatchingPlannedLessonV70(actual);
-      if (matched) planId = matched.id;
-    }
-    if (!planId && typeof findMatchingPlannedLesson === "function") {
-      const matched = findMatchingPlannedLesson(actual);
-      if (matched) planId = matched.id;
-    }
-
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(actual);
-    } else {
-      unlinkedActual.push(actual);
-    }
-  });
-
-  const sortFn = typeof compareLessonsV78 === "function"
-    ? compareLessonsV78
-    : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
-
-  const html = [];
-  let lastMonth = "";
-
-  function addMonthRow(ym) {
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="12">${esc(expenseMonthLabel(ym))}</td></tr>`);
-      html.push(`<tr class="lesson-sub-head lesson-sub-head-body">
-        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态/计费</th><th>内容/操作</th>
-        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态/计费</th><th>内容/操作</th>
-      </tr>`);
-    }
-  }
-
-  plannedRows.slice().sort(sortFn).forEach(plan => {
-    const ym = plan.year_month || "未归属月份";
-    addMonthRow(ym);
-    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
-
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row compact">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
-    } else {
-      actuals.forEach((actual, index) => {
-        const left = index === 0
-          ? lessonCellV86(plan, "planned")
-          : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row compact">${left}${lessonCellV86(actual, "actual")}</tr>`);
-      });
-    }
-  });
-
-  unlinkedActual.slice().sort(sortFn).forEach(actual => {
-    const ym = actual.year_month || "未归属月份";
-    addMonthRow(ym);
-    html.push(`<tr class="lesson-pair-row compact">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
-  });
-
-  return html.join("");
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     normalizeExchangeRateInputV835();
@@ -6045,106 +5943,8 @@ function makeActualFromPlannedFinalV836(id) {
 
 makeActualFromPlanned = makeActualFromPlannedFinalV836;
 
-function bindLessonPairButtonsFinalV836() {
-  document.querySelectorAll("[data-create-actual]").forEach(btn => {
-    btn.onclick = () => makeActualFromPlannedFinalV836(btn.dataset.createActual);
-  });
-  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
-    btn.onclick = () => copyLessonRecordV59(btn.dataset.copyLesson);
-  });
-}
-
-bindLessonPairButtonsV59 = bindLessonPairButtonsFinalV836;
-
-function renderLessonRowsFinalV836(rows) {
-  const plannedRows = rows.filter(x => x.lesson_type === "planned");
-  const actualRows = rows.filter(x => x.lesson_type === "actual");
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actualRows.forEach(actual => {
-    let planId = actual.planned_lesson_id;
-
-    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
-      const matched = schoolStableFindMatchingPlannedLessonV70(actual);
-      if (matched) planId = matched.id;
-    }
-    if (!planId && typeof findMatchingPlannedLesson === "function") {
-      const matched = findMatchingPlannedLesson(actual);
-      if (matched) planId = matched.id;
-    }
-
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(actual);
-    } else {
-      unlinkedActual.push(actual);
-    }
-  });
-
-  const sortFn = typeof compareLessonsV78 === "function"
-    ? compareLessonsV78
-    : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
-
-  const html = [];
-  let lastMonth = "";
-
-  function addMonthRow(ym) {
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="12">${esc(expenseMonthLabel(ym))}</td></tr>`);
-      html.push(`<tr class="lesson-sub-head lesson-sub-head-body">
-        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态/计费</th><th>内容/操作</th>
-        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态/计费</th><th>内容/操作</th>
-      </tr>`);
-    }
-  }
-
-  plannedRows.slice().sort(sortFn).forEach(plan => {
-    const ym = plan.year_month || "未归属月份";
-    addMonthRow(ym);
-    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
-
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row compact">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
-    } else {
-      actuals.forEach((actual, index) => {
-        const left = index === 0
-          ? lessonCellV86(plan, "planned")
-          : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row compact">${left}${lessonCellV86(actual, "actual")}</tr>`);
-      });
-    }
-  });
-
-  unlinkedActual.slice().sort(sortFn).forEach(actual => {
-    const ym = actual.year_month || "未归属月份";
-    addMonthRow(ym);
-    html.push(`<tr class="lesson-pair-row compact">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
-  });
-
-  return html.join("");
-}
-
-function renderLessonsFinalV836() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-
-  updateLessonFilters();
-  const rows = filterLessons().slice().sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
-  renderLessonStats(rows);
-
-  const html = renderLessonRowsFinalV836(rows);
-  tbody.innerHTML = html || `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-  bindLessonPairButtonsFinalV836();
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-}
-
-renderLessons = renderLessonsFinalV836;
-
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    renderLessonsFinalV836();
     normalizeExchangeRateInputV836();
   }, 800);
 });
@@ -6153,7 +5953,6 @@ const renderAllBeforeV836 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV836) {
   renderAll = function () {
     renderAllBeforeV836();
-    renderLessonsFinalV836();
     normalizeExchangeRateInputV836();
   };
 }
@@ -6220,96 +6019,7 @@ function makeActualFromPlannedV837(id) {
   if (title) title.textContent = "从预定生成实际课时";
 }
 
-function renderLessonRowsV837(rows) {
-  const plannedRows = rows.filter(x => x.lesson_type === "planned");
-  const actualRows = rows.filter(x => x.lesson_type === "actual");
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actualRows.forEach(actual => {
-    let planId = actual.planned_lesson_id;
-    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
-      const matched = schoolStableFindMatchingPlannedLessonV70(actual);
-      if (matched) planId = matched.id;
-    }
-    if (!planId && typeof findMatchingPlannedLesson === "function") {
-      const matched = findMatchingPlannedLesson(actual);
-      if (matched) planId = matched.id;
-    }
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(actual);
-    } else {
-      unlinkedActual.push(actual);
-    }
-  });
-
-  const sortFn = typeof compareLessonsV78 === "function"
-    ? compareLessonsV78
-    : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
-
-  const html = [];
-  let lastMonth = "";
-
-  function addMonthRow(ym) {
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="12">${esc(expenseMonthLabel(ym))}</td></tr>`);
-      html.push(`<tr class="lesson-sub-head-body">
-        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容/操作</th>
-        <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容/操作</th>
-      </tr>`);
-    }
-  }
-
-  plannedRows.slice().sort(sortFn).forEach(plan => {
-    const ym = plan.year_month || "未归属月份";
-    addMonthRow(ym);
-    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v837">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
-    } else {
-      actuals.forEach((actual, index) => {
-        const left = index === 0
-          ? lessonCellV86(plan, "planned")
-          : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row v837">${left}${lessonCellV86(actual, "actual")}</tr>`);
-      });
-    }
-  });
-
-  unlinkedActual.slice().sort(sortFn).forEach(actual => {
-    const ym = actual.year_month || "未归属月份";
-    addMonthRow(ym);
-    html.push(`<tr class="lesson-pair-row v837">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
-  });
-
-  return html.join("");
-}
-
-function bindLessonButtonsV837() {
-  document.querySelectorAll("[data-create-actual]").forEach(btn => {
-    btn.onclick = () => makeActualFromPlannedV837(btn.dataset.createActual);
-  });
-  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
-    btn.onclick = () => copyLessonRecordV59(btn.dataset.copyLesson);
-  });
-}
-
-function renderLessonsV837() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-  updateLessonFilters();
-  const rows = filterLessons().slice().sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
-  renderLessonStats(rows);
-  tbody.innerHTML = renderLessonRowsV837(rows) || `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-  bindLessonButtonsV837();
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-}
-
-renderLessons = renderLessonsV837;
 makeActualFromPlanned = makeActualFromPlannedV837;
-bindLessonPairButtonsV59 = bindLessonButtonsV837;
 
 function normalizeExchangeRateInputV837() {
   document.querySelectorAll('input[name="preset_exchange_rate"]').forEach(input => {
@@ -6330,7 +6040,6 @@ if (buildFormBeforeV837) {
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    renderLessonsV837();
     normalizeExchangeRateInputV837();
   }, 900);
 });
@@ -6339,7 +6048,6 @@ const renderAllBeforeV837 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV837) {
   renderAll = function () {
     renderAllBeforeV837();
-    renderLessonsV837();
     normalizeExchangeRateInputV837();
   };
 }
@@ -6451,97 +6159,7 @@ function makeActualFromPlannedV839(id) {
   if (title) title.textContent = "从预定生成实际课时";
 }
 
-function renderLessonRowsV839(rows) {
-  const plannedRows = rows.filter(x => x.lesson_type === "planned");
-  const actualRows = rows.filter(x => x.lesson_type === "actual");
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actualRows.forEach(actual => {
-    let planId = actual.planned_lesson_id;
-    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
-      const matched = schoolStableFindMatchingPlannedLessonV70(actual);
-      if (matched) planId = matched.id;
-    }
-    if (!planId && typeof findMatchingPlannedLesson === "function") {
-      const matched = findMatchingPlannedLesson(actual);
-      if (matched) planId = matched.id;
-    }
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(actual);
-    } else {
-      unlinkedActual.push(actual);
-    }
-  });
-
-  const sortFn = typeof compareLessonsV78 === "function"
-    ? compareLessonsV78
-    : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
-
-  const html = [];
-  let lastMonth = "";
-
-  function addMonthRow(ym) {
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
-      html.push(`<tr class="lesson-sub-head-body v839">
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-      </tr>`);
-    }
-  }
-
-  plannedRows.slice().sort(sortFn).forEach(plan => {
-    const ym = plan.year_month || "未归属月份";
-    addMonthRow(ym);
-    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v839">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
-    } else {
-      actuals.forEach((actual, index) => {
-        const left = index === 0
-          ? lessonCellV86(plan, "planned")
-          : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row v839">${left}${lessonCellV86(actual, "actual")}</tr>`);
-      });
-    }
-  });
-
-  unlinkedActual.slice().sort(sortFn).forEach(actual => {
-    const ym = actual.year_month || "未归属月份";
-    addMonthRow(ym);
-    html.push(`<tr class="lesson-pair-row v839">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
-  });
-
-  return html.join("");
-}
-
-function bindLessonButtonsV839() {
-  document.querySelectorAll("[data-create-actual]").forEach(btn => {
-    btn.onclick = () => makeActualFromPlannedV839(btn.dataset.createActual);
-  });
-  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
-    btn.onclick = () => copyLessonRecordV59(btn.dataset.copyLesson);
-  });
-}
-
-function renderLessonsV839() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-
-  updateLessonFilters();
-  const rows = filterLessons().slice().sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
-  renderLessonStats(rows);
-  tbody.innerHTML = renderLessonRowsV839(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-  bindLessonButtonsV839();
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-}
-
-renderLessons = renderLessonsV839;
 makeActualFromPlanned = makeActualFromPlannedV839;
-bindLessonPairButtonsV59 = bindLessonButtonsV839;
 
 function normalizeExchangeRateInputV839() {
   document.querySelectorAll('input[name="preset_exchange_rate"]').forEach(input => {
@@ -6562,7 +6180,6 @@ if (buildFormBeforeV839) {
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    renderLessonsV839();
     normalizeExchangeRateInputV839();
   }, 900);
 });
@@ -6571,7 +6188,6 @@ const renderAllBeforeV839 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV839) {
   renderAll = function () {
     renderAllBeforeV839();
-    renderLessonsV839();
     normalizeExchangeRateInputV839();
   };
 }
@@ -6655,93 +6271,6 @@ function makeActualFromPlannedV8310(id) {
 
   const title = document.getElementById("modalTitle");
   if (title) title.textContent = "从预定生成实际课时";
-}
-
-function renderLessonRowsV8310(rows) {
-  const plannedRows = rows.filter(x => x.lesson_type === "planned");
-  const actualRows = rows.filter(x => x.lesson_type === "actual");
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actualRows.forEach(actual => {
-    let planId = actual.planned_lesson_id;
-    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
-      const matched = schoolStableFindMatchingPlannedLessonV70(actual);
-      if (matched) planId = matched.id;
-    }
-    if (!planId && typeof findMatchingPlannedLesson === "function") {
-      const matched = findMatchingPlannedLesson(actual);
-      if (matched) planId = matched.id;
-    }
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(actual);
-    } else {
-      unlinkedActual.push(actual);
-    }
-  });
-
-  const sortFn = typeof compareLessonsV78 === "function"
-    ? compareLessonsV78
-    : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
-
-  const html = [];
-  let lastMonth = "";
-
-  function addMonthRow(ym) {
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
-      html.push(`<tr class="lesson-sub-head-body v8310">
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-      </tr>`);
-    }
-  }
-
-  plannedRows.slice().sort(sortFn).forEach(plan => {
-    const ym = plan.year_month || "未归属月份";
-    addMonthRow(ym);
-    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV8310(plan, "planned")}${lessonPairCellsV8310(null, "actual")}</tr>`);
-    } else {
-      actuals.forEach((actual, index) => {
-        const left = index === 0
-          ? lessonPairCellsV8310(plan, "planned")
-          : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row v8310">${left}${lessonPairCellsV8310(actual, "actual")}</tr>`);
-      });
-    }
-  });
-
-  unlinkedActual.slice().sort(sortFn).forEach(actual => {
-    const ym = actual.year_month || "未归属月份";
-    addMonthRow(ym);
-    html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV8310(null, "planned")}${lessonPairCellsV8310(actual, "actual")}</tr>`);
-  });
-
-  return html.join("");
-}
-
-function bindLessonButtonsV8310() {
-  document.querySelectorAll("[data-create-actual]").forEach(btn => {
-    btn.onclick = () => makeActualFromPlannedV8310(btn.dataset.createActual);
-  });
-  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
-    btn.onclick = () => copyLessonRecordV59(btn.dataset.copyLesson);
-  });
-}
-
-function renderLessonsV8310() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-  updateLessonFilters();
-  const rows = filterLessons().slice().sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
-  renderLessonStats(rows);
-  tbody.innerHTML = renderLessonRowsV8310(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-  bindLessonButtonsV8310();
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
 }
 
 function settlementActionButtonsV8310(item) {
@@ -6842,24 +6371,7 @@ if (typeof renderSettlementPairedLessonsV834 === "function") {
   renderSettlementPairedLessonsV834 = renderSettlementPairedLessonsV8310;
 }
 
-renderLessons = renderLessonsV8310;
 makeActualFromPlanned = makeActualFromPlannedV8310;
-bindLessonPairButtonsV59 = bindLessonButtonsV8310;
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    renderLessonsV8310();
-  }, 900);
-});
-
-const renderAllBeforeV8310 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV8310) {
-  renderAll = function () {
-    renderAllBeforeV8310();
-    renderLessonsV8310();
-  };
-}
-
 
 // === v8.3.10 settlement received JPY restore ===
 function showSettlementReceivedJpyV8310() {
@@ -7698,87 +7210,6 @@ function lessonDateWithWeekLabelV852(item) {
   return base;
 }
 
-function renderLessonRowsV852(rows) {
-  const plannedRows = rows.filter(x => x.lesson_type === "planned");
-  const actualRows = rows.filter(x => x.lesson_type === "actual");
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actualRows.forEach(actual => {
-    let planId = actual.planned_lesson_id;
-    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
-      const matched = schoolStableFindMatchingPlannedLessonV70(actual);
-      if (matched) planId = matched.id;
-    }
-    if (!planId && typeof findMatchingPlannedLesson === "function") {
-      const matched = findMatchingPlannedLesson(actual);
-      if (matched) planId = matched.id;
-    }
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(actual);
-    } else {
-      unlinkedActual.push(actual);
-    }
-  });
-
-  const sortFn = typeof compareLessonsV78 === "function"
-    ? compareLessonsV78
-    : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
-
-  const html = [];
-  let lastMonth = "";
-
-  function addMonthRow(ym) {
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
-      html.push(`<tr class="lesson-sub-head-body v8310">
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-      </tr>`);
-    }
-  }
-
-  plannedRows.slice().sort(sortFn).forEach(plan => {
-    const ym = plan.year_month || "未归属月份";
-    addMonthRow(ym);
-    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
-    } else {
-      actuals.forEach((actual, index) => {
-        const left = index === 0
-          ? lessonCellV86(plan, "planned")
-          : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row v8310">${left}${lessonCellV86(actual, "actual")}</tr>`);
-      });
-    }
-  });
-
-  unlinkedActual.slice().sort(sortFn).forEach(actual => {
-    const ym = actual.year_month || "未归属月份";
-    addMonthRow(ym);
-    html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
-  });
-
-  return html.join("");
-}
-
-function renderLessonsV852() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-  updateLessonFilters();
-  const rows = filterLessons().slice().sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
-  renderLessonStats(rows);
-  tbody.innerHTML = renderLessonRowsV852(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-  if (typeof bindLessonButtonsV8310 === "function") bindLessonButtonsV8310();
-  if (typeof bindActualButtonsV851 === "function") bindActualButtonsV851();
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-}
-
-renderLessons = renderLessonsV852;
-
 function settlementLessonCellsV852(item, side) {
   if (!item) {
     return `<td colspan="7" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
@@ -7901,99 +7332,6 @@ function compareLessonDateTimeAscV853(a, b) {
 
   return String(a.created_at || "").localeCompare(String(b.created_at || ""));
 }
-
-function renderLessonRowsV853(rows) {
-  const plannedRows = rows.filter(x => x.lesson_type === "planned");
-  const actualRows = rows.filter(x => x.lesson_type === "actual");
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actualRows.forEach(actual => {
-    let planId = actual.planned_lesson_id;
-    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
-      const matched = schoolStableFindMatchingPlannedLessonV70(actual);
-      if (matched) planId = matched.id;
-    }
-    if (!planId && typeof findMatchingPlannedLesson === "function") {
-      const matched = findMatchingPlannedLesson(actual);
-      if (matched) planId = matched.id;
-    }
-
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(actual);
-    } else {
-      unlinkedActual.push(actual);
-    }
-  });
-
-  const plannedSortFn = typeof compareLessonsV78 === "function"
-    ? compareLessonsV78
-    : compareLessonDateTimeAscV853;
-
-  const html = [];
-  let lastMonth = "";
-
-  function addMonthRow(ym) {
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
-      html.push(`<tr class="lesson-sub-head-body v8310">
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-      </tr>`);
-    }
-  }
-
-  plannedRows.slice().sort(plannedSortFn).forEach(plan => {
-    const ym = plan.year_month || "未归属月份";
-    addMonthRow(ym);
-
-    // Important: actual lessons on the right side must be chronological ascending.
-    // Do not reuse subject/teacher sort here; it can look like date descending.
-    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(compareLessonDateTimeAscV853);
-
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
-    } else {
-      actuals.forEach((actual, index) => {
-        const left = index === 0
-          ? lessonCellV86(plan, "planned")
-          : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row v8310">${left}${lessonCellV86(actual, "actual")}</tr>`);
-      });
-    }
-  });
-
-  // Unlinked actual lessons should also be chronological ascending inside each month.
-  unlinkedActual.slice().sort(compareLessonDateTimeAscV853).forEach(actual => {
-    const ym = actual.year_month || "未归属月份";
-    addMonthRow(ym);
-    html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
-  });
-
-  return html.join("");
-}
-
-function renderLessonsV853() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-
-  updateLessonFilters();
-
-  const rows = filterLessons().slice().sort(typeof compareLessonsV78 === "function"
-    ? compareLessonsV78
-    : compareLessonDateTimeAscV853);
-
-  renderLessonStats(rows);
-  tbody.innerHTML = renderLessonRowsV853(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-
-  if (typeof bindLessonButtonsV8310 === "function") bindLessonButtonsV8310();
-  if (typeof bindActualButtonsV851 === "function") bindActualButtonsV851();
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-}
-
-renderLessons = renderLessonsV853;
 
 function renderSettlementPairedLessonsV853(planned, actual) {
   const tbody = document.getElementById("settlementLessonsTable");
@@ -8169,72 +7507,6 @@ function buildLessonPairGroupsV854(rows) {
   return { pairs, unlinkedActual };
 }
 
-function renderLessonRowsV854(rows) {
-  const { pairs, unlinkedActual } = buildLessonPairGroupsV854(rows);
-
-  const html = [];
-  let lastMonth = "";
-
-  function rowMonth(pairOrActual) {
-    if (pairOrActual.plan) {
-      const base = lessonPairSortKeyDateV854(pairOrActual.plan, pairOrActual.actuals);
-      return base?.year_month || pairOrActual.plan?.year_month || "未归属月份";
-    }
-    return pairOrActual.year_month || "未归属月份";
-  }
-
-  function addMonthRow(ym) {
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
-      html.push(`<tr class="lesson-sub-head-body v8310">
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-      </tr>`);
-    }
-  }
-
-  pairs.forEach(pair => {
-    addMonthRow(rowMonth(pair));
-
-    if (!pair.actuals.length) {
-      html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(pair.plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
-      return;
-    }
-
-    pair.actuals.forEach((actual, index) => {
-      const left = index === 0
-        ? lessonCellV86(pair.plan, "planned")
-        : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonCellV86(actual, "actual")}</tr>`);
-    });
-  });
-
-  unlinkedActual.forEach(actual => {
-    addMonthRow(actual.year_month || "未归属月份");
-    html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
-  });
-
-  return html.join("");
-}
-
-function renderLessonsV854() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-
-  updateLessonFilters();
-  const rows = filterLessons().slice();
-  renderLessonStats(rows);
-
-  tbody.innerHTML = renderLessonRowsV854(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-
-  if (typeof bindLessonButtonsV8310 === "function") bindLessonButtonsV8310();
-  if (typeof bindActualButtonsV851 === "function") bindActualButtonsV851();
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-}
-
-renderLessons = renderLessonsV854;
-
 function renderSettlementPairedLessonsV854(planned, actual) {
   const tbody = document.getElementById("settlementLessonsTable");
   if (!tbody) return;
@@ -8338,74 +7610,6 @@ function comparePlannedRowsByCourseDateV855(a, b) {
 
   return String(a.id || "").localeCompare(String(b.id || ""));
 }
-
-function renderLessonRowsV855(rows) {
-  const plannedRows = rows.filter(x => x.lesson_type === "planned");
-  const actualRows = rows.filter(x => x.lesson_type === "actual");
-
-  const { actualByPlan, unlinkedActual } = buildActualByExplicitPlanV855(actualRows);
-
-  const html = [];
-  let lastMonth = "";
-
-  function addMonthRow(ym) {
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
-      html.push(`<tr class="lesson-sub-head-body v8310">
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-      </tr>`);
-    }
-  }
-
-  plannedRows.slice().sort(comparePlannedRowsByCourseDateV855).forEach(plan => {
-    const ym = plan.year_month || "未归属月份";
-    addMonthRow(ym);
-
-    const actuals = (actualByPlan.get(lessonIdTextV855(plan.id)) || []).slice()
-      .sort(compareDateTimeAscV854 || compareDateTimeAscV853 || ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""))));
-
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
-      return;
-    }
-
-    actuals.forEach((actual, index) => {
-      const left = index === 0
-        ? lessonCellV86(plan, "planned")
-        : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonCellV86(actual, "actual")}</tr>`);
-    });
-  });
-
-  // Actual lessons without planned_lesson_id stay in unlinked area.
-  // They are not guessed into duplicate planned rows.
-  unlinkedActual.forEach(actual => {
-    const ym = actual.year_month || "未归属月份";
-    addMonthRow(ym);
-    html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
-  });
-
-  return html.join("");
-}
-
-function renderLessonsV855() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-
-  updateLessonFilters();
-  const rows = filterLessons().slice();
-  renderLessonStats(rows);
-
-  tbody.innerHTML = renderLessonRowsV855(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-
-  if (typeof bindLessonButtonsV8310 === "function") bindLessonButtonsV8310();
-  if (typeof bindActualButtonsV851 === "function") bindActualButtonsV851();
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-}
-
-renderLessons = renderLessonsV855;
 
 function renderSettlementPairedLessonsV855(planned, actual) {
   const tbody = document.getElementById("settlementLessonsTable");
@@ -8654,16 +7858,6 @@ function settlementLessonCellsV856(item, side) {
   `;
 }
 
-// Override render rows to use new cell formatter, keeping v8.5.5 stable link logic if available.
-if (typeof renderLessonRowsV855 === "function") {
-  const renderLessonRowsBeforeV856 = renderLessonRowsV855;
-  renderLessonRowsV855 = function (rows) {
-    const oldCells = lessonPairCells;
-    const html = renderLessonRowsBeforeV856(rows);
-    return html;
-  };
-}
-
 if (typeof renderSettlementPairedLessonsV855 === "function") {
   const renderSettlementBeforeV856 = renderSettlementPairedLessonsV855;
   renderSettlementPairedLessonsV855 = function (planned, actual) {
@@ -8675,42 +7869,12 @@ if (typeof renderSettlementPairedLessonsV855 === "function") {
   };
 }
 
-function bindLessonButtonsV856() {
-  document.querySelectorAll("[data-create-actual]").forEach(btn => {
-    btn.onclick = () => makeActualFromPlannedV856(btn.dataset.createActual);
-  });
-  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
-    btn.onclick = () => copyLessonRecordV856(btn.dataset.copyLesson);
-  });
-}
-
-bindLessonPairButtonsV59 = bindLessonButtonsV856;
-
-const renderLessonsBeforeV856 = typeof renderLessons === "function" ? renderLessons : null;
-if (renderLessonsBeforeV856) {
-  renderLessons = function () {
-    renderLessonsBeforeV856();
-    bindLessonButtonsV856();
-  };
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    bindLessonButtonsV856();
     if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   }, 1000);
 });
-
-const renderAllBeforeV856 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV856) {
-  renderAll = function () {
-    renderAllBeforeV856();
-    bindLessonButtonsV856();
-  };
-}
-
-
 
 // === v8.5.7 strong planned-week Monday fix ===
 function toIsoDateV857(value) {
@@ -8797,88 +7961,6 @@ function settlementLessonCellsV857(item, side) {
     <td class="col-actions">${typeof settlementActionButtonsV8310 === "function" ? settlementActionButtonsV8310(item) : ""}</td>
   `;
 }
-
-function renderLessonRowsV857(rows) {
-  const plannedRows = rows.filter(x => x.lesson_type === "planned");
-  const actualRows = rows.filter(x => x.lesson_type === "actual");
-
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actualRows.forEach(actual => {
-    const planId = String(actual.planned_lesson_id || "").trim();
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(actual);
-    } else {
-      unlinkedActual.push(actual);
-    }
-  });
-
-  const dateSort = typeof compareDateTimeAscV854 === "function"
-    ? compareDateTimeAscV854
-    : ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
-
-  actualByPlan.forEach(list => list.sort(dateSort));
-  unlinkedActual.sort(dateSort);
-
-  const planSort = typeof comparePlannedRowsByCourseDateV855 === "function"
-    ? comparePlannedRowsByCourseDateV855
-    : (typeof compareLessonsV78 === "function" ? compareLessonsV78 : dateSort);
-
-  const html = [];
-  let lastMonth = "";
-
-  function addMonthRow(ym) {
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
-      html.push(`<tr class="lesson-sub-head-body v8310">
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-      </tr>`);
-    }
-  }
-
-  plannedRows.slice().sort(planSort).forEach(plan => {
-    const ym = plan.year_month || "未归属月份";
-    addMonthRow(ym);
-    const actuals = (actualByPlan.get(String(plan.id || "").trim()) || []).slice().sort(dateSort);
-
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
-      return;
-    }
-
-    actuals.forEach((actual, index) => {
-      const left = index === 0
-        ? lessonCellV86(plan, "planned")
-        : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonCellV86(actual, "actual")}</tr>`);
-    });
-  });
-
-  unlinkedActual.forEach(actual => {
-    addMonthRow(actual.year_month || "未归属月份");
-    html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
-  });
-
-  return html.join("");
-}
-
-function renderLessonsV857() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-  updateLessonFilters();
-  const rows = filterLessons().slice();
-  renderLessonStats(rows);
-  tbody.innerHTML = renderLessonRowsV857(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-  if (typeof bindLessonButtonsV856 === "function") bindLessonButtonsV856();
-  if (typeof bindActualButtonsV851 === "function") bindActualButtonsV851();
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-}
-
-renderLessons = renderLessonsV857;
 
 function renderSettlementPairedLessonsV857(planned, actual) {
   const tbody = document.getElementById("settlementLessonsTable");
@@ -9048,88 +8130,6 @@ function settlementLessonCellsV858(item, side) {
     <td class="col-actions">${typeof settlementActionButtonsV8310 === "function" ? settlementActionButtonsV8310(item) : ""}</td>
   `;
 }
-
-function renderLessonRowsV858(rows) {
-  const plannedRows = rows.filter(x => x.lesson_type === "planned");
-  const actualRows = rows.filter(x => x.lesson_type === "actual");
-
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actualRows.forEach(actual => {
-    const planId = String(actual.planned_lesson_id || "").trim();
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(actual);
-    } else {
-      unlinkedActual.push(actual);
-    }
-  });
-
-  const dateSort = typeof compareDateTimeAscV854 === "function"
-    ? compareDateTimeAscV854
-    : ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
-
-  actualByPlan.forEach(list => list.sort(dateSort));
-  unlinkedActual.sort(dateSort);
-
-  const planSort = typeof comparePlannedRowsByCourseDateV855 === "function"
-    ? comparePlannedRowsByCourseDateV855
-    : (typeof compareLessonsV78 === "function" ? compareLessonsV78 : dateSort);
-
-  const html = [];
-  let lastMonth = "";
-
-  function addMonthRow(ym) {
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
-      html.push(`<tr class="lesson-sub-head-body v8310">
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-      </tr>`);
-    }
-  }
-
-  plannedRows.slice().sort(planSort).forEach(plan => {
-    const ym = plan.year_month || "未归属月份";
-    addMonthRow(ym);
-    const actuals = (actualByPlan.get(String(plan.id || "").trim()) || []).slice().sort(dateSort);
-
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
-      return;
-    }
-
-    actuals.forEach((actual, index) => {
-      const left = index === 0
-        ? lessonCellV86(plan, "planned")
-        : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonCellV86(actual, "actual")}</tr>`);
-    });
-  });
-
-  unlinkedActual.forEach(actual => {
-    addMonthRow(actual.year_month || "未归属月份");
-    html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
-  });
-
-  return html.join("");
-}
-
-function renderLessonsV858() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-  updateLessonFilters();
-  const rows = filterLessons().slice();
-  renderLessonStats(rows);
-  tbody.innerHTML = renderLessonRowsV858(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-  if (typeof bindLessonButtonsV856 === "function") bindLessonButtonsV856();
-  if (typeof bindActualButtonsV851 === "function") bindActualButtonsV851();
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-}
-
-renderLessons = renderLessonsV858;
 
 function renderSettlementPairedLessonsV858(planned, actual) {
   const tbody = document.getElementById("settlementLessonsTable");
@@ -9374,50 +8374,6 @@ function settlementCellV86(item, side) {
   `;
 }
 
-function renderLessonRowsV86(rows) {
-  const { planned, actualByPlan, unlinkedActual } = buildLessonPairsV86(rows);
-  const html = [];
-  let lastMonth = "";
-  function addMonthRow(ym) {
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
-      html.push(`<tr class="lesson-sub-head-body v8310">
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-      </tr>`);
-    }
-  }
-  planned.forEach(plan => {
-    addMonthRow(plan.year_month || "未归属月份");
-    const actuals = (actualByPlan.get(String(plan.id || "").trim()) || []).slice().sort(compareDateTimeV86);
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
-      return;
-    }
-    actuals.forEach((actual, index) => {
-      const left = index === 0 ? lessonCellV86(plan, "planned") : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonCellV86(actual, "actual")}</tr>`);
-    });
-  });
-  unlinkedActual.forEach(actual => {
-    addMonthRow(actual.year_month || "未归属月份");
-    html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
-  });
-  return html.join("");
-}
-
-function renderLessonsV86() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-  updateLessonFilters();
-  const rows = filterLessons().slice();
-  renderLessonStats(rows);
-  tbody.innerHTML = renderLessonRowsV86(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-  bindLessonButtonsV86();
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-}
-
 function renderSettlementPairsV86(planned, actual) {
   const tbody = document.getElementById("settlementLessonsTable");
   if (!tbody) return;
@@ -9524,15 +8480,6 @@ function makeActualFromPlannedV86(id) {
   attachLessonAutoCalcV86();
 }
 
-function bindLessonButtonsV86() {
-  document.querySelectorAll("[data-create-actual]").forEach(btn => {
-    btn.onclick = () => makeActualFromPlannedV86(btn.dataset.createActual);
-  });
-  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
-    btn.onclick = () => copyLessonRecordV86(btn.dataset.copyLesson);
-  });
-}
-
 function incomeSettlementMonthV86(item) {
   return item.settlement_month || item.year_month || "";
 }
@@ -9556,11 +8503,9 @@ function sumIncomeV86(studentId, month, currency) {
 }
 
 // Final ownership.
-renderLessons = renderLessonsV86;
 lessonPairCells = lessonCellV86;
 copyLessonRecordV59 = copyLessonRecordV86;
 makeActualFromPlanned = makeActualFromPlannedV86;
-bindLessonPairButtonsV59 = bindLessonButtonsV86;
 sumIncomeV83 = sumIncomeV86;
 
 if (typeof renderSettlementPairedLessonsV834 === "function") renderSettlementPairedLessonsV834 = renderSettlementPairsV86;
@@ -11159,30 +10104,16 @@ function bindLessonExcelActionsV871() {
 
 bindLessonExcelActions = bindLessonExcelActionsV871;
 
-// Bind v8.7.1 lesson buttons and actual generation
-function bindLessonButtonsV871() {
-  document.querySelectorAll("[data-create-actual]").forEach(btn => {
-    btn.onclick = () => makeActualFromPlannedV871(btn.dataset.createActual);
-  });
-  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
-    if (typeof copyLessonRecordV86 === "function") btn.onclick = () => copyLessonRecordV86(btn.dataset.copyLesson);
-    else if (typeof copyLessonRecordV59 === "function") btn.onclick = () => copyLessonRecordV59(btn.dataset.copyLesson);
-  });
-}
-bindLessonPairButtonsV59 = bindLessonButtonsV871;
-
 const renderLessonsBeforeV871 = typeof renderLessons === "function" ? renderLessons : null;
 if (renderLessonsBeforeV871) {
   renderLessons = function () {
     renderLessonsBeforeV871();
-    bindLessonButtonsV871();
     bindLessonExcelActionsV871();
   };
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    bindLessonButtonsV871();
     bindLessonExcelActionsV871();
     fetchSettlementLockHistoryV871();
   }, 1000);
@@ -11192,7 +10123,6 @@ const renderAllBeforeV871 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV871) {
   renderAll = function () {
     renderAllBeforeV871();
-    bindLessonButtonsV871();
     bindLessonExcelActionsV871();
   };
 }
@@ -11409,60 +10339,6 @@ function buildLessonPairsStrictV872(rows) {
   return { planned, actualByPlan, unlinkedActual, dateSort, countMap: plannedDuplicateCountMapV872(rows) };
 }
 
-function renderLessonRowsStrictV872(rows) {
-  const { planned, actualByPlan, unlinkedActual, dateSort, countMap } = buildLessonPairsStrictV872(rows);
-  const html = [];
-  let lastMonth = "";
-
-  const cell = typeof lessonCellV86 === "function" ? lessonCellV86 : (typeof lessonCellV86 === "function" ? lessonCellV86 : lessonPairCells);
-
-  function addMonthRow(ym) {
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
-      html.push(`<tr class="lesson-sub-head-body v8310">
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-        <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-      </tr>`);
-    }
-  }
-
-  planned.forEach(plan => {
-    addMonthRow(plan.year_month || "未归属月份");
-    const actuals = (actualByPlan.get(planIdTextV872(plan.id)) || []).slice().sort(dateSort);
-    const plannedCell = appendDuplicateWarningToPlannedCellsV872(cell(plan, "planned"), plan, countMap);
-
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v8310 ${isDuplicatePlannedV872(plan, countMap) ? "duplicate-planned-row-v872" : ""}">${plannedCell}${cell(null, "actual")}</tr>`);
-      return;
-    }
-
-    actuals.forEach((actual, index) => {
-      const left = index === 0 ? plannedCell : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-      html.push(`<tr class="lesson-pair-row v8310 ${isDuplicatePlannedV872(plan, countMap) ? "duplicate-planned-row-v872" : ""}">${left}${cell(actual, "actual")}</tr>`);
-    });
-  });
-
-  unlinkedActual.forEach(actual => {
-    addMonthRow(actual.year_month || "未归属月份");
-    html.push(`<tr class="lesson-pair-row v8310">${cell(null, "planned")}${cell(actual, "actual")}</tr>`);
-  });
-
-  return html.join("");
-}
-
-function renderLessonsStrictV872() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-  updateLessonFilters();
-  const rows = filterLessons().slice();
-  renderLessonStats(rows);
-  tbody.innerHTML = renderLessonRowsStrictV872(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-  bindLessonButtonsStrictV872();
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-  if (typeof bindLessonExcelActionsV871 === "function") bindLessonExcelActionsV871();
-}
-
 function bindLessonButtonsStrictV872() {
   document.querySelectorAll("[data-create-actual]").forEach(btn => {
     btn.onclick = (e) => {
@@ -11479,10 +10355,6 @@ function bindLessonButtonsStrictV872() {
   });
 }
 
-renderLessonRowsV86 = renderLessonRowsStrictV872;
-renderLessonRowsV855 = renderLessonRowsStrictV872;
-renderLessonRowsV858 = renderLessonRowsStrictV872;
-renderLessons = renderLessonsStrictV872;
 bindLessonPairButtonsV59 = bindLessonButtonsStrictV872;
 
 const closeModalBeforeV872 = typeof closeModal === "function" ? closeModal : null;
@@ -11495,20 +10367,9 @@ if (closeModalBeforeV872) {
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    renderLessonsStrictV872();
     bindLessonButtonsStrictV872();
   }, 1000);
 });
-
-const renderAllBeforeV872 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV872) {
-  renderAll = function () {
-    renderAllBeforeV872();
-    renderLessonsStrictV872();
-  };
-}
-
-
 
 // === v8.7.3 stable duplicate planned row order ===
 function duplicateContentKeyV873(item) {
@@ -11661,11 +10522,6 @@ function renderLessonsStrictV873() {
 }
 
 buildLessonPairsStrictV872 = buildLessonPairsStrictV873;
-renderLessonRowsStrictV872 = renderLessonRowsStrictV873;
-renderLessonsStrictV872 = renderLessonsStrictV873;
-renderLessonRowsV86 = renderLessonRowsStrictV873;
-renderLessonRowsV855 = renderLessonRowsStrictV873;
-renderLessonRowsV858 = renderLessonRowsStrictV873;
 renderLessons = renderLessonsStrictV873;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -13323,4 +12179,4 @@ document.addEventListener("DOMContentLoaded", () => {
     if (typeof filterLessons === "function") renderLessonStatsV8813(filterLessons().slice());
   }, 1000);
 });
-//latest 12:27
+//latest 15:21

@@ -3915,56 +3915,12 @@ function lessonExcelRequireXLSX() {
   return true;
 }
 
-function parseLessonExcelWeekStart(value, baseYear) {
-  if (value === null || value === undefined || value === "") return null;
-
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return mondayOfDate(value);
-  }
-
-  if (typeof value === "number") {
-    // Excel serial date
-    const parsed = XLSX.SSF.parse_date_code(value);
-    if (parsed && parsed.y && parsed.m && parsed.d) {
-      return mondayOfDate(new Date(parsed.y, parsed.m - 1, parsed.d));
-    }
-  }
-
-  const text = String(value).trim();
-  const md = text.match(/(\d{1,2})\s*[\.\/月-]\s*(\d{1,2})/);
-  if (md) {
-    const date = new Date(Number(baseYear), Number(md[1]) - 1, Number(md[2]));
-    return mondayOfDate(date);
-  }
-
-  const ymd = text.match(/(\d{4})\s*[\/-]\s*(\d{1,2})\s*[\/-]\s*(\d{1,2})/);
-  if (ymd) {
-    const date = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
-    return mondayOfDate(date);
-  }
-
-  return null;
-}
-
-function mondayOfDate(date) {
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const day = d.getDay(); // 0 Sun, 1 Mon
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  return d;
-}
-
 function formatDateYmd(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
-
-function weekLabelFromDate(date) {
-  return `${date.getMonth() + 1}.${date.getDate()}周`;
-}
-
 
 function teacherIdFromExcelName(name) {
   const text = String(name || "").replace(/\s+/g, "").toLowerCase();
@@ -3980,12 +3936,6 @@ function teacherIdFromExcelName(name) {
   return matched?.id || "";
 }
 
-function numericExcelValue(value) {
-  if (value === null || value === undefined || value === "") return 0;
-  const n = Number(String(value).replace(/[^\d.-]/g, ""));
-  return Number.isFinite(n) ? n : 0;
-}
-
 function subjectIdFromExcelName(name) {
   const text = String(name || "").replace(/\s+/g, "").toLowerCase();
   if (!text) return "";
@@ -3996,164 +3946,6 @@ function subjectIdFromExcelName(name) {
   });
 
   return matched?.id || "";
-}
-
-function findLessonImportHeaderRow(rows) {
-  for (let r = 0; r < rows.length; r++) {
-    const row = rows[r].map(x => String(x || "").trim());
-    const joined = row.join("|");
-    if (joined.includes("科目") && joined.includes("日期") && (joined.includes("时长") || joined.includes("時間") || joined.includes("H"))) {
-      return r;
-    }
-  }
-  return -1;
-}
-
-function buildLessonImportColumnMap(headerRow) {
-  const map = {};
-  headerRow.forEach((cell, idx) => {
-    const text = String(cell || "").trim();
-    if (!text) return;
-
-    if (text.includes("担当") || text.includes("老师") || text.includes("教師") || text.includes("讲师")) map.teacher = idx;
-    if (text.includes("科目")) map.subject = idx;
-    if (text.includes("日期")) map.date = idx;
-    if (text.includes("回数")) map.count = idx;
-    if (text.includes("内容")) map.content = idx;
-    if (text.includes("時長") || text.includes("时长") || text === "H" || text.includes("時間")) map.duration = idx;
-    if (text.includes("课程单价") || text.includes("単価") || text.includes("单价")) map.unitPrice = idx;
-    if (text.includes("应收课时费") || text.includes("應收課時費") || text.includes("课时费") || text.includes("授業料")) map.lessonFee = idx;
-    if (text.includes("教室")) map.roomFee = idx;
-    if (text.includes("开始") || text.includes("開始")) map.start = idx;
-    if (text.includes("结束") || text.includes("終了")) map.end = idx;
-  });
-  return map;
-}
-
-function selectedLessonImportContext() {
-  const month = document.getElementById("lessonMonthFilter")?.value || currentYearMonth();
-  const studentId = normalizeLessonSelectedStudentFilterV9812();
-  const teacherId = document.getElementById("lessonTeacherFilter")?.value || "";
-  const subjectId = document.getElementById("lessonSubjectFilter")?.value || "";
-
-  return {
-    month,
-    baseYear: Number(String(month).slice(0, 4)) || new Date().getFullYear(),
-    studentId,
-    teacherId,
-    subjectId,
-  };
-}
-
-async function importLessonExcelFile(file) {
-  if (!lessonExcelRequireXLSX()) return;
-
-  const ctx = selectedLessonImportContext();
-  if (!ctx.studentId) {
-    showMessage("导入前请先在课时管理筛选中选择学生。", "error");
-    return;
-  }
-
-  const businessEntityId = state.students.find(x => x.id === ctx.studentId)?.business_entity_id || state.businessEntities[0]?.id || "";
-  const fallbackTeacherId = ctx.teacherId || "";
-  const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
-
-  const headerIndex = findLessonImportHeaderRow(rows);
-  if (headerIndex < 0) {
-    showMessage("没有找到包含「科目 / 日期 / 时长」的预定课时表头。", "error");
-    return;
-  }
-
-  const col = buildLessonImportColumnMap(rows[headerIndex]);
-  const records = [];
-  let currentTeacherText = "";
-  let currentSubjectText = "";
-  let skipped = 0;
-
-  for (let r = headerIndex + 1; r < rows.length; r++) {
-    const row = rows[r];
-    const lineText = row.map(x => String(x || "").trim()).join("");
-    if (!lineText) continue;
-    if (/合计|小计|總計|总计/.test(lineText)) continue;
-
-    const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
-    const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
-
-    // Merged cells appear as blank in following rows, so forward-fill teacher and subject.
-    if (teacherCell) currentTeacherText = teacherCell;
-    if (subjectCell) currentSubjectText = subjectCell;
-
-    const dateValue = col.date !== undefined ? row[col.date] : "";
-    const durationRaw = col.duration !== undefined ? row[col.duration] : "";
-    const weekStart = parseLessonExcelWeekStart(dateValue, ctx.baseYear);
-    const duration = numericExcelValue(durationRaw);
-
-    if (!weekStart || !duration) {
-      skipped++;
-      continue;
-    }
-
-    const subjectId = subjectIdFromExcelName(currentSubjectText) || ctx.subjectId;
-    const teacherId = teacherIdFromExcelName(currentTeacherText) || fallbackTeacherId;
-
-    if (!subjectId) {
-      console.warn("Subject not matched, skipped row", row);
-      skipped++;
-      continue;
-    }
-
-    if (!teacherId) {
-      console.warn("Teacher not matched and no fallback teacher, skipped row", row);
-      skipped++;
-      continue;
-    }
-
-    const unitPrice = col.unitPrice !== undefined ? numericExcelValue(row[col.unitPrice]) : 0;
-    const lessonFee = col.lessonFee !== undefined ? numericExcelValue(row[col.lessonFee]) : (unitPrice && duration ? unitPrice * duration : 0);
-    const yearMonth = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, "0")}`;
-
-    records.push({
-      lesson_type: "planned",
-      lesson_date: formatDateYmd(weekStart),
-      year_month: yearMonth,
-      student_id: ctx.studentId,
-      teacher_id: teacherId,
-      subject_id: subjectId,
-      business_entity_id: businessEntityId || null,
-      start_time: col.start !== undefined ? String(row[col.start] || "") : "",
-      end_time: col.end !== undefined ? String(row[col.end] || "") : "",
-      duration_hours: duration,
-      unit_price: unitPrice || 0,
-      lesson_fee: lessonFee || 0,
-      lesson_content: col.content !== undefined ? String(row[col.content] || "") : "",
-      status: "planned",
-      is_billable: true,
-      note: `Excel导入：${sheetName} / ${weekLabelFromDate(weekStart)}${col.count !== undefined && row[col.count] ? " / 回数:" + row[col.count] : ""}`,
-    });
-  }
-
-  if (!records.length) {
-    showMessage("没有读取到可导入的课时记录。请确认已选择学生，且模板中有日期、时长、科目和担当老师。", "error");
-    return;
-  }
-
-  const totalFee = records.reduce((sum, x) => sum + Number(x.lesson_fee || 0), 0);
-  const ok = confirm(`将导入 ${records.length} 条预定课时。\n预定课时费合计：${totalFee.toLocaleString()} JPY\n跳过行数：${skipped}\n归属月份按周一所在月份计算。\n是否继续？`);
-  if (!ok) return;
-
-  const { error } = await db.from(tables.lessons).insert(records);
-  if (error) {
-    showMessage(`导入失败：${error.message}`, "error");
-    return;
-  }
-
-  await loadAll();
-  renderAll();
-  showMessage(`已导入 ${records.length} 条预定课时。`, "ok");
 }
 
 // v9.8-final.10: old lesson Excel import/export action block removed. Use completed import + standard template export.
@@ -4204,175 +3996,6 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-
-// === v7.6 lesson Excel import robustness + selected delete ===
-function normalizeLessonMatchTextV76(value) {
-  return String(value || "")
-    .replace(/\s+/g, "")
-    .replace(/[・･／/\\_\-—–.,，。()（）]/g, "")
-    .replace(/ｅｊｕ/gi, "eju")
-    .toLowerCase();
-}
-
-function normalizeLessonSubjectAliasV76(value) {
-  let text = normalizeLessonMatchTextV76(value);
-  text = text.replace(/^eju/, "");
-  text = text.replace(/留考/g, "");
-  text = text.replace(/日語|日语|日本语/g, "日本語");
-  text = text.replace(/数学|數学|理科数学|文科数学/g, "数学");
-  text = text.replace(/物理/g, "物理");
-  text = text.replace(/化学|化學/g, "化学");
-  text = text.replace(/生物/g, "生物");
-  text = text.replace(/総合科目|综合科目|文综|文綜/g, "総合科目");
-  return text;
-}
-
-function teacherIdFromExcelNameV76(name) {
-  const text = normalizeLessonMatchTextV76(name);
-  if (!text) return "";
-  const matched = (state.teachers || []).find(t => {
-    const name1 = normalizeLessonMatchTextV76(t.name);
-    const name2 = normalizeLessonMatchTextV76(t.display_name);
-    return (name1 && (name1.includes(text) || text.includes(name1))) ||
-      (name2 && (name2.includes(text) || text.includes(name2)));
-  });
-  return matched?.id || "";
-}
-
-function subjectIdFromExcelNameV76(name) {
-  const raw = normalizeLessonMatchTextV76(name);
-  const alias = normalizeLessonSubjectAliasV76(name);
-  if (!raw && !alias) return "";
-  const matched = (state.subjects || []).find(s => {
-    const sRaw = normalizeLessonMatchTextV76(s.name);
-    const sAlias = normalizeLessonSubjectAliasV76(s.name);
-    return (sRaw && (sRaw.includes(raw) || raw.includes(sRaw))) ||
-      (sAlias && (sAlias.includes(alias) || alias.includes(sAlias)));
-  });
-  return matched?.id || "";
-}
-
-function numericExcelValueV76(value) {
-  if (value === null || value === undefined || value === "") return 0;
-  const n = Number(String(value).replace(/[^\d.-]/g, ""));
-  return Number.isFinite(n) ? n : 0;
-}
-
-function buildLessonImportColumnMapV76(headerRow) {
-  const map = {};
-  headerRow.forEach((cell, idx) => {
-    const text = String(cell || "").trim();
-    if (!text) return;
-    if (text.includes("担当") || text.includes("老师") || text.includes("教師") || text.includes("讲师")) map.teacher = idx;
-    if (text.includes("科目")) map.subject = idx;
-    if (text.includes("日期")) map.date = idx;
-    if (text.includes("回数")) map.count = idx;
-    if (text.includes("内容")) map.content = idx;
-    if (text.includes("時長") || text.includes("时长") || text === "H" || text.includes("時間")) map.duration = idx;
-    if (text.includes("课程单价") || text.includes("単価") || text.includes("单价")) map.unitPrice = idx;
-    if (text.includes("应收课时费") || text.includes("應收課時費") || text.includes("课时费") || text.includes("授業料")) map.lessonFee = idx;
-    if (text.includes("开始") || text.includes("開始")) map.start = idx;
-    if (text.includes("结束") || text.includes("終了")) map.end = idx;
-  });
-  return map;
-}
-
-async function importLessonExcelFileV76(file) {
-  if (!lessonExcelRequireXLSX()) return;
-  const ctx = selectedLessonImportContext();
-  if (!ctx.studentId) {
-    showMessage("导入前请先在课时管理筛选中选择学生。", "error");
-    return;
-  }
-
-  const businessEntityId = state.students.find(x => x.id === ctx.studentId)?.business_entity_id || state.businessEntities[0]?.id || "";
-  const fallbackTeacherId = ctx.teacherId || "";
-  const fallbackSubjectId = ctx.subjectId || "";
-  const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
-  const headerIndex = findLessonImportHeaderRow(rows);
-  if (headerIndex < 0) {
-    showMessage("没有找到包含「科目 / 日期 / 时长」的预定课时表头。", "error");
-    return;
-  }
-
-  const col = buildLessonImportColumnMapV76(rows[headerIndex]);
-  const records = [];
-  const warnings = [];
-  let currentTeacherText = "";
-  let currentSubjectText = "";
-
-  for (let r = headerIndex + 1; r < rows.length; r++) {
-    const row = rows[r];
-    const lineText = row.map(x => String(x || "").trim()).join("");
-    if (!lineText) continue;
-    if (/合计|小计|總計|总计/.test(lineText)) continue;
-
-    const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
-    const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
-    if (teacherCell) currentTeacherText = teacherCell;
-    if (subjectCell) currentSubjectText = subjectCell;
-
-    const weekStart = parseLessonExcelWeekStart(col.date !== undefined ? row[col.date] : "", ctx.baseYear);
-    const duration = numericExcelValueV76(col.duration !== undefined ? row[col.duration] : "");
-    if (!weekStart || !duration) {
-      warnings.push(`第 ${r + 1} 行跳过：日期或时长为空`);
-      continue;
-    }
-
-    const subjectId = subjectIdFromExcelNameV76(currentSubjectText) || fallbackSubjectId || null;
-    const teacherId = teacherIdFromExcelNameV76(currentTeacherText) || fallbackTeacherId || null;
-    if (!subjectId) warnings.push(`第 ${r + 1} 行：科目「${currentSubjectText || "空"}」未匹配，已作为空科目导入`);
-    if (!teacherId) warnings.push(`第 ${r + 1} 行：担当老师「${currentTeacherText || "空"}」未匹配，已作为空老师导入`);
-
-    const unitPrice = col.unitPrice !== undefined ? numericExcelValueV76(row[col.unitPrice]) : 0;
-    const lessonFee = col.lessonFee !== undefined ? numericExcelValueV76(row[col.lessonFee]) : (unitPrice && duration ? unitPrice * duration : 0);
-    const yearMonth = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, "0")}`;
-
-    records.push({
-      lesson_type: "planned",
-      lesson_date: formatDateYmd(weekStart),
-      year_month: yearMonth,
-      student_id: ctx.studentId,
-      teacher_id: teacherId,
-      subject_id: subjectId,
-      business_entity_id: businessEntityId || null,
-      start_time: col.start !== undefined ? String(row[col.start] || "") : "",
-      end_time: col.end !== undefined ? String(row[col.end] || "") : "",
-      duration_hours: duration,
-      unit_price: unitPrice || 0,
-      lesson_fee: lessonFee || 0,
-      lesson_content: col.content !== undefined ? String(row[col.content] || "") : "",
-      status: "planned",
-      is_billable: true,
-      note: `Excel导入：${sheetName} / ${weekLabelFromDate(weekStart)}${col.count !== undefined && row[col.count] ? " / 回数:" + row[col.count] : ""}${!subjectId && currentSubjectText ? " / 原科目:" + currentSubjectText : ""}${!teacherId && currentTeacherText ? " / 原担当:" + currentTeacherText : ""}`,
-    });
-  }
-
-  if (!records.length) {
-    showMessage("没有读取到可导入的课时记录。请确认模板中有日期和时长。", "error");
-    return;
-  }
-
-  const totalFee = records.reduce((sum, x) => sum + Number(x.lesson_fee || 0), 0);
-  const warningText = warnings.length ? `\n注意：${warnings.slice(0, 5).join(" / ")}${warnings.length > 5 ? " ..." : ""}` : "";
-  const ok = confirm(`将导入 ${records.length} 条预定课时。\n预定课时费合计：${totalFee.toLocaleString()} JPY\n归属月份按周一所在月份计算。${warningText}\n是否继续？`);
-  if (!ok) return;
-
-  const { error } = await db.from(tables.lessons).insert(records);
-  if (error) {
-    showMessage(`导入失败：${error.message}`, "error");
-    return;
-  }
-  await loadAll();
-  renderAll();
-  showMessage(`已导入 ${records.length} 条预定课时。${warnings.length ? " 有部分老师/科目未匹配，请查看备注。" : ""}`, "ok");
-}
-
-importLessonExcelFile = importLessonExcelFileV76;
 
 function lessonSelectCheckboxV76(item) {
   if (!item) return "";
@@ -4786,35 +4409,9 @@ function bindExpensePdfImportV79() {
   );
 }
 
-function bindLessonExcelActionsV79() {
-  setupDropUploadZoneV79(
-    "lessonExcelDropZone",
-    "lessonImportExcelInput",
-    async (file) => {
-      const studentId = normalizeLessonSelectedStudentFilterV9812();
-      if (!studentId) {
-        showMessage("请先在课时管理筛选中选择学生，再导入 Excel。", "error");
-        return;
-      }
-      await importLessonExcelFile(file);
-    },
-    {
-      acceptRegex: /\.(xlsx|xls)$/i,
-      acceptTypeRegex: /(spreadsheet|excel|sheet)/i,
-      rejectMessage: "暂时只支持 .xlsx / .xls 文件。",
-    }
-  );
-
-  const exportBtn = document.getElementById("lessonExportExcelBtn");
-  if (exportBtn && exportBtn.dataset.boundExportV79 !== "true") {
-    exportBtn.dataset.boundExportV79 = "true";
-  }
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     bindExpensePdfImportV79();
-    bindLessonExcelActionsV79();
   }, 500);
 });
 
@@ -4823,7 +4420,6 @@ if (renderAllBeforeV79) {
   renderAll = function () {
     renderAllBeforeV79();
     bindExpensePdfImportV79();
-    bindLessonExcelActionsV79();
   };
 }
 
@@ -4996,40 +4592,6 @@ function bindUploadDialogButtonsV80() {
     };
   }
 
-  const lessonBtn = document.getElementById("lessonImportExcelBtn");
-  const lessonInput = document.getElementById("lessonImportExcelInput");
-  if (lessonBtn && lessonInput && lessonBtn.dataset.boundDialogV80 !== "true") {
-    lessonBtn.dataset.boundDialogV80 = "true";
-    lessonBtn.onclick = () => {
-      const studentId = normalizeLessonSelectedStudentFilterV9812();
-      if (!studentId) {
-        showMessage("请先在课时管理筛选中选择学生，再导入 Excel。", "error");
-        return;
-      }
-
-      openUploadDialogV80({
-        title: "导入课时 Excel",
-        hint: "将 Excel 文件拖入这里",
-        acceptText: "支持 .xlsx / .xls。也可以点击按钮选择文件。",
-        input: lessonInput,
-        onFile: async file => {
-          if (!/\.(xlsx|xls)$/i.test(file.name)) {
-            showMessage("暂时只支持 .xlsx / .xls 文件。", "error");
-            return;
-          }
-          await importLessonExcelFile(file);
-        },
-      });
-    };
-
-    lessonInput.onchange = async () => {
-      const file = lessonInput.files && lessonInput.files[0];
-      lessonInput.value = "";
-      if (!file) return;
-      await importLessonExcelFile(file);
-      closeUploadDialogV80();
-    };
-  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -5130,39 +4692,6 @@ function bindUploadDialogButtonsV81() {
     };
   }
 
-  const lessonBtn = document.getElementById("lessonImportExcelBtn");
-  const lessonInput = document.getElementById("lessonImportExcelInput");
-  if (lessonBtn && lessonInput) {
-    lessonBtn.onclick = () => {
-      const studentId = normalizeLessonSelectedStudentFilterV9812();
-      if (!studentId) {
-        showMessage("请先在课时管理筛选中选择学生，再导入 Excel。", "error");
-        return;
-      }
-
-      openUploadDialogV81({
-        title: "导入课时 Excel",
-        hint: "将 Excel 文件拖入这里",
-        acceptText: "支持 .xlsx / .xls。点击下方按钮选择文件。",
-        input: lessonInput,
-        onFile: async file => {
-          if (!/\.(xlsx|xls)$/i.test(file.name)) {
-            showMessage("暂时只支持 .xlsx / .xls 文件。", "error");
-            return;
-          }
-          await importLessonExcelFile(file);
-        },
-      });
-    };
-
-    lessonInput.onchange = async () => {
-      const file = lessonInput.files && lessonInput.files[0];
-      lessonInput.value = "";
-      if (!file) return;
-      await importLessonExcelFile(file);
-      closeUploadDialogV80();
-    };
-  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -9365,7 +8894,6 @@ function ensureImportUndoPanelV871() {
   if (!page || page.querySelector("#lessonImportUndoPanelV871")) return;
 
   const toolbar =
-    document.getElementById("lessonImportExcelBtn")?.closest(".toolbar, .actions, .page-actions, .section-title-row") ||
     page.querySelector(".section-title-row") ||
     page;
 
@@ -9431,187 +8959,11 @@ async function undoLastLessonImportV871() {
   showMessage(`已撤回本次导入：${info.count || 0} 条。`, "ok");
 }
 
-async function importLessonExcelFileV871(file) {
-  if (!lessonExcelRequireXLSX()) return;
-
-  const ctx = selectedLessonImportContext();
-  if (!ctx.studentId) {
-    showMessage("导入前请先在课时管理筛选中选择学生。", "error");
-    return;
-  }
-
-  const studentName = selectedImportStudentNameV871();
-  const businessEntityId = state.students.find(x => x.id === ctx.studentId)?.business_entity_id || state.businessEntities[0]?.id || "";
-  const fallbackTeacherId = ctx.teacherId || "";
-  const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
-
-  const headerIndex = findLessonImportHeaderRow(rows);
-  if (headerIndex < 0) {
-    showMessage("没有找到包含「科目 / 日期 / 时长」的预定课时表头。", "error");
-    return;
-  }
-
-  const col = buildLessonImportColumnMap(rows[headerIndex]);
-  const records = [];
-  let currentTeacherText = "";
-  let currentSubjectText = "";
-  let skipped = 0;
-  const batchId = newImportBatchIdV871();
-  const importedAt = new Date().toISOString();
-
-  for (let r = headerIndex + 1; r < rows.length; r++) {
-    const row = rows[r];
-    const lineText = row.map(x => String(x || "").trim()).join("");
-    if (!lineText) continue;
-    if (/合计|小计|總計|总计/.test(lineText)) continue;
-
-    const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
-    const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
-    if (teacherCell) currentTeacherText = teacherCell;
-    if (subjectCell) currentSubjectText = subjectCell;
-
-    const dateValue = col.date !== undefined ? row[col.date] : "";
-    const durationRaw = col.duration !== undefined ? row[col.duration] : "";
-    const weekStart = parseLessonExcelWeekStart(dateValue, ctx.baseYear);
-    const duration = numericExcelValue(durationRaw);
-
-    if (!weekStart || !duration) {
-      skipped++;
-      continue;
-    }
-
-    const subjectId = subjectIdFromExcelName(currentSubjectText) || ctx.subjectId;
-    const teacherId = teacherIdFromExcelName(currentTeacherText) || fallbackTeacherId;
-
-    if (!subjectId || !teacherId) {
-      skipped++;
-      continue;
-    }
-
-    const unitPrice = col.unitPrice !== undefined ? numericExcelValue(row[col.unitPrice]) : 0;
-    const lessonFee = col.lessonFee !== undefined ? numericExcelValue(row[col.lessonFee]) : (unitPrice && duration ? unitPrice * duration : 0);
-    const yearMonth = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, "0")}`;
-
-    records.push({
-      lesson_type: "planned",
-      lesson_date: formatDateYmd(weekStart),
-      year_month: yearMonth,
-      student_id: ctx.studentId,
-      teacher_id: teacherId,
-      subject_id: subjectId,
-      business_entity_id: businessEntityId || null,
-      start_time: col.start !== undefined ? String(row[col.start] || "") : "",
-      end_time: col.end !== undefined ? String(row[col.end] || "") : "",
-      duration_hours: duration,
-      unit_price: unitPrice || 0,
-      lesson_fee: lessonFee || 0,
-      lesson_content: col.content !== undefined ? String(row[col.content] || "") : "",
-      status: "planned",
-      is_billable: true,
-      note: `Excel导入：${sheetName} / ${weekLabelFromDate(weekStart)}${col.count !== undefined && row[col.count] ? " / 回数:" + row[col.count] : ""}`,
-      import_batch_id: batchId,
-      import_source: file.name || sheetName,
-      imported_at: importedAt,
-    });
-  }
-
-  if (!records.length) {
-    showMessage("没有读取到可导入的课时记录。请确认已选择学生，且模板中有日期、时长、科目和担当老师。", "error");
-    return;
-  }
-
-  const totalFee = records.reduce((sum, x) => sum + Number(x.lesson_fee || 0), 0);
-  const ok = confirm(`即将导入课时：\n\n学生：${studentName}\n文件：${file.name}\n读取记录：${records.length} 条\n预定课时费合计：${totalFee.toLocaleString()} JPY\n跳过行数：${skipped}\n\n确认导入吗？`);
-  if (!ok) return;
-
-  const client = dbClientV871();
-  if (!client) {
-    showMessage("导入失败：数据库客户端未初始化。", "error");
-    return;
-  }
-
-  const { error } = await client.from(tables.lessons).insert(records);
-  if (error) {
-    showMessage(`导入失败：${error.message}`, "error");
-    return;
-  }
-
-  saveLastImportBatchV871({
-    batchId,
-    studentId: ctx.studentId,
-    studentName,
-    fileName: file.name,
-    count: records.length,
-    importedAt,
-  });
-
-  await loadAll();
-  renderAll();
-  showMessage(`已导入 ${records.length} 条预定课时。可点击“撤回本次导入”删除本批次。`, "ok");
-}
-
-importLessonExcelFile = importLessonExcelFileV871;
-
-function bindLessonExcelActionsV871() {
-  ensureImportUndoPanelV871();
-
-  const importBtn = document.getElementById("lessonImportExcelBtn");
-  const importInput = document.getElementById("lessonImportExcelInput");
-  const exportBtn = document.getElementById("lessonExportExcelBtn");
-
-  if (importBtn) {
-    importBtn.onclick = () => {
-      const studentId = normalizeLessonSelectedStudentFilterV9812();
-      if (!studentId) {
-        showMessage("请先在课时管理筛选中选择学生，再导入 Excel。", "error");
-        return;
-      }
-      importInput?.click();
-    };
-  }
-
-  if (importInput) {
-    importInput.onchange = async () => {
-      const file = importInput.files && importInput.files[0];
-      if (!file) return;
-      await importLessonExcelFileV871(file);
-      importInput.value = "";
-    };
-  }
-
-  updateUndoImportButtonV871();
-}
-
-bindLessonExcelActions = bindLessonExcelActionsV871;
-
-const renderLessonsBeforeV871 = typeof renderLessons === "function" ? renderLessons : null;
-if (renderLessonsBeforeV871) {
-  renderLessons = function () {
-    renderLessonsBeforeV871();
-    bindLessonExcelActionsV871();
-  };
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    bindLessonExcelActionsV871();
     fetchSettlementLockHistoryV871();
   }, 1000);
 });
-
-const renderAllBeforeV871 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV871) {
-  renderAll = function () {
-    renderAllBeforeV871();
-    bindLessonExcelActionsV871();
-  };
-}
-
-
 
 // === v8.7.2 strict lesson row link fix + duplicate planned warning ===
 function planIdTextV872(value) {
@@ -10002,7 +9354,6 @@ function renderLessonsStrictV873() {
   else if (typeof bindLessonPairButtonsV59 === "function") bindLessonPairButtonsV59();
 
   if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-  if (typeof bindLessonExcelActionsV871 === "function") bindLessonExcelActionsV871();
 }
 
 buildLessonPairsStrictV872 = buildLessonPairsStrictV873;

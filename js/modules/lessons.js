@@ -531,6 +531,15 @@ function lessonPairDateText(item) {
 // 过渡方案：legacy-core.js 里的旧统计暂时保留，这里用 DB/RPC 结果覆盖课时管理顶部统计。
 (function () {
   const RPC_NAME_V916 = "school_get_lesson_management_stats";
+  const LESSON_STATS_IDS_V916 = [
+    "lessonPlannedHours",
+    "lessonActualHours",
+    "lessonPlannedFeeTotal",
+    "lessonActualFeeTotal",
+    "lessonCompletedCount",
+    "lessonCancelledCount",
+    "lessonRecordCount",
+  ];
   let requestSeqV916 = 0;
   let refreshTimerV916 = null;
 
@@ -575,6 +584,20 @@ function lessonPairDateText(item) {
     if (el) el.textContent = value;
   }
 
+  function renderLessonStatsLoadingV916() {
+    LESSON_STATS_IDS_V916.forEach(id => setTextV916(id, "读取中"));
+  }
+
+  function renderLessonStatsZeroV916() {
+    setTextV916("lessonPlannedHours", "0");
+    setTextV916("lessonActualHours", "0");
+    setTextV916("lessonPlannedFeeTotal", formatJpyV916(0));
+    setTextV916("lessonActualFeeTotal", formatJpyV916(0));
+    setTextV916("lessonCompletedCount", "0");
+    setTextV916("lessonCancelledCount", "0");
+    setTextV916("lessonRecordCount", "0");
+  }
+
   async function fetchLessonManagementStatsV916() {
     if (typeof db === "undefined" || !db?.rpc) return null;
     const { data, error } = await db.rpc(RPC_NAME_V916, lessonStatsFilterParamsV916());
@@ -598,12 +621,15 @@ function lessonPairDateText(item) {
 
   async function refreshLessonManagementStatsV916() {
     const seq = ++requestSeqV916;
+    renderLessonStatsLoadingV916();
     const stats = await fetchLessonManagementStatsV916();
     if (seq !== requestSeqV916) return;
-    renderLessonManagementStatsV916(stats);
+    if (stats) renderLessonManagementStatsV916(stats);
+    else renderLessonStatsZeroV916();
   }
 
   function scheduleLessonManagementStatsRefreshV916(delay = 0) {
+    renderLessonStatsLoadingV916();
     clearTimeout(refreshTimerV916);
     refreshTimerV916 = setTimeout(refreshLessonManagementStatsV916, delay);
   }

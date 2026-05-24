@@ -123,7 +123,15 @@ function compareDateTimeV86(a, b) {
   return String(a?.created_at || "").localeCompare(String(b?.created_at || ""));
 }
 
-
+// === 显示第几回函数
+function lessonPairDateText(item) {
+  const dateText = esc(displayRecordDate(item?.lesson_date || item?.created_at || ""));
+  const count = item?.lesson_count;
+  const countText = count !== undefined && count !== null && String(count).trim() !== ""
+    ? `<br><span class="muted-small">第${esc(count)}回</span>`
+    : "";
+  return `${dateText}${countText}`;
+}
 
 
 // === v9.0.4 lesson count modal field ===
@@ -169,7 +177,7 @@ function compareDateTimeV86(a, b) {
   window.patchLessonCountFieldV904 = patchLessonCountFieldV904;
 
   const normalizeLessonPayloadBeforeV904 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
-  window.normalizeLessonPayload = function(payload, type) {
+  window.normalizeLessonPayload = function (payload, type) {
     if (normalizeLessonPayloadBeforeV904) payload = normalizeLessonPayloadBeforeV904(payload, type);
 
     if (type === "lesson") {
@@ -183,7 +191,7 @@ function compareDateTimeV86(a, b) {
 
   const openCreateModalBeforeV904 = typeof openCreateModal === "function" ? openCreateModal : null;
   if (openCreateModalBeforeV904) {
-    window.openCreateModal = function(type, prefill = {}) {
+    window.openCreateModal = function (type, prefill = {}) {
       openCreateModalBeforeV904(type, prefill);
       if (type === "lesson") setTimeout(patchLessonCountFieldV904, 0);
     };
@@ -191,7 +199,7 @@ function compareDateTimeV86(a, b) {
 
   const openEditModalBeforeV904 = typeof openEditModal === "function" ? openEditModal : null;
   if (openEditModalBeforeV904) {
-    window.openEditModal = function(type, id) {
+    window.openEditModal = function (type, id) {
       openEditModalBeforeV904(type, id);
       if (type === "lesson") setTimeout(patchLessonCountFieldV904, 0);
     };
@@ -323,7 +331,7 @@ function compareDateTimeV86(a, b) {
 
   const openCreateModalBeforeV905 = typeof openCreateModal === "function" ? openCreateModal : null;
   if (openCreateModalBeforeV905) {
-    window.openCreateModal = function(type, prefill = {}) {
+    window.openCreateModal = function (type, prefill = {}) {
       openCreateModalBeforeV905(type, prefill);
       if (type === "lesson") setTimeout(bindManualLessonTimeCalcV905, 0);
     };
@@ -331,7 +339,7 @@ function compareDateTimeV86(a, b) {
 
   const openEditModalBeforeV905 = typeof openEditModal === "function" ? openEditModal : null;
   if (openEditModalBeforeV905) {
-    window.openEditModal = function(type, id) {
+    window.openEditModal = function (type, id) {
       openEditModalBeforeV905(type, id);
       if (type === "lesson") setTimeout(bindManualLessonTimeCalcV905, 0);
     };
@@ -381,7 +389,7 @@ function compareDateTimeV86(a, b) {
 
   const openCreateModalBeforeV906 = typeof openCreateModal === "function" ? openCreateModal : null;
   if (openCreateModalBeforeV906) {
-    window.openCreateModal = function(type, prefill = {}) {
+    window.openCreateModal = function (type, prefill = {}) {
       openCreateModalBeforeV906(type, prefill);
       if (type === "lesson") setTimeout(patchLessonDurationDecimalV906, 0);
     };
@@ -389,7 +397,7 @@ function compareDateTimeV86(a, b) {
 
   const openEditModalBeforeV906 = typeof openEditModal === "function" ? openEditModal : null;
   if (openEditModalBeforeV906) {
-    window.openEditModal = function(type, id) {
+    window.openEditModal = function (type, id) {
       openEditModalBeforeV906(type, id);
       if (type === "lesson") setTimeout(patchLessonDurationDecimalV906, 0);
     };
@@ -478,7 +486,7 @@ function compareDateTimeV86(a, b) {
   }
 
   const normalizeBeforeV915 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
-  window.normalizeLessonPayload = function(payload, type) {
+  window.normalizeLessonPayload = function (payload, type) {
     if (normalizeBeforeV915) payload = normalizeBeforeV915(payload, type);
     if (type === "lesson") {
       const form = document.getElementById("modalForm");
@@ -498,7 +506,7 @@ function compareDateTimeV86(a, b) {
 
   const openCreateBeforeV915 = typeof openCreateModal === "function" ? openCreateModal : null;
   if (openCreateBeforeV915) {
-    window.openCreateModal = function(type, prefill = {}) {
+    window.openCreateModal = function (type, prefill = {}) {
       if (type === "lesson" && (prefill.lesson_type || "actual") === "actual" && !prefill.teacher_settlement_month) {
         prefill = { ...prefill, teacher_settlement_month: monthFromDateV915(prefill.lesson_date) || prefill.year_month || "" };
       }
@@ -509,7 +517,7 @@ function compareDateTimeV86(a, b) {
 
   const openEditBeforeV915 = typeof openEditModal === "function" ? openEditModal : null;
   if (openEditBeforeV915) {
-    window.openEditModal = function(type, id) {
+    window.openEditModal = function (type, id) {
       openEditBeforeV915(type, id);
       if (type === "lesson") setTimeout(patchLessonModalV915, 0);
     };

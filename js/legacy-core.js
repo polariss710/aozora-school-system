@@ -3567,10 +3567,15 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-// === v5.9 hard override: lesson planned/actual paired view ===
+/* === v5.9 hard override: lesson planned/actual paired view ===
 function lessonPairDateText(item) {
-  return esc(displayRecordDate(item?.lesson_date || item?.created_at || ""));
-}
+  const dateText = esc(displayRecordDate(item?.lesson_date || item?.created_at || ""));
+  const count = item?.lesson_count;
+  const countText = count !== undefined && count !== null && String(count).trim() !== ""
+    ? `<br><span class="muted-small">第${esc(count)}回</span>`
+    : "";
+  return `${dateText}${countText}`;
+}*/
 
 function lessonPairTimeText(item) {
   return esc([item?.start_time, item?.end_time].filter(Boolean).join(" - "));

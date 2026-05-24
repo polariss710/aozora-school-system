@@ -526,3 +526,143 @@ function lessonPairDateText(item) {
   document.addEventListener("DOMContentLoaded", () => setTimeout(patchLessonModalV915, 800));
   window.SchoolLessonTeacherSettlementMonthV915 = { monthFromDate: monthFromDateV915, patch: patchLessonModalV915 };
 })();
+
+// === v9.1.6 lesson management stats RPC ===
+// 过渡方案：legacy-core.js 里的旧统计暂时保留，这里用 DB/RPC 结果覆盖课时管理顶部统计。
+(function () {
+  const RPC_NAME_V916 = "school_get_lesson_management_stats";
+  let requestSeqV916 = 0;
+  let refreshTimerV916 = null;
+
+  function optionalValueV916(id) {
+    const value = document.getElementById(id)?.value || "";
+    return value || null;
+  }
+
+  function normalizeStudentFilterV916() {
+    if (typeof normalizeLessonSelectedStudentFilterV9812 === "function") {
+      return normalizeLessonSelectedStudentFilterV9812() || null;
+    }
+    return optionalValueV916("lessonStudentFilter");
+  }
+
+  function lessonStatsFilterParamsV916() {
+    return {
+      p_year_month: optionalValueV916("lessonMonthFilter"),
+      p_student_id: normalizeStudentFilterV916(),
+      p_teacher_id: optionalValueV916("lessonTeacherFilter"),
+      p_subject_id: optionalValueV916("lessonSubjectFilter"),
+      p_lesson_type: optionalValueV916("lessonTypeFilter"),
+      p_status: optionalValueV916("lessonStatusFilter"),
+      p_business_entity_id: optionalValueV916("lessonBusinessEntityFilter"),
+    };
+  }
+
+  function formatHoursV916(value) {
+    const n = Number(value || 0);
+    if (!Number.isFinite(n)) return "0";
+    return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
+  }
+
+  function formatJpyV916(value) {
+    const n = Number(value || 0);
+    if (typeof formatJpyV83 === "function") return formatJpyV83(n);
+    return `${Math.round(n).toLocaleString()} JPY`;
+  }
+
+  function setTextV916(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
+
+  async function fetchLessonManagementStatsV916() {
+    if (typeof db === "undefined" || !db?.rpc) return null;
+    const { data, error } = await db.rpc(RPC_NAME_V916, lessonStatsFilterParamsV916());
+    if (error) {
+      console.warn(`${RPC_NAME_V916} failed`, error);
+      return null;
+    }
+    return Array.isArray(data) ? data[0] : data;
+  }
+
+  function renderLessonManagementStatsV916(stats) {
+    if (!stats) return;
+    setTextV916("lessonPlannedHours", formatHoursV916(stats.planned_hours));
+    setTextV916("lessonActualHours", formatHoursV916(stats.actual_hours));
+    setTextV916("lessonPlannedFeeTotal", formatJpyV916(stats.planned_fee_jpy));
+    setTextV916("lessonActualFeeTotal", formatJpyV916(stats.actual_fee_jpy));
+    setTextV916("lessonCompletedCount", String(Number(stats.completed_count || 0)));
+    setTextV916("lessonCancelledCount", String(Number(stats.cancelled_count || 0)));
+    setTextV916("lessonRecordCount", String(Number(stats.record_count || 0)));
+  }
+
+  async function refreshLessonManagementStatsV916() {
+    const seq = ++requestSeqV916;
+    const stats = await fetchLessonManagementStatsV916();
+    if (seq !== requestSeqV916) return;
+    renderLessonManagementStatsV916(stats);
+  }
+
+  function scheduleLessonManagementStatsRefreshV916(delay = 0) {
+    clearTimeout(refreshTimerV916);
+    refreshTimerV916 = setTimeout(refreshLessonManagementStatsV916, delay);
+  }
+
+  function bindLessonStatsRefreshV916() {
+    const ids = [
+      "lessonMonthFilter",
+      "lessonStudentFilter",
+      "lessonTeacherFilter",
+      "lessonSubjectFilter",
+      "lessonTypeFilter",
+      "lessonStatusFilter",
+      "lessonBusinessEntityFilter",
+    ];
+
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el || el.dataset.lessonStatsRpcBoundV916 === "true") return;
+      el.dataset.lessonStatsRpcBoundV916 = "true";
+      el.addEventListener("change", () => scheduleLessonManagementStatsRefreshV916(50));
+    });
+  }
+
+  const renderLessonsBeforeV916 = typeof renderLessons === "function" ? renderLessons : null;
+  if (renderLessonsBeforeV916) {
+    window.renderLessons = function () {
+      renderLessonsBeforeV916();
+      scheduleLessonManagementStatsRefreshV916(0);
+    };
+  }
+
+  const renderAllBeforeV916 = typeof renderAll === "function" ? renderAll : null;
+  if (renderAllBeforeV916) {
+    window.renderAll = function () {
+      renderAllBeforeV916();
+      bindLessonStatsRefreshV916();
+      scheduleLessonManagementStatsRefreshV916(0);
+    };
+  }
+
+  const loadLessonRecordsBeforeV916 = typeof loadLessonRecords === "function" ? loadLessonRecords : null;
+  if (loadLessonRecordsBeforeV916) {
+    window.loadLessonRecords = async function () {
+      const result = await loadLessonRecordsBeforeV916();
+      scheduleLessonManagementStatsRefreshV916(0);
+      return result;
+    };
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(() => {
+      bindLessonStatsRefreshV916();
+      scheduleLessonManagementStatsRefreshV916(0);
+    }, 1000);
+  });
+
+  window.SchoolLessonStatsRpcV916 = {
+    refresh: refreshLessonManagementStatsV916,
+    render: renderLessonManagementStatsV916,
+    params: lessonStatsFilterParamsV916,
+  };
+})();

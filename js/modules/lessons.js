@@ -123,7 +123,7 @@ function compareDateTimeV86(a, b) {
   return String(a?.created_at || "").localeCompare(String(b?.created_at || ""));
 }
 
-// === 显示第几回函数
+// === 显示第几回相关函数2
 function lessonPairDateText(item) {
   const dateText = esc(displayRecordDate(item?.lesson_date || item?.created_at || ""));
   const count = item?.lesson_count;

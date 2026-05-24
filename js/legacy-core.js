@@ -3567,17 +3567,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }, 800);
 });
 
-
-/* === v5.9 hard override: lesson planned/actual paired view ===
-function lessonPairDateText(item) {
-  const dateText = esc(displayRecordDate(item?.lesson_date || item?.created_at || ""));
-  const count = item?.lesson_count;
-  const countText = count !== undefined && count !== null && String(count).trim() !== ""
-    ? `<br><span class="muted-small">第${esc(count)}回</span>`
-    : "";
-  return `${dateText}${countText}`;
-}*/
-
 function lessonPairTimeText(item) {
   return esc([item?.start_time, item?.end_time].filter(Boolean).join(" - "));
 }
@@ -9576,49 +9565,6 @@ function lessonStudentV86(item) {
 function lessonTrackV86(item) {
   return lessonStudentV86(item)?.course_track || "science";
 }
-
-
-/*
-function compareDateTimeV86(a, b) {
-  const date = String(a?.lesson_date || "").localeCompare(String(b?.lesson_date || ""));
-  if (date !== 0) return date;
-  const start = String(a?.start_time || "").localeCompare(String(b?.start_time || ""));
-  if (start !== 0) return start;
-  const end = String(a?.end_time || "").localeCompare(String(b?.end_time || ""));
-  if (end !== 0) return end;
-  return String(a?.created_at || "").localeCompare(String(b?.created_at || ""));
-}*/
-
-/*
-function comparePlannedLessonsV86(a, b) {
-  const month = String(a?.year_month || "").localeCompare(String(b?.year_month || ""));
-  if (month !== 0) return month;
-
-  const rank = subjectRankV86(a) - subjectRankV86(b);
-  if (rank !== 0) return rank;
-
-  const subject = String(a?.subject?.name || "").localeCompare(String(b?.subject?.name || ""));
-  if (subject !== 0) return subject;
-
-  const teacher = String(a?.teacher?.display_name || a?.teacher?.name || "")
-    .localeCompare(String(b?.teacher?.display_name || b?.teacher?.name || ""));
-  if (teacher !== 0) return teacher;
-
-  const dateTime = compareDateTimeV86(a, b);
-  if (dateTime !== 0) return dateTime;
-
-  const ac = Number(String(a?.lesson_count ?? "").replace(/[^\d.-]/g, ""));
-  const bc = Number(String(b?.lesson_count ?? "").replace(/[^\d.-]/g, ""));
-  if (Number.isFinite(ac) || Number.isFinite(bc)) {
-    if (!Number.isFinite(ac)) return 1;
-    if (!Number.isFinite(bc)) return -1;
-    if (ac !== bc) return ac - bc;
-  }
-
-  return String(a?.id || "").localeCompare(String(b?.id || ""));
-}
-*/
-
 
 function lessonFeeV86(item) {
   return Number(item?.lesson_fee || (Number(item?.unit_price || 0) * Number(item?.duration_hours || 0)) || 0);

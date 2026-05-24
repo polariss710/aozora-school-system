@@ -6124,13 +6124,13 @@ function renderLessonRowsFinalV836(rows) {
     const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
 
     if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row compact">${lessonPairCellsFinalV836(plan, "planned")}${lessonPairCellsFinalV836(null, "actual")}</tr>`);
+      html.push(`<tr class="lesson-pair-row compact">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
     } else {
       actuals.forEach((actual, index) => {
         const left = index === 0
-          ? lessonPairCellsFinalV836(plan, "planned")
+          ? lessonCellV86(plan, "planned")
           : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row compact">${left}${lessonPairCellsFinalV836(actual, "actual")}</tr>`);
+        html.push(`<tr class="lesson-pair-row compact">${left}${lessonCellV86(actual, "actual")}</tr>`);
       });
     }
   });
@@ -6138,7 +6138,7 @@ function renderLessonRowsFinalV836(rows) {
   unlinkedActual.slice().sort(sortFn).forEach(actual => {
     const ym = actual.year_month || "未归属月份";
     addMonthRow(ym);
-    html.push(`<tr class="lesson-pair-row compact">${lessonPairCellsFinalV836(null, "planned")}${lessonPairCellsFinalV836(actual, "actual")}</tr>`);
+    html.push(`<tr class="lesson-pair-row compact">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
   });
 
   return html.join("");
@@ -13341,4 +13341,4 @@ document.addEventListener("DOMContentLoaded", () => {
     if (typeof filterLessons === "function") renderLessonStatsV8813(filterLessons().slice());
   }, 1000);
 });
-//latest 11:57
+//latest 12:14

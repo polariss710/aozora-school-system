@@ -6018,29 +6018,6 @@ function subjectRankV8311(item) {
   return 999;
 }
 
-function compareLessonsByFixedSubjectV8311(a, b) {
-  // 月份 → 老师 → 固定科目顺序（日语/数学/文综/物理/化学/生物）→ 日期 → 时间
-  const month = String(a.year_month || "").localeCompare(String(b.year_month || ""));
-  if (month !== 0) return month;
-
-  const teacher = (a.teacher?.display_name || a.teacher?.name || "").localeCompare(b.teacher?.display_name || b.teacher?.name || "");
-  if (teacher !== 0) return teacher;
-
-  const rank = subjectRankV8311(a) - subjectRankV8311(b);
-  if (rank !== 0) return rank;
-
-  const subjectName = String(a.subject?.name || "").localeCompare(String(b.subject?.name || ""));
-  if (subjectName !== 0) return subjectName;
-
-  const date = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
-  if (date !== 0) return date;
-
-  return String(a.start_time || "").localeCompare(String(b.start_time || ""));
-}
-
-// Override sort function used by the latest lesson/settlement renderers.
-compareLessonsV78 = compareLessonsByFixedSubjectV8311;
-
 function ensureSettlementReceivedJpyRowV8311() {
   const actualTable = [...document.querySelectorAll(".settlement-card")].find(card => (card.textContent || "").includes("月底实际结算"));
   if (!actualTable) return;
@@ -6116,32 +6093,6 @@ function subjectSortKeyV8312(item) {
   if (/生物/.test(name)) return 60;
   return 999;
 }
-
-function compareLessonsByFixedSubjectV8312(a, b) {
-  // 修正：课程顺序优先于老师顺序。
-  // 月份 → 固定课程顺序（日语/数学/文综/物理/化学/生物）→ 老师 → 日期 → 时间
-  const month = String(a.year_month || "").localeCompare(String(b.year_month || ""));
-  if (month !== 0) return month;
-
-  const subjectRank = subjectSortKeyV8312(a) - subjectSortKeyV8312(b);
-  if (subjectRank !== 0) return subjectRank;
-
-  const subjectName = String(a.subject?.name || "").localeCompare(String(b.subject?.name || ""));
-  if (subjectName !== 0) return subjectName;
-
-  const teacher = String(a.teacher?.display_name || a.teacher?.name || "").localeCompare(String(b.teacher?.display_name || b.teacher?.name || ""));
-  if (teacher !== 0) return teacher;
-
-  const date = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
-  if (date !== 0) return date;
-
-  return String(a.start_time || "").localeCompare(String(b.start_time || ""));
-}
-
-// Override every known sort hook from previous versions.
-compareLessonsV78 = compareLessonsByFixedSubjectV8312;
-compareLessonsV77 = compareLessonsByFixedSubjectV8312;
-compareLessonsByFixedSubjectV8311 = compareLessonsByFixedSubjectV8312;
 
 // Re-render current pages after overriding sort hooks.
 document.addEventListener("DOMContentLoaded", () => {
@@ -6221,31 +6172,6 @@ function subjectRankByTrackV8314(item) {
   if (isHumanities) return 60;
   return 999;
 }
-
-function compareLessonsByTrackSubjectV8314(a, b) {
-  const month = String(a.year_month || "").localeCompare(String(b.year_month || ""));
-  if (month !== 0) return month;
-
-  const rank = subjectRankByTrackV8314(a) - subjectRankByTrackV8314(b);
-  if (rank !== 0) return rank;
-
-  const subjectName = String(a.subject?.name || "").localeCompare(String(b.subject?.name || ""));
-  if (subjectName !== 0) return subjectName;
-
-  const teacher = String(a.teacher?.display_name || a.teacher?.name || "").localeCompare(String(b.teacher?.display_name || b.teacher?.name || ""));
-  if (teacher !== 0) return teacher;
-
-  const date = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
-  if (date !== 0) return date;
-
-  return String(a.start_time || "").localeCompare(String(b.start_time || ""));
-}
-
-// Override all previous sort hooks.
-compareLessonsV78 = compareLessonsByTrackSubjectV8314;
-compareLessonsV77 = compareLessonsByTrackSubjectV8314;
-compareLessonsByFixedSubjectV8311 = compareLessonsByTrackSubjectV8314;
-compareLessonsByFixedSubjectV8312 = compareLessonsByTrackSubjectV8314;
 
 function normalizeCourseTrackInputV8314() {
   document.querySelectorAll('select[name="course_track"]').forEach(select => {
@@ -11529,36 +11455,3 @@ function subjectPriorityV8813(row) {
 function lessonSortKeyDateV8813(row) {
   return String(row?.lesson_date || "");
 }
-
-function compareLessonsV8813(a, b) {
-  const dateCompare = lessonSortKeyDateV8813(a).localeCompare(lessonSortKeyDateV8813(b));
-  if (dateCompare) return dateCompare;
-
-  const subjectCompare = subjectPriorityV8813(a) - subjectPriorityV8813(b);
-  if (subjectCompare) return subjectCompare;
-
-  const teacherCompare = String(a?.teacher_id || "").localeCompare(String(b?.teacher_id || ""));
-  if (teacherCompare) return teacherCompare;
-
-  const aCount = normalizeLessonCountV8813(a?.lesson_count);
-  const bCount = normalizeLessonCountV8813(b?.lesson_count);
-  if (aCount !== null || bCount !== null) {
-    if (aCount === null) return 1;
-    if (bCount === null) return -1;
-    if (aCount !== bCount) return aCount - bCount;
-  }
-
-  const timeCompare = String(a?.start_time || "").localeCompare(String(b?.start_time || ""));
-  if (timeCompare) return timeCompare;
-
-  const createdCompare = String(a?.created_at || "").localeCompare(String(b?.created_at || ""));
-  if (createdCompare) return createdCompare;
-
-  return String(a?.id || "").localeCompare(String(b?.id || ""));
-}
-
-compareLessonsV78 = compareLessonsV8813;
-compareLessonsV83 = compareLessonsV8813;
-compareLessonsV872 = compareLessonsV8813;
-
-//latest 15:21

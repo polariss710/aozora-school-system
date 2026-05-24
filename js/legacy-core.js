@@ -6285,13 +6285,13 @@ function renderLessonRowsV837(rows) {
     addMonthRow(ym);
     const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
     if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v837">${lessonPairCellsV837(plan, "planned")}${lessonPairCellsV837(null, "actual")}</tr>`);
+      html.push(`<tr class="lesson-pair-row v837">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
     } else {
       actuals.forEach((actual, index) => {
         const left = index === 0
-          ? lessonPairCellsV837(plan, "planned")
+          ? lessonCellV86(plan, "planned")
           : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row v837">${left}${lessonPairCellsV837(actual, "actual")}</tr>`);
+        html.push(`<tr class="lesson-pair-row v837">${left}${lessonCellV86(actual, "actual")}</tr>`);
       });
     }
   });
@@ -6299,7 +6299,7 @@ function renderLessonRowsV837(rows) {
   unlinkedActual.slice().sort(sortFn).forEach(actual => {
     const ym = actual.year_month || "未归属月份";
     addMonthRow(ym);
-    html.push(`<tr class="lesson-pair-row v837">${lessonPairCellsV837(null, "planned")}${lessonPairCellsV837(actual, "actual")}</tr>`);
+    html.push(`<tr class="lesson-pair-row v837">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
   });
 
   return html.join("");
@@ -7763,13 +7763,13 @@ function renderLessonRowsV852(rows) {
     addMonthRow(ym);
     const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
     if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV852(plan, "planned")}${lessonPairCellsV852(null, "actual")}</tr>`);
+      html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
     } else {
       actuals.forEach((actual, index) => {
         const left = index === 0
-          ? lessonPairCellsV852(plan, "planned")
+          ? lessonCellV86(plan, "planned")
           : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row v8310">${left}${lessonPairCellsV852(actual, "actual")}</tr>`);
+        html.push(`<tr class="lesson-pair-row v8310">${left}${lessonCellV86(actual, "actual")}</tr>`);
       });
     }
   });
@@ -7777,7 +7777,7 @@ function renderLessonRowsV852(rows) {
   unlinkedActual.slice().sort(sortFn).forEach(actual => {
     const ym = actual.year_month || "未归属月份";
     addMonthRow(ym);
-    html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV852(null, "planned")}${lessonPairCellsV852(actual, "actual")}</tr>`);
+    html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
   });
 
   return html.join("");
@@ -7972,13 +7972,13 @@ function renderLessonRowsV853(rows) {
     const actuals = (actualByPlan.get(plan.id) || []).slice().sort(compareLessonDateTimeAscV853);
 
     if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV852(plan, "planned")}${lessonPairCellsV852(null, "actual")}</tr>`);
+      html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
     } else {
       actuals.forEach((actual, index) => {
         const left = index === 0
-          ? lessonPairCellsV852(plan, "planned")
+          ? lessonCellV86(plan, "planned")
           : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row v8310">${left}${lessonPairCellsV852(actual, "actual")}</tr>`);
+        html.push(`<tr class="lesson-pair-row v8310">${left}${lessonCellV86(actual, "actual")}</tr>`);
       });
     }
   });
@@ -7987,7 +7987,7 @@ function renderLessonRowsV853(rows) {
   unlinkedActual.slice().sort(compareLessonDateTimeAscV853).forEach(actual => {
     const ym = actual.year_month || "未归属月份";
     addMonthRow(ym);
-    html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV852(null, "planned")}${lessonPairCellsV852(actual, "actual")}</tr>`);
+    html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
   });
 
   return html.join("");
@@ -8216,21 +8216,21 @@ function renderLessonRowsV854(rows) {
     addMonthRow(rowMonth(pair));
 
     if (!pair.actuals.length) {
-      html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV852(pair.plan, "planned")}${lessonPairCellsV852(null, "actual")}</tr>`);
+      html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(pair.plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
       return;
     }
 
     pair.actuals.forEach((actual, index) => {
       const left = index === 0
-        ? lessonPairCellsV852(pair.plan, "planned")
+        ? lessonCellV86(pair.plan, "planned")
         : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonPairCellsV852(actual, "actual")}</tr>`);
+      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonCellV86(actual, "actual")}</tr>`);
     });
   });
 
   unlinkedActual.forEach(actual => {
     addMonthRow(actual.year_month || "未归属月份");
-    html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV852(null, "planned")}${lessonPairCellsV852(actual, "actual")}</tr>`);
+    html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
   });
 
   return html.join("");
@@ -8385,15 +8385,15 @@ function renderLessonRowsV855(rows) {
       .sort(compareDateTimeAscV854 || compareDateTimeAscV853 || ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""))));
 
     if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV852(plan, "planned")}${lessonPairCellsV852(null, "actual")}</tr>`);
+      html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
       return;
     }
 
     actuals.forEach((actual, index) => {
       const left = index === 0
-        ? lessonPairCellsV852(plan, "planned")
+        ? lessonCellV86(plan, "planned")
         : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonPairCellsV852(actual, "actual")}</tr>`);
+      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonCellV86(actual, "actual")}</tr>`);
     });
   });
 
@@ -8402,7 +8402,7 @@ function renderLessonRowsV855(rows) {
   unlinkedActual.forEach(actual => {
     const ym = actual.year_month || "未归属月份";
     addMonthRow(ym);
-    html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV852(null, "planned")}${lessonPairCellsV852(actual, "actual")}</tr>`);
+    html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
   });
 
   return html.join("");
@@ -8864,21 +8864,21 @@ function renderLessonRowsV857(rows) {
     const actuals = (actualByPlan.get(String(plan.id || "").trim()) || []).slice().sort(dateSort);
 
     if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV857(plan, "planned")}${lessonPairCellsV857(null, "actual")}</tr>`);
+      html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
       return;
     }
 
     actuals.forEach((actual, index) => {
       const left = index === 0
-        ? lessonPairCellsV857(plan, "planned")
+        ? lessonCellV86(plan, "planned")
         : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonPairCellsV857(actual, "actual")}</tr>`);
+      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonCellV86(actual, "actual")}</tr>`);
     });
   });
 
   unlinkedActual.forEach(actual => {
     addMonthRow(actual.year_month || "未归属月份");
-    html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV857(null, "planned")}${lessonPairCellsV857(actual, "actual")}</tr>`);
+    html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
   });
 
   return html.join("");
@@ -9115,21 +9115,21 @@ function renderLessonRowsV858(rows) {
     const actuals = (actualByPlan.get(String(plan.id || "").trim()) || []).slice().sort(dateSort);
 
     if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV858(plan, "planned")}${lessonPairCellsV858(null, "actual")}</tr>`);
+      html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(plan, "planned")}${lessonCellV86(null, "actual")}</tr>`);
       return;
     }
 
     actuals.forEach((actual, index) => {
       const left = index === 0
-        ? lessonPairCellsV858(plan, "planned")
+        ? lessonCellV86(plan, "planned")
         : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
-      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonPairCellsV858(actual, "actual")}</tr>`);
+      html.push(`<tr class="lesson-pair-row v8310">${left}${lessonCellV86(actual, "actual")}</tr>`);
     });
   });
 
   unlinkedActual.forEach(actual => {
     addMonthRow(actual.year_month || "未归属月份");
-    html.push(`<tr class="lesson-pair-row v8310">${lessonPairCellsV858(null, "planned")}${lessonPairCellsV858(actual, "actual")}</tr>`);
+    html.push(`<tr class="lesson-pair-row v8310">${lessonCellV86(null, "planned")}${lessonCellV86(actual, "actual")}</tr>`);
   });
 
   return html.join("");
@@ -11432,7 +11432,7 @@ function renderLessonRowsStrictV872(rows) {
   const html = [];
   let lastMonth = "";
 
-  const cell = typeof lessonCellV86 === "function" ? lessonCellV86 : (typeof lessonPairCellsV858 === "function" ? lessonPairCellsV858 : lessonPairCells);
+  const cell = typeof lessonCellV86 === "function" ? lessonCellV86 : (typeof lessonCellV86 === "function" ? lessonCellV86 : lessonPairCells);
 
   function addMonthRow(ym) {
     if (ym !== lastMonth) {
@@ -11624,7 +11624,7 @@ function renderLessonRowsStrictV873(rows) {
 
   const cell = typeof lessonCellV86 === "function"
     ? lessonCellV86
-    : (typeof lessonPairCellsV858 === "function" ? lessonPairCellsV858 : lessonPairCells);
+    : (typeof lessonCellV86 === "function" ? lessonCellV86 : lessonPairCells);
 
   function addMonthRow(ym) {
     if (ym !== lastMonth) {
@@ -13341,4 +13341,4 @@ document.addEventListener("DOMContentLoaded", () => {
     if (typeof filterLessons === "function") renderLessonStatsV8813(filterLessons().slice());
   }, 1000);
 });
-//latest 12:18
+//latest 12:27

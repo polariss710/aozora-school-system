@@ -9,3 +9,5 @@ node_modules/
 v*_build_report.txt
 v*_smoke_test_checklist.md
 v*_cleanup_notes.sql
+codex_lesson_stats_analysis.md
+school_lesson_management_stats_rpc.sql

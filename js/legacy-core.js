@@ -5947,25 +5947,8 @@ function renderLessonRowsFinalV835(rows) {
   return html.join("");
 }
 
-function renderLessonsFinalV835() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-
-  updateLessonFilters();
-  const rows = filterLessons().slice().sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
-  renderLessonStats(rows);
-
-  const html = renderLessonRowsFinalV835(rows);
-  tbody.innerHTML = html || `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-  bindLessonPairButtonsFinalV835();
-  if (typeof bindLessonSelectAllV77 === "function") bindLessonSelectAllV77();
-}
-
-renderLessons = renderLessonsFinalV835;
-
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    renderLessonsFinalV835();
     normalizeExchangeRateInputV835();
   }, 800);
 });
@@ -5974,7 +5957,6 @@ const renderAllBeforeV835 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV835) {
   renderAll = function () {
     renderAllBeforeV835();
-    renderLessonsFinalV835();
     normalizeExchangeRateInputV835();
   };
 }

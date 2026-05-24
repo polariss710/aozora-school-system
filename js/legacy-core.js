@@ -5180,38 +5180,6 @@ if (renderAllBeforeV81) {
 
 
 
-// === v8.2 lesson import dialog + student required final override ===
-function updateLessonStudentRequiredStateV82() {
-  // v9.8-final.14: removed student-required UI restriction from lesson management.
-}
-
-function bindLessonStudentRequiredV82() {
-  // v9.8-final.14: no student-required binding.
-}
-
-function openLessonExcelUploadDialogV82() {
-  // v9.8-final.14: old lesson Excel import entry removed.
-}
-
-function bindLessonUploadDialogFinalV82() {
-  // v9.8-final.14: old lesson Excel import binding removed.
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(bindLessonUploadDialogFinalV82, 800);
-});
-
-const renderAllBeforeV82 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV82) {
-  renderAll = function () {
-    renderAllBeforeV82();
-    bindLessonUploadDialogFinalV82();
-  };
-}
-
-
-
-
 // === v8.3 student monthly settlement ===
 function formatCnyV83(value) {
   const n = Number(value || 0);
@@ -10476,24 +10444,13 @@ function patchLessonCountDisplayV886() {
   });
 }
 
-// Full import button disabled when no student selected.
-function updateLessonImportButtonsV886() {
-  // v9.8-final.14: removed import/add student-required disabled controls.
-}
-
-
 const ensureCompletedImportButtonBeforeV886 = typeof ensureCompletedImportButtonV884 === "function" ? ensureCompletedImportButtonV884 : (typeof ensureCompletedImportButtonV88 === "function" ? ensureCompletedImportButtonV88 : null);
 if (ensureCompletedImportButtonBeforeV886) {
   ensureCompletedImportButtonV884 = function () {
     ensureCompletedImportButtonBeforeV886();
-    updateLessonImportButtonsV886();
   };
   ensureCompletedImportButtonV88 = ensureCompletedImportButtonV884;
 }
-
-document.addEventListener("change", (e) => {
-  if (e.target?.id === "lessonStudentFilter") updateLessonImportButtonsV886();
-});
 
 const renderLessonsBeforeV886 = typeof renderLessons === "function" ? renderLessons : null;
 if (renderLessonsBeforeV886) {
@@ -10501,7 +10458,6 @@ if (renderLessonsBeforeV886) {
     renderLessonsBeforeV886();
     patchLessonCountDisplayV886();
     patchLessonCountFieldV886();
-    updateLessonImportButtonsV886();
   };
 }
 
@@ -10510,14 +10466,12 @@ if (renderAllBeforeV886) {
   renderAll = function () {
     renderAllBeforeV886();
     patchLessonCountDisplayV886();
-    updateLessonImportButtonsV886();
   };
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     patchLessonCountDisplayV886();
-    updateLessonImportButtonsV886();
   }, 1000);
 });
 
@@ -10622,43 +10576,6 @@ function updateMakeupStatLabelV887() {
     if (/已上课数量/.test(card.textContent || "")) return;
   });
 }
-
-// Robustly disable import/add buttons when no student selected.
-function lessonStudentSelectedV887() {
-  return Boolean(normalizeLessonSelectedStudentFilterV9812());
-}
-
-function updateLessonButtonsDisabledV887() {
-  const disabled = !lessonStudentSelectedV887();
-  [
-    "addLessonBtn",
-    "newLessonBtn",
-    "createLessonBtn",
-  ].forEach(id => {
-    const btn = document.getElementById(id);
-    if (!btn) return;
-    btn.disabled = disabled;
-    btn.classList.toggle("disabled", disabled)
-    if (disabled) btn.title = "请先选择学生";
-    else btn.removeAttribute("title");
-  });
-}
-
-document.addEventListener("click", (e) => {
-  const btn = e.target?.closest?.("#lessonImportExcelBtn,#addLessonBtn,#newLessonBtn,#createLessonBtn");
-  if (!btn) return;
-  if (!lessonStudentSelectedV887()) {
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    updateLessonButtonsDisabledV887();
-    return;
-  }
-}, true);
-
-document.addEventListener("change", (e) => {
-  if (e.target?.id === "lessonStudentFilter") updateLessonButtonsDisabledV887();
-});
 
 // Header support:
 // - old template: 时间
@@ -10798,7 +10715,6 @@ if (renderAllBeforeV887) {
     renderAllBeforeV887();
     hideCancelHolidayStatV887();
     patchActualTimeDisplayV887();
-    updateLessonButtonsDisabledV887();
   };
 }
 
@@ -10808,7 +10724,6 @@ if (renderLessonsBeforeV887) {
     renderLessonsBeforeV887();
     hideCancelHolidayStatV887();
     patchActualTimeDisplayV887();
-    updateLessonButtonsDisabledV887();
   };
 }
 
@@ -10816,7 +10731,6 @@ document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     hideCancelHolidayStatV887();
     patchActualTimeDisplayV887();
-    updateLessonButtonsDisabledV887();
   }, 1000);
 });
 

@@ -9201,12 +9201,6 @@ if (closeModalBeforeV872) {
   };
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    bindLessonButtonsStrictV872();
-  }, 1000);
-});
-
 // === v8.7.3 stable duplicate planned row order ===
 function duplicateContentKeyV873(item) {
   return String(item?.lesson_content || item?.note || "").trim().toLocaleLowerCase("ja-JP");
@@ -9358,20 +9352,6 @@ function renderLessonsStrictV873() {
 
 buildLessonPairsStrictV872 = buildLessonPairsStrictV873;
 renderLessons = renderLessonsStrictV873;
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    renderLessonsStrictV873();
-  }, 1000);
-});
-
-const renderAllBeforeV873 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV873) {
-  renderAll = function () {
-    renderAllBeforeV873();
-    renderLessonsStrictV873();
-  };
-}
 
 
 
@@ -9811,20 +9791,6 @@ if (renderLessonsBeforeV886) {
     patchLessonCountFieldV886();
   };
 }
-
-const renderAllBeforeV886 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV886) {
-  renderAll = function () {
-    renderAllBeforeV886();
-    patchLessonCountDisplayV886();
-  };
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    patchLessonCountDisplayV886();
-  }, 1000);
-});
 
 
 

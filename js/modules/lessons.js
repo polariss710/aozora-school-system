@@ -718,17 +718,30 @@ function lessonPairDateText(item) {
     if (!page) return;
 
     page.querySelectorAll("#lessonsTable .col-date").forEach(td => {
-      td.querySelectorAll(".lesson-count-v886, .lesson-count-v917").forEach(node => node.remove());
-
       const id = lessonIdFromDateCellV917(td);
       const item = (state.lessonRecords || []).find(row => String(row.id) === String(id));
+      const mainText = td.querySelector("div")?.textContent?.trim() || item?.lesson_date || item?.created_at || "";
+      const subText = td.querySelector("span:not(.lesson-count-v886):not(.lesson-count-v917)")?.textContent?.trim() || item?.year_month || "";
       const text = lessonCountTextV917(item);
-      if (!text) return;
 
-      const marker = document.createElement("div");
-      marker.className = "lesson-count-v917";
-      marker.textContent = text;
-      td.appendChild(marker);
+      td.textContent = "";
+
+      const main = document.createElement("div");
+      main.textContent = mainText;
+      td.appendChild(main);
+
+      if (subText) {
+        const sub = document.createElement("span");
+        sub.textContent = subText;
+        td.appendChild(sub);
+      }
+
+      if (text) {
+        const marker = document.createElement("div");
+        marker.className = "lesson-count-v917";
+        marker.textContent = text;
+        td.appendChild(marker);
+      }
     });
   }
 

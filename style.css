@@ -1732,6 +1732,7 @@ button:disabled {
   padding: 5px 3px !important;
 }
 
+#page-lessons .lesson-pair-row.v8310 > td:nth-child(6),
 #page-lessons .lesson-pair-row.v8310 > td:nth-child(8) {
   border-right: 1px solid var(--line) !important;
 }

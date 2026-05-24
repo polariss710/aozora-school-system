@@ -5422,22 +5422,6 @@ if (switchPageBeforeV83) {
 
 
 // === v8.3.1 lesson UI and actual-copy fix ===
-function lessonPairActionsNoContentV831(item) {
-  if (!item) return "";
-  const actualButton = item.lesson_type === "planned"
-    ? `<button class="secondary-btn" data-create-actual="${escAttr(item.id)}">生成实际</button>`
-    : "";
-  return `
-    <div class="table-actions lesson-actions">
-      ${lessonSelectCheckboxV76 ? lessonSelectCheckboxV76(item) : ""}
-      ${actualButton}
-      <button class="secondary-btn" data-copy-lesson="${escAttr(item.id)}">复制</button>
-      <button class="secondary-btn" data-edit="${escAttr(item.id)}" data-type="lesson">编辑</button>
-      <button class="danger-btn" data-delete="${escAttr(item.id)}" data-type="lesson">删除</button>
-    </div>
-  `;
-}
-
 function makeActualFromPlannedV831(id) {
   const plan = state.lessonRecords.find(x => x.id === id);
   if (!plan) return;
@@ -5498,70 +5482,6 @@ if (bindLessonPairButtonsBeforeV831) {
 
 
 // === v8.3.3 compact lesson list layout ===
-function lessonPairActionsCompactV833(item) {
-  if (!item) return "";
-  const actualButton = item.lesson_type === "planned"
-    ? `<button class="secondary-btn lesson-mini-btn" data-create-actual="${escAttr(item.id)}">生成实际</button>`
-    : "";
-
-  const selectBox = typeof lessonSelectCheckboxV76 === "function"
-    ? lessonSelectCheckboxV76(item)
-    : `<label class="lesson-select-box"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /> 勾选</label>`;
-
-  return `
-    <div class="lesson-actions-grid">
-      ${selectBox}
-      ${actualButton}
-      <button class="secondary-btn lesson-mini-btn" data-copy-lesson="${escAttr(item.id)}">复制</button>
-      <button class="secondary-btn lesson-mini-btn" data-edit="${escAttr(item.id)}" data-type="lesson">编辑</button>
-      <button class="danger-btn lesson-mini-btn" data-delete="${escAttr(item.id)}" data-type="lesson">删除</button>
-    </div>
-  `;
-}
-
-function makeActualFromPlannedCompactV833(id) {
-  const plan = state.lessonRecords.find(x => x.id === id);
-  if (!plan) return;
-
-  const prefill = {
-    lesson_type: "actual",
-    planned_lesson_id: plan.id,
-    lesson_date: plan.lesson_date || todayStr(),
-    year_month: plan.year_month || currentYearMonth(),
-    student_id: plan.student_id || "",
-    teacher_id: plan.teacher_id || "",
-    subject_id: plan.subject_id || "",
-    business_entity_id: plan.business_entity_id || "",
-    start_time: plan.start_time || "",
-    end_time: plan.end_time || "",
-    duration_hours: plan.duration_hours || 0,
-    unit_price: plan.unit_price || 0,
-    lesson_fee: plan.lesson_fee || (Number(plan.unit_price || 0) * Number(plan.duration_hours || 0)) || 0,
-    status: "completed",
-    is_billable: plan.is_billable !== false,
-    lesson_content: "",
-    note: "",
-  };
-
-  state.pendingActualPlanId = plan.id;
-  openCreateModal("lesson", prefill);
-
-  const form = document.getElementById("modalForm");
-  let hidden = form?.querySelector('input[name="planned_lesson_id"]');
-  if (!hidden && form) {
-    hidden = document.createElement("input");
-    hidden.type = "hidden";
-    hidden.name = "planned_lesson_id";
-    form.appendChild(hidden);
-  }
-  if (hidden) hidden.value = plan.id;
-
-  const title = document.getElementById("modalTitle");
-  if (title) title.textContent = "从预定生成实际课时";
-}
-
-makeActualFromPlanned = makeActualFromPlannedCompactV833;
-
 // === v8.3.4 settlement calculation and paired detail fix ===
 function rateErrorTextV834(student) {
   const rate = Number(student?.preset_exchange_rate || 0);
@@ -5782,69 +5702,6 @@ if (buildFormBeforeV835) {
   };
 }
 
-function lessonPairActionsFinalV835(item) {
-  if (!item) return "";
-  const actualButton = item.lesson_type === "planned"
-    ? `<button class="secondary-btn lesson-mini-btn" data-create-actual="${escAttr(item.id)}">生成实际</button>`
-    : "";
-  const selectBox = typeof lessonSelectCheckboxV76 === "function"
-    ? lessonSelectCheckboxV76(item)
-    : `<label class="lesson-select-box"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /> 勾选</label>`;
-
-  return `
-    <div class="lesson-actions-grid final">
-      ${selectBox}
-      ${actualButton}
-      <button class="secondary-btn lesson-mini-btn" data-copy-lesson="${escAttr(item.id)}">复制</button>
-      <button class="secondary-btn lesson-mini-btn" data-edit="${escAttr(item.id)}" data-type="lesson">编辑</button>
-      <button class="danger-btn lesson-mini-btn" data-delete="${escAttr(item.id)}" data-type="lesson">删除</button>
-    </div>
-  `;
-}
-
-function makeActualFromPlannedFinalV835(id) {
-  const plan = state.lessonRecords.find(x => x.id === id);
-  if (!plan) return;
-
-  const prefill = {
-    lesson_type: "actual",
-    planned_lesson_id: plan.id,
-    lesson_date: plan.lesson_date || todayStr(),
-    year_month: plan.year_month || currentYearMonth(),
-    student_id: plan.student_id || "",
-    teacher_id: plan.teacher_id || "",
-    subject_id: plan.subject_id || "",
-    business_entity_id: plan.business_entity_id || "",
-    start_time: plan.start_time || "",
-    end_time: plan.end_time || "",
-    duration_hours: plan.duration_hours || 0,
-    unit_price: plan.unit_price || 0,
-    lesson_fee: plan.lesson_fee || (Number(plan.unit_price || 0) * Number(plan.duration_hours || 0)) || 0,
-    status: "completed",
-    is_billable: plan.is_billable !== false,
-    lesson_content: "",
-    note: "",
-  };
-
-  state.pendingActualPlanId = plan.id;
-  openCreateModal("lesson", prefill);
-
-  const form = document.getElementById("modalForm");
-  let hidden = form?.querySelector('input[name="planned_lesson_id"]');
-  if (!hidden && form) {
-    hidden = document.createElement("input");
-    hidden.type = "hidden";
-    hidden.name = "planned_lesson_id";
-    form.appendChild(hidden);
-  }
-  if (hidden) hidden.value = plan.id;
-
-  const title = document.getElementById("modalTitle");
-  if (title) title.textContent = "从预定生成实际课时";
-}
-
-makeActualFromPlanned = makeActualFromPlannedFinalV835;
-
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     normalizeExchangeRateInputV835();
@@ -5880,69 +5737,6 @@ if (buildFormBeforeV836) {
   };
 }
 
-function lessonPairActionsFinalV836(item) {
-  if (!item) return "";
-  const actualButton = item.lesson_type === "planned"
-    ? `<button class="secondary-btn lesson-mini-btn" data-create-actual="${escAttr(item.id)}">生成实际</button>`
-    : "";
-  const selectBox = typeof lessonSelectCheckboxV76 === "function"
-    ? lessonSelectCheckboxV76(item)
-    : `<label class="lesson-select-box"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /> 勾选</label>`;
-
-  return `
-    <div class="lesson-actions-grid final">
-      ${selectBox}
-      ${actualButton}
-      <button class="secondary-btn lesson-mini-btn" data-copy-lesson="${escAttr(item.id)}">复制</button>
-      <button class="secondary-btn lesson-mini-btn" data-edit="${escAttr(item.id)}" data-type="lesson">编辑</button>
-      <button class="danger-btn lesson-mini-btn" data-delete="${escAttr(item.id)}" data-type="lesson">删除</button>
-    </div>
-  `;
-}
-
-function makeActualFromPlannedFinalV836(id) {
-  const plan = state.lessonRecords.find(x => x.id === id);
-  if (!plan) return;
-
-  const prefill = {
-    lesson_type: "actual",
-    planned_lesson_id: plan.id,
-    lesson_date: plan.lesson_date || todayStr(),
-    year_month: plan.year_month || currentYearMonth(),
-    student_id: plan.student_id || "",
-    teacher_id: plan.teacher_id || "",
-    subject_id: plan.subject_id || "",
-    business_entity_id: plan.business_entity_id || "",
-    start_time: plan.start_time || "",
-    end_time: plan.end_time || "",
-    duration_hours: plan.duration_hours || 0,
-    unit_price: plan.unit_price || 0,
-    lesson_fee: plan.lesson_fee || (Number(plan.unit_price || 0) * Number(plan.duration_hours || 0)) || 0,
-    status: "completed",
-    is_billable: plan.is_billable !== false,
-    lesson_content: "",
-    note: "",
-  };
-
-  state.pendingActualPlanId = plan.id;
-  openCreateModal("lesson", prefill);
-
-  const form = document.getElementById("modalForm");
-  let hidden = form?.querySelector('input[name="planned_lesson_id"]');
-  if (!hidden && form) {
-    hidden = document.createElement("input");
-    hidden.type = "hidden";
-    hidden.name = "planned_lesson_id";
-    form.appendChild(hidden);
-  }
-  if (hidden) hidden.value = plan.id;
-
-  const title = document.getElementById("modalTitle");
-  if (title) title.textContent = "从预定生成实际课时";
-}
-
-makeActualFromPlanned = makeActualFromPlannedFinalV836;
-
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     normalizeExchangeRateInputV836();
@@ -5960,67 +5754,6 @@ if (renderAllBeforeV836) {
 
 
 // === v8.3.7 force compact lesson layout ===
-function lessonActionButtonsV837(item) {
-  if (!item) return "";
-  const selectBox = `<label class="lesson-check-inline"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /> 勾选</label>`;
-  const actualButton = item.lesson_type === "planned"
-    ? `<button class="secondary-btn lesson-row-btn" data-create-actual="${escAttr(item.id)}">生成实际</button>`
-    : "";
-
-  return `
-    <div class="lesson-action-row">
-      ${selectBox}
-      ${actualButton}
-      <button class="secondary-btn lesson-row-btn" data-copy-lesson="${escAttr(item.id)}">复制</button>
-      <button class="secondary-btn lesson-row-btn" data-edit="${escAttr(item.id)}" data-type="lesson">编辑</button>
-      <button class="danger-btn lesson-row-btn" data-delete="${escAttr(item.id)}" data-type="lesson">删除</button>
-    </div>
-  `;
-}
-
-function makeActualFromPlannedV837(id) {
-  const plan = state.lessonRecords.find(x => x.id === id);
-  if (!plan) return;
-
-  const prefill = {
-    lesson_type: "actual",
-    planned_lesson_id: plan.id,
-    lesson_date: plan.lesson_date || todayStr(),
-    year_month: plan.year_month || currentYearMonth(),
-    student_id: plan.student_id || "",
-    teacher_id: plan.teacher_id || "",
-    subject_id: plan.subject_id || "",
-    business_entity_id: plan.business_entity_id || "",
-    start_time: plan.start_time || "",
-    end_time: plan.end_time || "",
-    duration_hours: plan.duration_hours || 0,
-    unit_price: plan.unit_price || 0,
-    lesson_fee: plan.lesson_fee || (Number(plan.unit_price || 0) * Number(plan.duration_hours || 0)) || 0,
-    status: "completed",
-    is_billable: plan.is_billable !== false,
-    lesson_content: "",
-    note: "",
-  };
-
-  state.pendingActualPlanId = plan.id;
-  openCreateModal("lesson", prefill);
-
-  const form = document.getElementById("modalForm");
-  let hidden = form?.querySelector('input[name="planned_lesson_id"]');
-  if (!hidden && form) {
-    hidden = document.createElement("input");
-    hidden.type = "hidden";
-    hidden.name = "planned_lesson_id";
-    form.appendChild(hidden);
-  }
-  if (hidden) hidden.value = plan.id;
-
-  const title = document.getElementById("modalTitle");
-  if (title) title.textContent = "从预定生成实际课时";
-}
-
-makeActualFromPlanned = makeActualFromPlannedV837;
-
 function normalizeExchangeRateInputV837() {
   document.querySelectorAll('input[name="preset_exchange_rate"]').forEach(input => {
     input.type = "number";
@@ -6098,69 +5831,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // === v8.3.9 lesson table column redesign ===
-function lessonCheckCellV839(item) {
-  if (!item) return "";
-  return `<label class="lesson-check-only"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /></label>`;
-}
-
-function lessonActionButtonsV839(item) {
-  if (!item) return "";
-  const actualButton = item.lesson_type === "planned"
-    ? `<button class="secondary-btn lesson-row-btn" data-create-actual="${escAttr(item.id)}">生成实际</button>`
-    : "";
-  return `
-    <div class="lesson-action-col">
-      ${actualButton}
-      <button class="secondary-btn lesson-row-btn" data-copy-lesson="${escAttr(item.id)}">复制</button>
-      <button class="secondary-btn lesson-row-btn" data-edit="${escAttr(item.id)}" data-type="lesson">编辑</button>
-      <button class="danger-btn lesson-row-btn" data-delete="${escAttr(item.id)}" data-type="lesson">删除</button>
-    </div>
-  `;
-}
-
-function makeActualFromPlannedV839(id) {
-  const plan = state.lessonRecords.find(x => x.id === id);
-  if (!plan) return;
-
-  const prefill = {
-    lesson_type: "actual",
-    planned_lesson_id: plan.id,
-    lesson_date: plan.lesson_date || todayStr(),
-    year_month: plan.year_month || currentYearMonth(),
-    student_id: plan.student_id || "",
-    teacher_id: plan.teacher_id || "",
-    subject_id: plan.subject_id || "",
-    business_entity_id: plan.business_entity_id || "",
-    start_time: plan.start_time || "",
-    end_time: plan.end_time || "",
-    duration_hours: plan.duration_hours || 0,
-    unit_price: plan.unit_price || 0,
-    lesson_fee: plan.lesson_fee || (Number(plan.unit_price || 0) * Number(plan.duration_hours || 0)) || 0,
-    status: "completed",
-    is_billable: plan.is_billable !== false,
-    lesson_content: "",
-    note: "",
-  };
-
-  state.pendingActualPlanId = plan.id;
-  openCreateModal("lesson", prefill);
-
-  const form = document.getElementById("modalForm");
-  let hidden = form?.querySelector('input[name="planned_lesson_id"]');
-  if (!hidden && form) {
-    hidden = document.createElement("input");
-    hidden.type = "hidden";
-    hidden.name = "planned_lesson_id";
-    form.appendChild(hidden);
-  }
-  if (hidden) hidden.value = plan.id;
-
-  const title = document.getElementById("modalTitle");
-  if (title) title.textContent = "从预定生成实际课时";
-}
-
-makeActualFromPlanned = makeActualFromPlannedV839;
-
 function normalizeExchangeRateInputV839() {
   document.querySelectorAll('input[name="preset_exchange_rate"]').forEach(input => {
     input.type = "number";
@@ -6195,84 +5865,6 @@ if (renderAllBeforeV839) {
 
 
 // === v8.3.10 lesson and settlement fine layout ===
-function lessonActionButtonsV8310(item) {
-  if (!item) return "";
-  const actualButton = item.lesson_type === "planned"
-    ? `<button class="secondary-btn lesson-row-btn" data-create-actual="${escAttr(item.id)}">生成实际</button>`
-    : "";
-  return `
-    <div class="lesson-action-col">
-      ${actualButton}
-      <button class="secondary-btn lesson-row-btn" data-copy-lesson="${escAttr(item.id)}">复制</button>
-      <button class="secondary-btn lesson-row-btn" data-edit="${escAttr(item.id)}" data-type="lesson">编辑</button>
-      <button class="danger-btn lesson-row-btn" data-delete="${escAttr(item.id)}" data-type="lesson">删除</button>
-    </div>
-  `;
-}
-
-function lessonPairCellsV8310(item, side) {
-  if (!item) {
-    return `<td colspan="8" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const fee = Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0);
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = lessonPairTimeText(item) || "时间未定";
-  const content = esc(short(item.lesson_content || item.note || "", 22));
-
-  return `
-    <td class="col-check"><label class="lesson-check-only"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /></label></td>
-    <td class="col-date"><div>${lessonPairDateText(item)}</div><span>${esc(item.year_month || "")}</span></td>
-    <td class="col-student">${lessonPairStudentText(item)}</td>
-    <td class="col-teacher">${lessonPairTeacherText(item)}</td>
-    <td class="col-subject"><strong>${lessonPairSubjectText(item)}</strong><span>${timeText} / ${money(item.duration_hours)}H</span></td>
-    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable ? badge("计费") : badge("不计费", "gray")}</td>
-    <td class="col-content"><div class="lesson-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${content}</div></td>
-    <td class="col-actions">${lessonActionButtonsV8310(item)}</td>
-  `;
-}
-
-function makeActualFromPlannedV8310(id) {
-  const plan = state.lessonRecords.find(x => x.id === id);
-  if (!plan) return;
-
-  const prefill = {
-    lesson_type: "actual",
-    planned_lesson_id: plan.id,
-    lesson_date: plan.lesson_date || todayStr(),
-    year_month: plan.year_month || currentYearMonth(),
-    student_id: plan.student_id || "",
-    teacher_id: plan.teacher_id || "",
-    subject_id: plan.subject_id || "",
-    business_entity_id: plan.business_entity_id || "",
-    start_time: plan.start_time || "",
-    end_time: plan.end_time || "",
-    duration_hours: plan.duration_hours || 0,
-    unit_price: plan.unit_price || 0,
-    lesson_fee: plan.lesson_fee || (Number(plan.unit_price || 0) * Number(plan.duration_hours || 0)) || 0,
-    status: "completed",
-    is_billable: plan.is_billable !== false,
-    lesson_content: "",
-    note: "",
-  };
-
-  state.pendingActualPlanId = plan.id;
-  openCreateModal("lesson", prefill);
-
-  const form = document.getElementById("modalForm");
-  let hidden = form?.querySelector('input[name="planned_lesson_id"]');
-  if (!hidden && form) {
-    hidden = document.createElement("input");
-    hidden.type = "hidden";
-    hidden.name = "planned_lesson_id";
-    form.appendChild(hidden);
-  }
-  if (hidden) hidden.value = plan.id;
-
-  const title = document.getElementById("modalTitle");
-  if (title) title.textContent = "从预定生成实际课时";
-}
-
 function settlementActionButtonsV8310(item) {
   if (!item) return "";
   return `
@@ -6370,8 +5962,6 @@ function renderSettlementPairedLessonsV8310(planned, actual) {
 if (typeof renderSettlementPairedLessonsV834 === "function") {
   renderSettlementPairedLessonsV834 = renderSettlementPairedLessonsV8310;
 }
-
-makeActualFromPlanned = makeActualFromPlannedV8310;
 
 // === v8.3.10 settlement received JPY restore ===
 function showSettlementReceivedJpyV8310() {

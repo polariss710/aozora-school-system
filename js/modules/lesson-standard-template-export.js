@@ -61,18 +61,13 @@
     const labels = mondayLabelsOfMonth(ym);
 
     const rows = [
-      ["参考列表", "", "", "", monthLabel(ym)],
-      ["", "", "", "", "预定课时"],
-      ["学生列表", "老师列表", "科目列表", "", "学生姓名", "担当老师", "科目", "日期", "回数", "内容", "时长（H）", "课程单价", "应收课时费"],
+      [monthLabel(ym)],
+      ["预定课时"],
+      ["学生姓名", "担当老师", "科目", "日期", "回数", "内容", "时长（H）", "课程单价", "应收课时费"],
     ];
 
-    const bodyCount = Math.max(students.length, teachers.length, subjects.length, labels.length);
-    for (let i = 0; i < bodyCount; i++) {
+    for (let i = 0; i < labels.length; i++) {
       rows.push([
-        students[i] || "",
-        teachers[i] || "",
-        subjects[i] || "",
-        "",
         "",
         "",
         "",
@@ -87,8 +82,8 @@
 
     const firstTemplateRow = 4;
     const lastTemplateRow = firstTemplateRow + labels.length - 1;
-    const totalFormula = labels.length ? `SUM(K${firstTemplateRow}:K${lastTemplateRow})` : "0";
-    rows.push(["", "", "", "", "", "", "", "", "", "", { formula: totalFormula }, "", ""]);
+    const totalFormula = labels.length ? `SUM(G${firstTemplateRow}:G${lastTemplateRow})` : "0";
+    rows.push(["", "", "", "", "", "", { formula: totalFormula }, "", ""]);
 
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("标准课时登记");
@@ -103,10 +98,6 @@
     listWs.columns = [{ width: 18 }, { width: 18 }, { width: 18 }];
 
     ws.columns = [
-      { width: 16 }, // 学生列表
-      { width: 16 }, // 老师列表
-      { width: 16 }, // 科目列表
-      { width: 4 },  // 分隔
       { width: 14 }, // 学生姓名
       { width: 14 }, // 担当老师
       { width: 14 }, // 科目
@@ -118,14 +109,13 @@
       { width: 14 }, // 应收
     ];
 
-    ws.mergeCells(2, 5, 2, 13);
+    ws.mergeCells(2, 1, 2, 9);
 
     function applyListValidation(col, count) {
       if (!labels.length || !count) return;
       const formula = `'_lists'!$${col}$1:$${col}$${count}`;
       for (let row = firstTemplateRow; row <= lastTemplateRow; row++) {
-        const targetCol = col === "A" ? "E" : (col === "B" ? "F" : "G");
-        ws.getCell(`${targetCol}${row}`).dataValidation = {
+        ws.getCell(`${col}${row}`).dataValidation = {
           type: "list",
           allowBlank: true,
           formulae: [formula],

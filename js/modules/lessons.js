@@ -702,6 +702,30 @@ function lessonPairDateText(item) {
     return `第${String(raw).trim()}回`;
   }
 
+  function lessonCellV917(item, side) {
+    if (!item) {
+      return `<td colspan="8" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
+    }
+
+    const d = lessonDateDisplayV86(item);
+    const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
+    const timeText = lessonPairTimeText(item) || "时间未定";
+    const countText = lessonCountTextV917(item);
+    const content = esc(short(item.lesson_content || item.note || "", 22));
+    const countHtml = countText ? `<div class="lesson-count-v917">${esc(countText)}</div>` : "";
+
+    return `
+      <td class="col-check"><label class="lesson-check-only"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /></label></td>
+      <td class="col-date"><div>${esc(d.main)}</div><span>${esc(d.sub)}</span>${countHtml}</td>
+      <td class="col-student">${lessonPairStudentText(item)}</td>
+      <td class="col-teacher">${lessonPairTeacherText(item)}</td>
+      <td class="col-subject"><strong>${lessonPairSubjectText(item)}</strong><span>${timeText} / ${money(item.duration_hours)}H</span></td>
+      <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable ? badge("计费") : badge("不计费", "gray")}</td>
+      <td class="col-content"><div class="lesson-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${content}</div></td>
+      <td class="col-actions">${lessonRowActionsV86(item)}</td>
+    `;
+  }
+
   function lessonIdFromDateCellV917(td) {
     const row = td?.closest?.("tr.lesson-pair-row");
     if (!row) return "";
@@ -757,6 +781,9 @@ function lessonPairDateText(item) {
     setTimeout(patchLessonListCountV917, 1000);
   });
 
+  window.lessonCellV86 = lessonCellV917;
+  window.lessonPairCells = lessonCellV917;
   window.SchoolLessonsModule = window.SchoolLessonsModule || {};
+  window.SchoolLessonsModule.lessonCell = lessonCellV917;
   window.SchoolLessonsModule.patchLessonListCount = patchLessonListCountV917;
 })();

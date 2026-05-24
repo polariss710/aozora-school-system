@@ -43,24 +43,60 @@
     return labels;
   }
 
+  function personName(item) {
+    return item?.display_name || item?.name || item?.full_name || "";
+  }
+
+  function sortedNames(list, getter) {
+    return (list || [])
+      .map(getter)
+      .filter(Boolean)
+      .sort((a, b) => String(a).localeCompare(String(b), "zh-Hans-CN"));
+  }
+
   function buildWorkbook(ym) {
+    const students = sortedNames(state.students, personName);
+    const teachers = sortedNames(state.teachers, personName);
+    const subjects = sortedNames(state.subjects, item => item?.name || "");
+    const labels = mondayLabelsOfMonth(ym);
+
     const rows = [
-      [monthLabel(ym)],
-      ["预定课时"],
-      ["学生姓名", "担当老师", "科目", "日期", "回数", "内容", "时长（H）", "课程单价", "应收课时费"],
+      ["参考列表", "", "", "", monthLabel(ym)],
+      ["", "", "", "", "预定课时"],
+      ["学生列表", "老师列表", "科目列表", "", "学生姓名", "担当老师", "科目", "日期", "回数", "内容", "时长（H）", "课程单价", "应收课时费"],
     ];
 
-    const labels = mondayLabelsOfMonth(ym);
-    labels.forEach(label => {
-      rows.push(["", "", "", label, "", "", 2, "", 0]);
-    });
+    const bodyCount = Math.max(students.length, teachers.length, subjects.length, labels.length);
+    for (let i = 0; i < bodyCount; i++) {
+      rows.push([
+        students[i] || "",
+        teachers[i] || "",
+        subjects[i] || "",
+        "",
+        "",
+        "",
+        "",
+        labels[i] || "",
+        "",
+        "",
+        labels[i] ? 2 : "",
+        "",
+        labels[i] ? 0 : "",
+      ]);
+    }
 
-    const totalRowIndex = rows.length + 1;
-    rows.push(["", "", "", "", "", "", { f: `SUM(G4:G${totalRowIndex - 1})` }, "", ""]);
+    const firstTemplateRow = 4;
+    const lastTemplateRow = firstTemplateRow + labels.length - 1;
+    const totalFormula = labels.length ? `SUM(K${firstTemplateRow}:K${lastTemplateRow})` : "0";
+    rows.push(["", "", "", "", "", "", "", "", "", "", { f: totalFormula }, "", ""]);
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
 
     ws["!cols"] = [
+      { wch: 16 }, // 学生列表
+      { wch: 16 }, // 老师列表
+      { wch: 16 }, // 科目列表
+      { wch: 4 },  // 分隔
       { wch: 14 }, // 学生姓名
       { wch: 14 }, // 担当老师
       { wch: 14 }, // 科目
@@ -73,7 +109,7 @@
     ];
 
     ws["!merges"] = [
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
+      { s: { r: 1, c: 4 }, e: { r: 1, c: 12 } },
     ];
 
     const wb = XLSX.utils.book_new();

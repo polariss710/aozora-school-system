@@ -726,6 +726,52 @@ function lessonPairDateText(item) {
     `;
   }
 
+  function renderLessonRowsV917(rows) {
+    const pairBuilder = typeof buildLessonPairsStrictV873 === "function" ? buildLessonPairsStrictV873 : buildLessonPairsStrictV872;
+    const { planned, actualByPlan, unlinkedActual, dateSort, countMap } = pairBuilder(rows);
+    const html = [];
+    let lastMonth = "";
+
+    function addMonthRow(ym) {
+      if (ym !== lastMonth) {
+        lastMonth = ym;
+        html.push(`<tr class="month-group-row"><td colspan="16">${esc(expenseMonthLabel(ym))}</td></tr>`);
+        html.push(`<tr class="lesson-sub-head-body v8310">
+          <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+          <th>選択</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+        </tr>`);
+      }
+    }
+
+    planned.forEach(plan => {
+      addMonthRow(plan.year_month || "未归属月份");
+      const planId = typeof planIdTextV872 === "function" ? planIdTextV872(plan.id) : String(plan.id || "").trim();
+      const actuals = (actualByPlan.get(planId) || []).slice().sort(dateSort);
+      const isDup = typeof isDuplicatePlannedV872 === "function" && isDuplicatePlannedV872(plan, countMap);
+      const basePlannedCell = lessonCellV917(plan, "planned");
+      const plannedCell = typeof appendDuplicateWarningToPlannedCellsV873 === "function"
+        ? appendDuplicateWarningToPlannedCellsV873(basePlannedCell, plan, countMap)
+        : basePlannedCell;
+
+      if (!actuals.length) {
+        html.push(`<tr class="lesson-pair-row v8310 ${isDup ? "duplicate-planned-row-v872" : ""}">${plannedCell}${lessonCellV917(null, "actual")}</tr>`);
+        return;
+      }
+
+      actuals.forEach((actual, index) => {
+        const left = index === 0 ? plannedCell : `<td colspan="8" class="lesson-empty-side">同一预定课时</td>`;
+        html.push(`<tr class="lesson-pair-row v8310 ${isDup ? "duplicate-planned-row-v872" : ""}">${left}${lessonCellV917(actual, "actual")}</tr>`);
+      });
+    });
+
+    unlinkedActual.forEach(actual => {
+      addMonthRow(actual.year_month || "未归属月份");
+      html.push(`<tr class="lesson-pair-row v8310">${lessonCellV917(null, "planned")}${lessonCellV917(actual, "actual")}</tr>`);
+    });
+
+    return html.join("");
+  }
+
   function lessonIdFromDateCellV917(td) {
     const row = td?.closest?.("tr.lesson-pair-row");
     if (!row) return "";
@@ -772,6 +818,7 @@ function lessonPairDateText(item) {
   const renderLessonsBeforeV917 = typeof renderLessons === "function" ? renderLessons : null;
   if (renderLessonsBeforeV917) {
     window.renderLessons = function () {
+      if (typeof renderLessonRowsStrictV873 === "function") renderLessonRowsStrictV873 = renderLessonRowsV917;
       renderLessonsBeforeV917();
       patchLessonListCountV917();
     };
@@ -783,7 +830,9 @@ function lessonPairDateText(item) {
 
   window.lessonCellV86 = lessonCellV917;
   window.lessonPairCells = lessonCellV917;
+  window.renderLessonRowsStrictV873 = renderLessonRowsV917;
   window.SchoolLessonsModule = window.SchoolLessonsModule || {};
   window.SchoolLessonsModule.lessonCell = lessonCellV917;
+  window.SchoolLessonsModule.renderLessonRows = renderLessonRowsV917;
   window.SchoolLessonsModule.patchLessonListCount = patchLessonListCountV917;
 })();

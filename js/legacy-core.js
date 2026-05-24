@@ -9592,14 +9592,29 @@ function compareDateTimeV86(a, b) {
 function comparePlannedLessonsV86(a, b) {
   const month = String(a?.year_month || "").localeCompare(String(b?.year_month || ""));
   if (month !== 0) return month;
+
   const rank = subjectRankV86(a) - subjectRankV86(b);
   if (rank !== 0) return rank;
+
   const subject = String(a?.subject?.name || "").localeCompare(String(b?.subject?.name || ""));
   if (subject !== 0) return subject;
+
   const teacher = String(a?.teacher?.display_name || a?.teacher?.name || "")
     .localeCompare(String(b?.teacher?.display_name || b?.teacher?.name || ""));
   if (teacher !== 0) return teacher;
-  return compareDateTimeV86(a, b);
+
+  const dateTime = compareDateTimeV86(a, b);
+  if (dateTime !== 0) return dateTime;
+
+  const ac = Number(String(a?.lesson_count ?? "").replace(/[^\d.-]/g, ""));
+  const bc = Number(String(b?.lesson_count ?? "").replace(/[^\d.-]/g, ""));
+  if (Number.isFinite(ac) || Number.isFinite(bc)) {
+    if (!Number.isFinite(ac)) return 1;
+    if (!Number.isFinite(bc)) return -1;
+    if (ac !== bc) return ac - bc;
+  }
+
+  return String(a?.id || "").localeCompare(String(b?.id || ""));
 }
 
 function lessonFeeV86(item) {

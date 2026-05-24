@@ -692,3 +692,58 @@ function lessonPairDateText(item) {
     params: lessonStatsFilterParamsV916,
   };
 })();
+
+// === v9.1.7 lesson list display cleanup ===
+// Keep list rendering in legacy-core.js, but normalize the visible lesson count in the lesson page.
+(function () {
+  function lessonCountTextV917(item) {
+    const raw = item?.lesson_count;
+    if (raw === null || raw === undefined || String(raw).trim() === "") return "";
+    return `第${String(raw).trim()}回`;
+  }
+
+  function lessonIdFromDateCellV917(td) {
+    const row = td?.closest?.("tr.lesson-pair-row");
+    if (!row) return "";
+    const cells = Array.from(row.cells || []);
+    const index = cells.indexOf(td);
+    if (index < 0) return "";
+    const actionCell = cells[index + 6];
+    const action = actionCell?.querySelector?.("[data-edit][data-type='lesson'], [data-delete][data-type='lesson'], [data-copy-lesson], [data-create-actual]");
+    return action?.dataset?.edit || action?.dataset?.delete || action?.dataset?.copyLesson || action?.dataset?.createActual || "";
+  }
+
+  function patchLessonListCountV917() {
+    const page = document.getElementById("page-lessons");
+    if (!page) return;
+
+    page.querySelectorAll("#lessonsTable .col-date").forEach(td => {
+      td.querySelectorAll(".lesson-count-v886, .lesson-count-v917").forEach(node => node.remove());
+
+      const id = lessonIdFromDateCellV917(td);
+      const item = (state.lessonRecords || []).find(row => String(row.id) === String(id));
+      const text = lessonCountTextV917(item);
+      if (!text) return;
+
+      const marker = document.createElement("div");
+      marker.className = "lesson-count-v917";
+      marker.textContent = text;
+      td.appendChild(marker);
+    });
+  }
+
+  const renderLessonsBeforeV917 = typeof renderLessons === "function" ? renderLessons : null;
+  if (renderLessonsBeforeV917) {
+    window.renderLessons = function () {
+      renderLessonsBeforeV917();
+      patchLessonListCountV917();
+    };
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(patchLessonListCountV917, 1000);
+  });
+
+  window.SchoolLessonsModule = window.SchoolLessonsModule || {};
+  window.SchoolLessonsModule.patchLessonListCount = patchLessonListCountV917;
+})();

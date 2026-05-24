@@ -53,10 +53,8 @@ function renderAttachmentLinks(attachments) {
   }).join("<br>");
 }
 
-
 // Fix v8.7 error: supabase.from is not a function. Use existing db client.
 let studentSettlementLockHistoryRequestV942 = 0;
-
 const SUPABASE_URL = "https://xlcdqvlfzspcxdoidsrr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6c7EFHXfq256rvv8KvY0Yw_FrAZtb6x";
 

@@ -9625,7 +9625,15 @@ function lessonFeeV86(item) {
 }
 
 function buildLessonPairsV86(rows) {
-  const planned = rows.filter(x => x.lesson_type === "planned").slice().sort(comparePlannedLessonsV86);
+  const plannedSortV86 =
+    typeof comparePlannedLessonsV86 === "function"
+      ? comparePlannedLessonsV86
+      : (typeof compareLessonsV78 === "function"
+        ? compareLessonsV78
+        : ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""))));
+
+  const planned = rows.filter(x => x.lesson_type === "planned").slice().sort(plannedSortV86);
+
   const actual = rows.filter(x => x.lesson_type === "actual");
   const actualByPlan = new Map();
   const unlinkedActual = [];
@@ -9898,8 +9906,6 @@ lessonPairCells = lessonCellV86;
 copyLessonRecordV59 = copyLessonRecordV86;
 makeActualFromPlanned = makeActualFromPlannedV86;
 bindLessonPairButtonsV59 = bindLessonButtonsV86;
-compareLessonsV78 = comparePlannedLessonsV86;
-compareLessonsV77 = comparePlannedLessonsV86;
 sumIncomeV83 = sumIncomeV86;
 
 if (typeof renderSettlementPairedLessonsV834 === "function") renderSettlementPairedLessonsV834 = renderSettlementPairsV86;

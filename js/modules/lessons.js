@@ -790,8 +790,9 @@ function lessonPairDateText(item) {
     page.querySelectorAll("#lessonsTable .col-date").forEach(td => {
       const id = lessonIdFromDateCellV917(td);
       const item = (state.lessonRecords || []).find(row => String(row.id) === String(id));
-      const mainText = td.querySelector("div")?.textContent?.trim() || item?.lesson_date || item?.created_at || "";
-      const subText = td.querySelector("span:not(.lesson-count-v886):not(.lesson-count-v917)")?.textContent?.trim() || item?.year_month || "";
+      const dateText = item && typeof lessonDateDisplayV86 === "function" ? lessonDateDisplayV86(item) : null;
+      const mainText = dateText?.main || item?.lesson_date || item?.created_at || "";
+      const subText = dateText?.sub || item?.year_month || "";
       const text = lessonCountTextV917(item);
 
       td.textContent = "";

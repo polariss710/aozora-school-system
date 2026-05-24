@@ -3,8 +3,8 @@
 // 用于未来月份预登记：只生成该月每个周一代表的周，默认时长 2H，其他业务字段留空。
 
 (function () {
-  function requireXLSX() {
-    if (typeof XLSX === "undefined") {
+  function requireExcelJS() {
+    if (typeof ExcelJS === "undefined") {
       if (typeof showMessage === "function") showMessage("Excel 导出库还没有加载完成，请稍后重试。", "error");
       return false;
     }
@@ -88,37 +88,63 @@
     const firstTemplateRow = 4;
     const lastTemplateRow = firstTemplateRow + labels.length - 1;
     const totalFormula = labels.length ? `SUM(K${firstTemplateRow}:K${lastTemplateRow})` : "0";
-    rows.push(["", "", "", "", "", "", "", "", "", "", { f: totalFormula }, "", ""]);
+    rows.push(["", "", "", "", "", "", "", "", "", "", { formula: totalFormula }, "", ""]);
 
-    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("标准课时登记");
+    rows.forEach(row => ws.addRow(row));
 
-    ws["!cols"] = [
-      { wch: 16 }, // 学生列表
-      { wch: 16 }, // 老师列表
-      { wch: 16 }, // 科目列表
-      { wch: 4 },  // 分隔
-      { wch: 14 }, // 学生姓名
-      { wch: 14 }, // 担当老师
-      { wch: 14 }, // 科目
-      { wch: 12 }, // 日期
-      { wch: 8 },  // 回数
-      { wch: 24 }, // 内容
-      { wch: 10 }, // 时长
-      { wch: 12 }, // 课程单价
-      { wch: 14 }, // 应收
+    const listWs = wb.addWorksheet("_lists");
+    listWs.state = "hidden";
+    const listCount = Math.max(students.length, teachers.length, subjects.length);
+    for (let i = 0; i < listCount; i++) {
+      listWs.addRow([students[i] || "", teachers[i] || "", subjects[i] || ""]);
+    }
+    listWs.columns = [{ width: 18 }, { width: 18 }, { width: 18 }];
+
+    ws.columns = [
+      { width: 16 }, // 学生列表
+      { width: 16 }, // 老师列表
+      { width: 16 }, // 科目列表
+      { width: 4 },  // 分隔
+      { width: 14 }, // 学生姓名
+      { width: 14 }, // 担当老师
+      { width: 14 }, // 科目
+      { width: 12 }, // 日期
+      { width: 8 },  // 回数
+      { width: 24 }, // 内容
+      { width: 10 }, // 时长
+      { width: 12 }, // 课程单价
+      { width: 14 }, // 应收
     ];
 
-    ws["!merges"] = [
-      { s: { r: 1, c: 4 }, e: { r: 1, c: 12 } },
-    ];
+    ws.mergeCells(2, 5, 2, 13);
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "标准课时登记");
+    function applyListValidation(col, count) {
+      if (!labels.length || !count) return;
+      const formula = `'_lists'!$${col}$1:$${col}$${count}`;
+      for (let row = firstTemplateRow; row <= lastTemplateRow; row++) {
+        const targetCol = col === "A" ? "E" : (col === "B" ? "F" : "G");
+        ws.getCell(`${targetCol}${row}`).dataValidation = {
+          type: "list",
+          allowBlank: true,
+          formulae: [formula],
+          showErrorMessage: true,
+          errorStyle: "warning",
+          errorTitle: "不在参考列表中",
+          error: "请选择参考列表中的值，或确认后手动输入。",
+        };
+      }
+    }
+
+    applyListValidation("A", students.length);
+    applyListValidation("B", teachers.length);
+    applyListValidation("C", subjects.length);
     return wb;
   }
 
-  function exportStandardLessonTemplate() {
-    if (!requireXLSX()) return;
+  async function exportStandardLessonTemplate() {
+    if (!requireExcelJS()) return;
 
     const ym = selectedMonth();
     if (!ym) {
@@ -127,7 +153,16 @@
     }
 
     const wb = buildWorkbook(ym);
-    XLSX.writeFile(wb, `标准课时登记模板_${safeName(ym)}.xlsx`);
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `标准课时登记模板_${safeName(ym)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     if (typeof showMessage === "function") showMessage("标准课时登记 Excel 已导出。", "ok");
   }
 

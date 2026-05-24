@@ -5438,39 +5438,6 @@ function lessonPairActionsNoContentV831(item) {
   `;
 }
 
-function lessonPairCellsV831(item, side) {
-  if (!item) {
-    return `<td colspan="6" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const fee = Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0);
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-
-  return `
-    <td>
-      ${lessonPairDateText(item)}<br>
-      <span class="muted-small">${esc(item.year_month || "")}</span>
-    </td>
-    <td>${lessonPairStudentText(item)}</td>
-    <td>${lessonPairTeacherText(item)}</td>
-    <td>
-      ${lessonPairSubjectText(item)}<br>
-      <span class="muted-small">${lessonPairTimeText(item)} / ${money(item.duration_hours)}H / ${formatCurrencyTotal(fee, "JPY")}</span>
-    </td>
-    <td>
-      ${badge(lessonStatusLabel(item.status), statusClass)}<br>
-      ${item.is_billable ? badge("计费") : badge("不计费", "gray")}
-    </td>
-    <td>
-      <div class="lesson-content-cell">${esc(short(item.lesson_content || item.note, 28))}</div>
-      ${lessonPairActionsNoContentV831(item)}
-    </td>
-  `;
-}
-
-// Override cell renderer used by existing renderLessons overrides.
-lessonPairCells = lessonPairCellsV831;
-
 function makeActualFromPlannedV831(id) {
   const plan = state.lessonRecords.find(x => x.id === id);
   if (!plan) return;
@@ -5551,39 +5518,6 @@ function lessonPairActionsCompactV833(item) {
     </div>
   `;
 }
-
-function lessonPairCellsCompactV833(item, side) {
-  if (!item) {
-    return `<td colspan="6" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const fee = Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0);
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeLine = `${lessonPairTimeText(item) || "时间未定"} / ${money(item.duration_hours)}H / ${formatCurrencyTotal(fee, "JPY")}`;
-
-  return `
-    <td class="lesson-date-cell">
-      <div>${lessonPairDateText(item)}</div>
-      <span class="muted-small">${esc(item.year_month || "")}</span>
-    </td>
-    <td class="lesson-name-cell">${lessonPairStudentText(item)}</td>
-    <td class="lesson-teacher-cell">${lessonPairTeacherText(item)}</td>
-    <td class="lesson-subject-cell">
-      <div>${lessonPairSubjectText(item)}</div>
-      <span class="muted-small">${timeLine}</span>
-    </td>
-    <td class="lesson-status-cell">
-      ${badge(lessonStatusLabel(item.status), statusClass)}
-      ${item.is_billable ? badge("计费") : badge("不计费", "gray")}
-    </td>
-    <td class="lesson-content-actions-cell">
-      <div class="lesson-content-cell">${esc(short(item.lesson_content || item.note, 36))}</div>
-      ${lessonPairActionsCompactV833(item)}
-    </td>
-  `;
-}
-
-lessonPairCells = lessonPairCellsCompactV833;
 
 function makeActualFromPlannedCompactV833(id) {
   const plan = state.lessonRecords.find(x => x.id === id);
@@ -5889,39 +5823,6 @@ function lessonPairActionsFinalV835(item) {
   `;
 }
 
-function lessonPairCellsFinalV835(item, side) {
-  if (!item) {
-    return `<td colspan="6" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const fee = Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0);
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = lessonPairTimeText(item) || "时间未定";
-
-  return `
-    <td class="lesson-date-cell">
-      <div>${lessonPairDateText(item)}</div>
-      <span class="muted-small">${esc(item.year_month || "")}</span>
-    </td>
-    <td class="lesson-name-cell">${lessonPairStudentText(item)}</td>
-    <td class="lesson-teacher-cell">${lessonPairTeacherText(item)}</td>
-    <td class="lesson-subject-cell">
-      <div class="lesson-main-text">${lessonPairSubjectText(item)}</div>
-      <span class="muted-small">${timeText} / ${money(item.duration_hours)}H / ${formatCurrencyTotal(fee, "JPY")}</span>
-    </td>
-    <td class="lesson-status-cell">
-      ${badge(lessonStatusLabel(item.status), statusClass)}
-      ${item.is_billable ? badge("计费") : badge("不计费", "gray")}
-    </td>
-    <td class="lesson-content-actions-cell">
-      <div class="lesson-content-cell">${esc(short(item.lesson_content || item.note, 42))}</div>
-      ${lessonPairActionsFinalV835(item)}
-    </td>
-  `;
-}
-
-lessonPairCells = lessonPairCellsFinalV835;
-
 function makeActualFromPlannedFinalV835(id) {
   const plan = state.lessonRecords.find(x => x.id === id);
   if (!plan) return;
@@ -6119,39 +6020,6 @@ function lessonPairActionsFinalV836(item) {
   `;
 }
 
-function lessonPairCellsFinalV836(item, side) {
-  if (!item) {
-    return `<td colspan="6" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const fee = Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0);
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = lessonPairTimeText(item) || "时间未定";
-
-  return `
-    <td class="lesson-date-cell">
-      <div>${lessonPairDateText(item)}</div>
-      <span class="muted-small">${esc(item.year_month || "")}</span>
-    </td>
-    <td class="lesson-name-cell">${lessonPairStudentText(item)}</td>
-    <td class="lesson-teacher-cell">${lessonPairTeacherText(item)}</td>
-    <td class="lesson-subject-cell">
-      <div class="lesson-main-text">${lessonPairSubjectText(item)}</div>
-      <span class="muted-small">${timeText} / ${money(item.duration_hours)}H / ${formatCurrencyTotal(fee, "JPY")}</span>
-    </td>
-    <td class="lesson-status-cell">
-      ${badge(lessonStatusLabel(item.status), statusClass)}
-      ${item.is_billable ? badge("计费") : badge("不计费", "gray")}
-    </td>
-    <td class="lesson-content-actions-cell">
-      <div class="lesson-content-cell">${esc(short(item.lesson_content || item.note, 42))}</div>
-      ${lessonPairActionsFinalV836(item)}
-    </td>
-  `;
-}
-
-lessonPairCells = lessonPairCellsFinalV836;
-
 function makeActualFromPlannedFinalV836(id) {
   const plan = state.lessonRecords.find(x => x.id === id);
   if (!plan) return;
@@ -6329,26 +6197,6 @@ function lessonActionButtonsV837(item) {
   `;
 }
 
-function lessonPairCellsV837(item, side) {
-  if (!item) {
-    return `<td colspan="6" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const fee = Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0);
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = lessonPairTimeText(item) || "时间未定";
-  const content = esc(short(item.lesson_content || item.note || "", 46));
-
-  return `
-    <td class="col-date"><div>${lessonPairDateText(item)}</div><span>${esc(item.year_month || "")}</span></td>
-    <td class="col-student">${lessonPairStudentText(item)}</td>
-    <td class="col-teacher">${lessonPairTeacherText(item)}</td>
-    <td class="col-subject"><strong>${lessonPairSubjectText(item)}</strong><span>${timeText} / ${money(item.duration_hours)}H / ${formatCurrencyTotal(fee, "JPY")}</span></td>
-    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable ? badge("计费") : badge("不计费", "gray")}</td>
-    <td class="col-content"><div class="lesson-cell-flex"><div class="lesson-content-text">${content}</div>${lessonActionButtonsV837(item)}</div></td>
-  `;
-}
-
 function makeActualFromPlannedV837(id) {
   const plan = state.lessonRecords.find(x => x.id === id);
   if (!plan) return;
@@ -6478,7 +6326,6 @@ function renderLessonsV837() {
 }
 
 renderLessons = renderLessonsV837;
-lessonPairCells = lessonPairCellsV837;
 makeActualFromPlanned = makeActualFromPlannedV837;
 bindLessonPairButtonsV59 = bindLessonButtonsV837;
 
@@ -6578,28 +6425,6 @@ function lessonActionButtonsV839(item) {
       <button class="secondary-btn lesson-row-btn" data-edit="${escAttr(item.id)}" data-type="lesson">编辑</button>
       <button class="danger-btn lesson-row-btn" data-delete="${escAttr(item.id)}" data-type="lesson">删除</button>
     </div>
-  `;
-}
-
-function lessonPairCellsV839(item, side) {
-  if (!item) {
-    return `<td colspan="8" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const fee = Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0);
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = lessonPairTimeText(item) || "时间未定";
-  const content = esc(short(item.lesson_content || item.note || "", 32));
-
-  return `
-    <td class="col-check">${lessonCheckCellV839(item)}</td>
-    <td class="col-date"><div>${lessonPairDateText(item)}</div><span>${esc(item.year_month || "")}</span></td>
-    <td class="col-student">${lessonPairStudentText(item)}</td>
-    <td class="col-teacher">${lessonPairTeacherText(item)}</td>
-    <td class="col-subject"><strong>${lessonPairSubjectText(item)}</strong><span>${timeText} / ${money(item.duration_hours)}H / ${formatCurrencyTotal(fee, "JPY")}</span></td>
-    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable ? badge("计费") : badge("不计费", "gray")}</td>
-    <td class="col-content"><div class="lesson-content-text">${content}</div></td>
-    <td class="col-actions">${lessonActionButtonsV839(item)}</td>
   `;
 }
 
@@ -6733,7 +6558,6 @@ function renderLessonsV839() {
 }
 
 renderLessons = renderLessonsV839;
-lessonPairCells = lessonPairCellsV839;
 makeActualFromPlanned = makeActualFromPlannedV839;
 bindLessonPairButtonsV59 = bindLessonButtonsV839;
 
@@ -7037,7 +6861,6 @@ if (typeof renderSettlementPairedLessonsV834 === "function") {
 }
 
 renderLessons = renderLessonsV8310;
-lessonPairCells = lessonPairCellsV8310;
 makeActualFromPlanned = makeActualFromPlannedV8310;
 bindLessonPairButtonsV59 = bindLessonButtonsV8310;
 
@@ -7892,30 +7715,6 @@ function lessonDateWithWeekLabelV852(item) {
   }
   return base;
 }
-
-function lessonPairCellsV852(item, side) {
-  if (!item) {
-    return `<td colspan="8" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = lessonPairTimeText(item) || "时间未定";
-  const content = esc(short(item.lesson_content || item.note || "", 22));
-
-  return `
-    <td class="col-check"><label class="lesson-check-only"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /></label></td>
-    <td class="col-date"><div>${lessonDateWithWeekLabelV852(item)}</div><span>${esc(item.year_month || "")}</span></td>
-    <td class="col-student">${lessonPairStudentText(item)}</td>
-    <td class="col-teacher">${lessonPairTeacherText(item)}</td>
-    <td class="col-subject"><strong>${lessonPairSubjectText(item)}</strong><span>${timeText} / ${money(item.duration_hours)}H</span></td>
-    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable ? badge("计费") : badge("不计费", "gray")}</td>
-    <td class="col-content"><div class="lesson-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${content}</div></td>
-    <td class="col-actions">${lessonActionButtonsV8310 ? lessonActionButtonsV8310(item) : ""}</td>
-  `;
-}
-
-// Override lesson table date display.
-lessonPairCells = lessonPairCellsV852;
 
 function renderLessonRowsV852(rows) {
   const plannedRows = rows.filter(x => x.lesson_type === "planned");
@@ -8845,30 +8644,6 @@ function makeActualFromPlannedV856(id) {
 
 makeActualFromPlanned = makeActualFromPlannedV856;
 
-function lessonPairCellsV856(item, side) {
-  if (!item) {
-    return `<td colspan="8" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = lessonPairTimeText(item) || "时间未定";
-  const content = esc(short(item.lesson_content || item.note || "", 22));
-  const dateDisplay = item.lesson_type === "planned" ? plannedWeekDateDisplayV856(item) : actualDateDisplayV856(item);
-
-  return `
-    <td class="col-check"><label class="lesson-check-only"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /></label></td>
-    <td class="col-date"><div>${esc(dateDisplay)}</div><span>${esc(yearMonthDateDisplayV856(item))}</span></td>
-    <td class="col-student">${lessonPairStudentText(item)}</td>
-    <td class="col-teacher">${lessonPairTeacherText(item)}</td>
-    <td class="col-subject"><strong>${lessonPairSubjectText(item)}</strong><span>${timeText} / ${money(item.duration_hours)}H</span></td>
-    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable ? badge("计费") : badge("不计费", "gray")}</td>
-    <td class="col-content"><div class="lesson-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${content}</div></td>
-    <td class="col-actions">${lessonActionButtonsV8310 ? lessonActionButtonsV8310(item) : ""}</td>
-  `;
-}
-
-lessonPairCells = lessonPairCellsV856;
-
 function settlementLessonCellsV856(item, side) {
   if (!item) {
     return `<td colspan="7" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
@@ -8902,9 +8677,7 @@ if (typeof renderLessonRowsV855 === "function") {
   const renderLessonRowsBeforeV856 = renderLessonRowsV855;
   renderLessonRowsV855 = function (rows) {
     const oldCells = lessonPairCells;
-    lessonPairCells = lessonPairCellsV856;
     const html = renderLessonRowsBeforeV856(rows);
-    lessonPairCells = lessonPairCellsV856;
     return html;
   };
 }
@@ -9015,28 +8788,6 @@ normalizeLessonPayload = function (payload, type) {
   return payload;
 };
 
-function lessonPairCellsV857(item, side) {
-  if (!item) {
-    return `<td colspan="8" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = lessonPairTimeText(item) || "时间未定";
-  const content = esc(short(item.lesson_content || item.note || "", 22));
-  const d = dateCellDisplayV857(item);
-
-  return `
-    <td class="col-check"><label class="lesson-check-only"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /></label></td>
-    <td class="col-date"><div>${esc(d.main)}</div><span>${esc(d.sub)}</span></td>
-    <td class="col-student">${lessonPairStudentText(item)}</td>
-    <td class="col-teacher">${lessonPairTeacherText(item)}</td>
-    <td class="col-subject"><strong>${lessonPairSubjectText(item)}</strong><span>${timeText} / ${money(item.duration_hours)}H</span></td>
-    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable ? badge("计费") : badge("不计费", "gray")}</td>
-    <td class="col-content"><div class="lesson-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${content}</div></td>
-    <td class="col-actions">${typeof lessonActionButtonsV8310 === "function" ? lessonActionButtonsV8310(item) : ""}</td>
-  `;
-}
-
 function settlementLessonCellsV857(item, side) {
   if (!item) {
     return `<td colspan="7" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
@@ -9146,7 +8897,6 @@ function renderLessonsV857() {
 }
 
 renderLessons = renderLessonsV857;
-lessonPairCells = lessonPairCellsV857;
 
 function renderSettlementPairedLessonsV857(planned, actual) {
   const tbody = document.getElementById("settlementLessonsTable");
@@ -9289,28 +9039,6 @@ normalizeLessonPayload = function (payload, type) {
   return payload;
 };
 
-function lessonPairCellsV858(item, side) {
-  if (!item) {
-    return `<td colspan="8" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = lessonPairTimeText(item) || "时间未定";
-  const content = esc(short(item.lesson_content || item.note || "", 22));
-  const d = dateCellDisplayV858(item);
-
-  return `
-    <td class="col-check"><label class="lesson-check-only"><input type="checkbox" class="lesson-delete-check" value="${escAttr(item.id)}" /></label></td>
-    <td class="col-date"><div>${esc(d.main)}</div><span>${esc(d.sub)}</span></td>
-    <td class="col-student">${lessonPairStudentText(item)}</td>
-    <td class="col-teacher">${lessonPairTeacherText(item)}</td>
-    <td class="col-subject"><strong>${lessonPairSubjectText(item)}</strong><span>${timeText} / ${money(item.duration_hours)}H</span></td>
-    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable ? badge("计费") : badge("不计费", "gray")}</td>
-    <td class="col-content"><div class="lesson-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${content}</div></td>
-    <td class="col-actions">${typeof lessonActionButtonsV8310 === "function" ? lessonActionButtonsV8310(item) : ""}</td>
-  `;
-}
-
 function settlementLessonCellsV858(item, side) {
   if (!item) {
     return `<td colspan="7" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
@@ -9420,7 +9148,6 @@ function renderLessonsV858() {
 }
 
 renderLessons = renderLessonsV858;
-lessonPairCells = lessonPairCellsV858;
 
 function renderSettlementPairedLessonsV858(planned, actual) {
   const tbody = document.getElementById("settlementLessonsTable");

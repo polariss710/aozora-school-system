@@ -184,12 +184,25 @@
   }
 
   function compareLessons(a, b) {
-    const s = lessonSubjectName(a).localeCompare(lessonSubjectName(b), "zh-Hans-CN");
-    if (s !== 0) return s;
-    const d = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
-    if (d !== 0) return d;
-    return String(a.start_time || "").localeCompare(String(b.start_time || ""));
+  const s = lessonSubjectName(a).localeCompare(lessonSubjectName(b), "zh-Hans-CN");
+  if (s !== 0) return s;
+
+  const d = String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
+  if (d !== 0) return d;
+
+  const ac = Number(String(a.lesson_count ?? "").replace(/[^\d.-]/g, ""));
+  const bc = Number(String(b.lesson_count ?? "").replace(/[^\d.-]/g, ""));
+  if (Number.isFinite(ac) || Number.isFinite(bc)) {
+    if (!Number.isFinite(ac)) return 1;
+    if (!Number.isFinite(bc)) return -1;
+    if (ac !== bc) return ac - bc;
   }
+
+  const t = String(a.start_time || "").localeCompare(String(b.start_time || ""));
+  if (t !== 0) return t;
+
+  return String(a.id || "").localeCompare(String(b.id || ""));
+}
 
   function currentStudent() {
     const id = selectedStudentId();

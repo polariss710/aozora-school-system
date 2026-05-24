@@ -816,19 +816,31 @@ function lessonPairDateText(item) {
     });
   }
 
+  function removeLessonDateTimeRowsV917() {
+    document
+      .querySelectorAll("#page-lessons #lessonsTable .col-date .actual-time-v887, #page-lessons #lessonsTable .col-date .actual-time-v888")
+      .forEach(node => node.remove());
+  }
+
   const renderLessonsBeforeV917 = typeof renderLessons === "function" ? renderLessons : null;
   if (renderLessonsBeforeV917) {
     window.renderLessons = function () {
       if (typeof renderLessonRowsStrictV873 === "function") renderLessonRowsStrictV873 = renderLessonRowsV917;
       renderLessonsBeforeV917();
       patchLessonListCountV917();
+      removeLessonDateTimeRowsV917();
     };
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    setTimeout(patchLessonListCountV917, 1000);
+    setTimeout(() => {
+      patchLessonListCountV917();
+      removeLessonDateTimeRowsV917();
+    }, 1000);
   });
 
+  window.patchActualTimeDisplayV887 = removeLessonDateTimeRowsV917;
+  window.patchActualTimeDisplayV888 = removeLessonDateTimeRowsV917;
   window.lessonCellV86 = lessonCellV917;
   window.lessonPairCells = lessonCellV917;
   window.renderLessonRowsStrictV873 = renderLessonRowsV917;
@@ -836,4 +848,5 @@ function lessonPairDateText(item) {
   window.SchoolLessonsModule.lessonCell = lessonCellV917;
   window.SchoolLessonsModule.renderLessonRows = renderLessonRowsV917;
   window.SchoolLessonsModule.patchLessonListCount = patchLessonListCountV917;
+  window.SchoolLessonsModule.removeLessonDateTimeRows = removeLessonDateTimeRowsV917;
 })();

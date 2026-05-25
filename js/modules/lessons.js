@@ -74,6 +74,569 @@
   });
 })();
 
+// === v9.1.8 independent lesson form and save flow ===
+(function () {
+  const PLANNED_STATUSES_V918 = [
+    { value: "planned", label: "待上课" },
+    { value: "pending_makeup", label: "待补课" },
+  ];
+  const ACTUAL_STATUSES_V918 = [
+    { value: "completed", label: "已上课" },
+    { value: "cancelled", label: "取消课" },
+    { value: "makeup_completed", label: "已补课" },
+  ];
+  const LEGACY_ACTUAL_STATUS_V918 = { value: "makeup", label: "补课" };
+
+  function hV918(value) {
+    if (typeof esc === "function") return esc(value);
+    return String(value ?? "").replace(/[&<>"']/g, ch => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;",
+    }[ch]));
+  }
+
+  function aV918(value) {
+    if (typeof escAttr === "function") return escAttr(value);
+    return hV918(value);
+  }
+
+  function todayV918() {
+    if (typeof todayStr === "function") return todayStr();
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function monthV918(dateText) {
+    const text = String(dateText || "").trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text.slice(0, 7);
+    if (/^\d{4}-\d{2}$/.test(text)) return text;
+    if (typeof currentYearMonth === "function") return currentYearMonth();
+    return new Date().toISOString().slice(0, 7);
+  }
+
+  function rowByIdV918(rows, id) {
+    return (rows || []).find(row => String(row.id) === String(id)) || null;
+  }
+
+  function optionRowsV918(rows, labelFn, includeEmpty = false) {
+    const options = includeEmpty ? [`<option value="">未设置</option>`] : [];
+    (rows || []).forEach(row => {
+      options.push(`<option value="${aV918(row.id)}">${hV918(labelFn(row))}</option>`);
+    });
+    return options.join("");
+  }
+
+  function businessOptionsV918() {
+    return optionRowsV918(state.businessEntities || [], row => row.name || row.code || row.id);
+  }
+
+  function studentOptionsV918() {
+    return optionRowsV918(state.students || [], row => row.display_name || row.name || row.id);
+  }
+
+  function teacherOptionsV918() {
+    return optionRowsV918(state.teachers || [], row => row.display_name || row.name || row.id);
+  }
+
+  function subjectOptionsV918() {
+    return optionRowsV918(state.subjects || [], row => row.name || row.id);
+  }
+
+  function selectedV918(value, current) {
+    return String(value ?? "") === String(current ?? "") ? "selected" : "";
+  }
+
+  function statusOptionsV918(lessonType, currentStatus) {
+    const base = lessonType === "planned" ? PLANNED_STATUSES_V918 : ACTUAL_STATUSES_V918;
+    const options = base.slice();
+    if (lessonType === "actual" && currentStatus === "makeup") options.push(LEGACY_ACTUAL_STATUS_V918);
+    return options.map(opt => `<option value="${aV918(opt.value)}" ${selectedV918(opt.value, currentStatus)}>${hV918(opt.label)}</option>`).join("");
+  }
+
+  function defaultStatusV918(lessonType) {
+    return lessonType === "planned" ? "planned" : "completed";
+  }
+
+  function defaultBillableV918(lessonType, status) {
+    if (lessonType === "planned") return true;
+    if (status === "cancelled") return false;
+    if (status === "makeup_completed") return false;
+    return true;
+  }
+
+  function normalizeStatusV918(lessonType, status) {
+    const text = String(status || "").trim();
+    if (lessonType === "planned") {
+      return ["planned", "pending_makeup"].includes(text) ? text : "planned";
+    }
+    return ["completed", "cancelled", "makeup_completed", "makeup"].includes(text) ? text : "completed";
+  }
+
+  function numberOrNullV918(value) {
+    if (value === null || value === undefined || value === "") return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function lessonTableV918() {
+    return tables?.lessons || "school_lesson_records";
+  }
+
+  function baseLessonRecordV918(data = {}) {
+    const lessonType = data.lesson_type || "actual";
+    const status = normalizeStatusV918(lessonType, data.status || defaultStatusV918(lessonType));
+    const date = data.lesson_date || todayV918();
+    return {
+      lesson_type: lessonType,
+      planned_lesson_id: data.planned_lesson_id || "",
+      lesson_date: date,
+      year_month: data.year_month || monthV918(date),
+      student_id: data.student_id || "",
+      teacher_id: data.teacher_id || "",
+      subject_id: data.subject_id || "",
+      business_entity_id: data.business_entity_id || "",
+      start_time: data.start_time || "",
+      end_time: data.end_time || "",
+      duration_hours: data.duration_hours ?? 2,
+      unit_price: data.unit_price ?? "",
+      lesson_fee: data.lesson_fee ?? "",
+      status,
+      is_billable: data.is_billable ?? defaultBillableV918(lessonType, status),
+      lesson_count: data.lesson_count ?? "",
+      lesson_content: data.lesson_content || "",
+      note: data.note || "",
+      teacher_settlement_month: data.teacher_settlement_month || (lessonType === "actual" ? monthV918(date) : ""),
+    };
+  }
+
+  function lessonFormHtmlV918(record, mode) {
+    const item = baseLessonRecordV918(record);
+    return `
+      <input type="hidden" name="planned_lesson_id" value="${aV918(item.planned_lesson_id)}" />
+      <div class="form-row">
+        <label>课时类型</label>
+        <select name="lesson_type" required>
+          <option value="planned" ${selectedV918("planned", item.lesson_type)}>预定计划</option>
+          <option value="actual" ${selectedV918("actual", item.lesson_type)}>实际结果</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>上课日期</label>
+        <input name="lesson_date" type="date" value="${aV918(item.lesson_date)}" required />
+      </div>
+      <div class="form-row">
+        <label>归属月份</label>
+        <input name="year_month" type="month" value="${aV918(item.year_month)}" required />
+      </div>
+      <div class="form-row teacher-settlement-month-field-v918">
+        <label>工资结算月份</label>
+        <input name="teacher_settlement_month" type="month" value="${aV918(item.teacher_settlement_month)}" />
+      </div>
+      <div class="form-row">
+        <label>学生</label>
+        <select name="student_id" required>${studentOptionsV918()}</select>
+      </div>
+      <div class="form-row">
+        <label>老师</label>
+        <select name="teacher_id" required>${teacherOptionsV918()}</select>
+      </div>
+      <div class="form-row">
+        <label>科目</label>
+        <select name="subject_id" required>${subjectOptionsV918()}</select>
+      </div>
+      <div class="form-row">
+        <label>业务归属</label>
+        <select name="business_entity_id" required>${businessOptionsV918()}</select>
+      </div>
+      <div class="form-row">
+        <label>开始时间</label>
+        <input name="start_time" type="time" value="${aV918(item.start_time)}" />
+      </div>
+      <div class="form-row">
+        <label>结束时间</label>
+        <input name="end_time" type="time" value="${aV918(item.end_time)}" />
+      </div>
+      <div class="form-row">
+        <label>时长（H）</label>
+        <input name="duration_hours" type="number" step="0.01" min="0" inputmode="decimal" value="${aV918(item.duration_hours)}" required />
+      </div>
+      <div class="form-row">
+        <label>课程单价</label>
+        <input name="unit_price" type="number" step="1" min="0" inputmode="numeric" value="${aV918(item.unit_price)}" />
+      </div>
+      <div class="form-row">
+        <label>应收课时费</label>
+        <input name="lesson_fee" type="number" step="1" min="0" inputmode="numeric" value="${aV918(item.lesson_fee)}" />
+      </div>
+      <div class="form-row lesson-count-field-v918">
+        <label>回数</label>
+        <input name="lesson_count" type="number" step="1" min="1" value="${aV918(item.lesson_count)}" />
+      </div>
+      <div class="form-row">
+        <label>状态</label>
+        <select name="status">${statusOptionsV918(item.lesson_type, item.status)}</select>
+      </div>
+      <div class="form-row">
+        <label>计费</label>
+        <select name="is_billable">
+          <option value="true" ${selectedV918("true", String(item.is_billable !== false))}>是</option>
+          <option value="false" ${selectedV918("false", String(item.is_billable !== false))}>否</option>
+        </select>
+      </div>
+      <div class="form-row full">
+        <label>上课内容</label>
+        <textarea name="lesson_content">${hV918(item.lesson_content)}</textarea>
+      </div>
+      <div class="form-row full">
+        <label>备注</label>
+        <textarea name="note">${hV918(item.note)}</textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="secondary-btn" data-lesson-cancel>取消</button>
+        <button type="submit" class="primary-btn">${mode === "edit" ? "保存" : "新增"}</button>
+      </div>
+    `;
+  }
+
+  function setSelectValueV918(form, name, value) {
+    const select = form.querySelector(`[name="${name}"]`);
+    if (select) select.value = value || "";
+  }
+
+  function applyInitialSelectValuesV918(form, record) {
+    ["student_id", "teacher_id", "subject_id", "business_entity_id"].forEach(name => {
+      setSelectValueV918(form, name, record?.[name] || "");
+    });
+  }
+
+  function syncLessonStatusOptionsV918(form) {
+    const type = form.querySelector('[name="lesson_type"]')?.value || "actual";
+    const status = form.querySelector('[name="status"]');
+    if (!status) return;
+    const nextStatus = normalizeStatusV918(type, status.value || defaultStatusV918(type));
+    status.innerHTML = statusOptionsV918(type, nextStatus);
+    status.value = nextStatus;
+  }
+
+  function syncTeacherSettlementMonthV918(form) {
+    const type = form.querySelector('[name="lesson_type"]')?.value || "actual";
+    const row = form.querySelector(".teacher-settlement-month-field-v918");
+    const input = form.querySelector('[name="teacher_settlement_month"]');
+    if (row) row.classList.toggle("hidden", type !== "actual");
+    if (type === "actual" && input && !input.value) {
+      input.value = monthV918(form.querySelector('[name="lesson_date"]')?.value || form.querySelector('[name="year_month"]')?.value);
+    }
+  }
+
+  function syncBillableDefaultV918(form, force = false) {
+    const type = form.querySelector('[name="lesson_type"]')?.value || "actual";
+    const status = form.querySelector('[name="status"]')?.value || defaultStatusV918(type);
+    const billable = form.querySelector('[name="is_billable"]');
+    if (!billable) return;
+    if (type === "planned" || status === "cancelled") {
+      billable.value = String(defaultBillableV918(type, status));
+      return;
+    }
+    if (force || billable.dataset.manualEditedV918 !== "true") {
+      billable.value = String(defaultBillableV918(type, status));
+    }
+  }
+
+  function parseTimeToMinutesV918(value) {
+    const m = String(value || "").match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return null;
+    const h = Number(m[1]);
+    const min = Number(m[2]);
+    if (!Number.isFinite(h) || !Number.isFinite(min) || h < 0 || h > 23 || min < 0 || min > 59) return null;
+    return h * 60 + min;
+  }
+
+  function bindLessonTimeCalcV918(form) {
+    const start = form.querySelector('[name="start_time"]');
+    const end = form.querySelector('[name="end_time"]');
+    const duration = form.querySelector('[name="duration_hours"]');
+    const unit = form.querySelector('[name="unit_price"]');
+    const fee = form.querySelector('[name="lesson_fee"]');
+
+    function updateFee() {
+      if (!fee || fee.dataset.manualEditedV918 === "true") return;
+      const hours = Number(duration?.value || 0);
+      const price = Number(unit?.value || 0);
+      if (hours && price) fee.value = String(Math.round(hours * price));
+    }
+
+    function updateDuration() {
+      const s = parseTimeToMinutesV918(start?.value);
+      const e = parseTimeToMinutesV918(end?.value);
+      if (s === null || e === null || e <= s || !duration) return;
+      if (duration.dataset.manualEditedV918 !== "true" || !duration.value) {
+        const hours = Math.round(((e - s) / 60) * 100) / 100;
+        duration.value = Number.isInteger(hours) ? String(hours) : String(hours);
+        updateFee();
+      }
+    }
+
+    [start, end].forEach(input => {
+      input?.addEventListener("input", updateDuration);
+      input?.addEventListener("change", updateDuration);
+    });
+    duration?.addEventListener("input", () => {
+      duration.dataset.manualEditedV918 = "true";
+      updateFee();
+    });
+    unit?.addEventListener("input", updateFee);
+    fee?.addEventListener("input", () => {
+      fee.dataset.manualEditedV918 = "true";
+    });
+  }
+
+  function bindLessonFormEventsV918(form) {
+    form.querySelector('[data-lesson-cancel]')?.addEventListener("click", () => closeModal());
+    form.querySelector('[name="lesson_type"]')?.addEventListener("change", () => {
+      syncLessonStatusOptionsV918(form);
+      syncTeacherSettlementMonthV918(form);
+      syncBillableDefaultV918(form, true);
+    });
+    form.querySelector('[name="status"]')?.addEventListener("change", () => {
+      syncBillableDefaultV918(form);
+    });
+    form.querySelector('[name="is_billable"]')?.addEventListener("change", e => {
+      e.target.dataset.manualEditedV918 = "true";
+      syncBillableDefaultV918(form);
+    });
+    form.querySelector('[name="lesson_date"]')?.addEventListener("change", () => {
+      const ym = form.querySelector('[name="year_month"]');
+      const teacherMonth = form.querySelector('[name="teacher_settlement_month"]');
+      if (ym && !ym.value) ym.value = monthV918(form.querySelector('[name="lesson_date"]')?.value);
+      if (teacherMonth && teacherMonth.dataset.manualEditedV918 !== "true") {
+        teacherMonth.value = monthV918(form.querySelector('[name="lesson_date"]')?.value);
+      }
+    });
+    form.querySelector('[name="teacher_settlement_month"]')?.addEventListener("input", e => {
+      e.target.dataset.manualEditedV918 = "true";
+    });
+    form.addEventListener("submit", submitLessonFormV918);
+    bindLessonTimeCalcV918(form);
+  }
+
+  function openLessonModalV918(mode, record = {}) {
+    const modal = document.getElementById("modal");
+    const title = document.getElementById("modalTitle");
+    const form = document.getElementById("modalForm");
+    if (!modal || !form) return;
+
+    state.editing = { type: "lesson", id: mode === "edit" ? record.id : null, data: record };
+    form.innerHTML = lessonFormHtmlV918(record, mode);
+    applyInitialSelectValuesV918(form, record);
+    syncLessonStatusOptionsV918(form);
+    syncTeacherSettlementMonthV918(form);
+    syncBillableDefaultV918(form);
+    bindLessonFormEventsV918(form);
+    if (title) title.textContent = mode === "edit" ? "编辑课时" : (mode === "copy" ? "复制课时" : "新增课时");
+    modal.classList.remove("hidden");
+  }
+
+  function openLessonCreateModalV918(prefill = {}) {
+    openLessonModalV918("create", prefill);
+  }
+
+  function openLessonEditModalV918(id) {
+    const record = rowByIdV918(state.lessonRecords || [], id);
+    if (!record) {
+      showMessage?.("未找到课时记录。", "error");
+      return;
+    }
+    openLessonModalV918("edit", record);
+  }
+
+  function openLessonCopyModalV918(id) {
+    const record = rowByIdV918(state.lessonRecords || [], id);
+    if (!record) {
+      showMessage?.("未找到课时记录。", "error");
+      return;
+    }
+    const copy = { ...record, id: null };
+    openLessonModalV918("copy", copy);
+  }
+
+  function openLessonActualFromPlannedModalV918(id) {
+    const plan = rowByIdV918(state.lessonRecords || [], id);
+    if (!plan) {
+      showMessage?.("未找到预定课时。", "error");
+      return;
+    }
+    const isMakeup = plan.status === "pending_makeup";
+    const date = isMakeup ? todayV918() : (plan.lesson_date || todayV918());
+    openLessonModalV918("create", {
+      lesson_type: "actual",
+      planned_lesson_id: plan.id,
+      lesson_date: date,
+      year_month: monthV918(date),
+      student_id: plan.student_id || "",
+      teacher_id: plan.teacher_id || "",
+      subject_id: plan.subject_id || "",
+      business_entity_id: plan.business_entity_id || "",
+      start_time: plan.start_time || "",
+      end_time: plan.end_time || "",
+      duration_hours: plan.duration_hours || 0,
+      unit_price: plan.unit_price || "",
+      lesson_fee: plan.lesson_fee ?? "",
+      status: isMakeup ? "makeup_completed" : "completed",
+      is_billable: isMakeup ? false : plan.is_billable !== false,
+      lesson_count: plan.lesson_count ?? "",
+      lesson_content: "",
+      note: "",
+      teacher_settlement_month: monthV918(date),
+    });
+    const title = document.getElementById("modalTitle");
+    if (title) title.textContent = "从预定生成实际课时";
+  }
+
+  function collectLessonFormPayloadV918(form) {
+    const fd = new FormData(form);
+    const lessonType = String(fd.get("lesson_type") || "actual");
+    const status = normalizeStatusV918(lessonType, fd.get("status"));
+    const date = String(fd.get("lesson_date") || "");
+    const payload = {
+      lesson_type: lessonType,
+      planned_lesson_id: fd.get("planned_lesson_id") || null,
+      lesson_date: date || null,
+      year_month: fd.get("year_month") || monthV918(date),
+      student_id: fd.get("student_id") || null,
+      teacher_id: fd.get("teacher_id") || null,
+      subject_id: fd.get("subject_id") || null,
+      business_entity_id: fd.get("business_entity_id") || null,
+      start_time: fd.get("start_time") || null,
+      end_time: fd.get("end_time") || null,
+      duration_hours: numberOrNullV918(fd.get("duration_hours")) || 0,
+      unit_price: numberOrNullV918(fd.get("unit_price")),
+      lesson_fee: numberOrNullV918(fd.get("lesson_fee")),
+      status,
+      is_billable: String(fd.get("is_billable")) === "true",
+      lesson_count: numberOrNullV918(fd.get("lesson_count")),
+      lesson_content: fd.get("lesson_content") || null,
+      note: fd.get("note") || null,
+      teacher_settlement_month: fd.get("teacher_settlement_month") || null,
+    };
+
+    if (payload.lesson_type === "planned") {
+      payload.status = normalizeStatusV918("planned", payload.status);
+      payload.is_billable = true;
+      payload.planned_lesson_id = null;
+      payload.teacher_settlement_month = null;
+    } else {
+      payload.status = normalizeStatusV918("actual", payload.status);
+      if (payload.status === "cancelled") payload.is_billable = false;
+      if (!payload.teacher_settlement_month) payload.teacher_settlement_month = monthV918(payload.lesson_date);
+    }
+
+    return payload;
+  }
+
+  function validateLessonPayloadV918(payload) {
+    if (!payload.lesson_date) return "请填写上课日期。";
+    if (!payload.year_month) return "请填写归属月份。";
+    if (!payload.student_id) return "请选择学生。";
+    if (!payload.teacher_id) return "请选择老师。";
+    if (!payload.subject_id) return "请选择科目。";
+    if (!payload.business_entity_id) return "请选择业务归属。";
+    if (!payload.duration_hours || payload.duration_hours <= 0) return "请填写有效时长。";
+    if (payload.lesson_type === "planned" && !["planned", "pending_makeup"].includes(payload.status)) return "预定课时状态不合法。";
+    if (payload.lesson_type === "actual" && !["completed", "cancelled", "makeup_completed", "makeup"].includes(payload.status)) return "实际课时状态不合法。";
+    return "";
+  }
+
+  async function saveLessonRecordV918(payload, id) {
+    const client = typeof db !== "undefined" ? db : null;
+    if (!client?.from) throw new Error("数据库客户端未初始化。");
+    const query = client.from(lessonTableV918());
+    if (id) return query.update(payload).eq("id", id).select().single();
+    return query.insert(payload).select().single();
+  }
+
+  async function submitLessonFormV918(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    const form = e.currentTarget;
+    if (form.dataset.lessonSavingV918 === "true") return;
+    const payload = collectLessonFormPayloadV918(form);
+    const message = validateLessonPayloadV918(payload);
+    if (message) {
+      showMessage?.(message, "error");
+      return;
+    }
+
+    form.dataset.lessonSavingV918 = "true";
+    form.querySelector('button[type="submit"]')?.setAttribute("disabled", "disabled");
+
+    try {
+      const id = state.editing?.id || null;
+      const result = await saveLessonRecordV918(payload, id);
+      if (result.error) throw result.error;
+      closeModal();
+      await loadAll();
+      renderAll();
+      showMessage?.(id ? "课时已更新。" : "课时已新增。", "ok");
+    } catch (error) {
+      console.error(error);
+      showMessage?.(`保存课时失败：${error.message || error}`, "error");
+      form.dataset.lessonSavingV918 = "false";
+      form.querySelector('button[type="submit"]')?.removeAttribute("disabled");
+    }
+  }
+
+  function bindLessonPageActionsV918() {
+    document.getElementById("lessonAddBtn")?.addEventListener("click", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      openLessonCreateModalV918();
+    });
+
+    document.addEventListener("click", e => {
+      const createActual = e.target?.closest?.("[data-create-actual]");
+      const copy = e.target?.closest?.("[data-copy-lesson]");
+      const edit = e.target?.closest?.('[data-edit][data-type="lesson"]');
+
+      if (createActual) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        openLessonActualFromPlannedModalV918(createActual.dataset.createActual);
+        return;
+      }
+
+      if (copy) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        openLessonCopyModalV918(copy.dataset.copyLesson);
+        return;
+      }
+
+      if (edit) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        openLessonEditModalV918(edit.dataset.edit);
+      }
+    }, true);
+  }
+
+  document.addEventListener("DOMContentLoaded", bindLessonPageActionsV918);
+
+  window.SchoolLessonsModule = window.SchoolLessonsModule || {};
+  window.SchoolLessonsModule.openCreateModal = openLessonCreateModalV918;
+  window.SchoolLessonsModule.openEditModal = openLessonEditModalV918;
+  window.SchoolLessonsModule.openCopyModal = openLessonCopyModalV918;
+  window.SchoolLessonsModule.openActualFromPlannedModal = openLessonActualFromPlannedModalV918;
+  window.SchoolLessonsModule.collectPayload = collectLessonFormPayloadV918;
+  window.SchoolLessonsModule.saveLessonRecord = saveLessonRecordV918;
+})();
+
 // === 清理旧函数-课程排序
 function comparePlannedLessonsV86(a, b) {
   const month = String(a?.year_month || "").localeCompare(String(b?.year_month || ""));
@@ -176,38 +739,6 @@ function lessonPairDateText(item) {
   window.patchLessonCountFieldV886 = patchLessonCountFieldV904;
   window.patchLessonCountFieldV904 = patchLessonCountFieldV904;
 
-  const normalizeLessonPayloadBeforeV904 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
-  window.normalizeLessonPayload = function (payload, type) {
-    if (normalizeLessonPayloadBeforeV904) payload = normalizeLessonPayloadBeforeV904(payload, type);
-
-    if (type === "lesson") {
-      const raw = document.getElementById("modalForm")?.querySelector('[name="lesson_count"]')?.value;
-      const count = normalizeLessonCountV904(raw ?? payload.lesson_count);
-      payload.lesson_count = count;
-    }
-
-    return payload;
-  };
-
-  const openCreateModalBeforeV904 = typeof openCreateModal === "function" ? openCreateModal : null;
-  if (openCreateModalBeforeV904) {
-    window.openCreateModal = function (type, prefill = {}) {
-      openCreateModalBeforeV904(type, prefill);
-      if (type === "lesson") setTimeout(patchLessonCountFieldV904, 0);
-    };
-  }
-
-  const openEditModalBeforeV904 = typeof openEditModal === "function" ? openEditModal : null;
-  if (openEditModalBeforeV904) {
-    window.openEditModal = function (type, id) {
-      openEditModalBeforeV904(type, id);
-      if (type === "lesson") setTimeout(patchLessonCountFieldV904, 0);
-    };
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    setTimeout(patchLessonCountFieldV904, 800);
-  });
 })();
 
 
@@ -329,25 +860,6 @@ function lessonPairDateText(item) {
 
   window.bindManualLessonTimeCalcV905 = bindManualLessonTimeCalcV905;
 
-  const openCreateModalBeforeV905 = typeof openCreateModal === "function" ? openCreateModal : null;
-  if (openCreateModalBeforeV905) {
-    window.openCreateModal = function (type, prefill = {}) {
-      openCreateModalBeforeV905(type, prefill);
-      if (type === "lesson") setTimeout(bindManualLessonTimeCalcV905, 0);
-    };
-  }
-
-  const openEditModalBeforeV905 = typeof openEditModal === "function" ? openEditModal : null;
-  if (openEditModalBeforeV905) {
-    window.openEditModal = function (type, id) {
-      openEditModalBeforeV905(type, id);
-      if (type === "lesson") setTimeout(bindManualLessonTimeCalcV905, 0);
-    };
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    setTimeout(bindManualLessonTimeCalcV905, 800);
-  });
 })();
 
 
@@ -387,25 +899,6 @@ function lessonPairDateText(item) {
 
   window.patchLessonDurationDecimalV906 = patchLessonDurationDecimalV906;
 
-  const openCreateModalBeforeV906 = typeof openCreateModal === "function" ? openCreateModal : null;
-  if (openCreateModalBeforeV906) {
-    window.openCreateModal = function (type, prefill = {}) {
-      openCreateModalBeforeV906(type, prefill);
-      if (type === "lesson") setTimeout(patchLessonDurationDecimalV906, 0);
-    };
-  }
-
-  const openEditModalBeforeV906 = typeof openEditModal === "function" ? openEditModal : null;
-  if (openEditModalBeforeV906) {
-    window.openEditModal = function (type, id) {
-      openEditModalBeforeV906(type, id);
-      if (type === "lesson") setTimeout(patchLessonDurationDecimalV906, 0);
-    };
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    setTimeout(patchLessonDurationDecimalV906, 800);
-  });
 })();
 
 // === v9.1.5 teacher settlement month for actual lessons ===
@@ -485,45 +978,6 @@ function lessonPairDateText(item) {
     bindTeacherSettlementMonthEventsV915();
   }
 
-  const normalizeBeforeV915 = typeof normalizeLessonPayload === "function" ? normalizeLessonPayload : null;
-  window.normalizeLessonPayload = function (payload, type) {
-    if (normalizeBeforeV915) payload = normalizeBeforeV915(payload, type);
-    if (type === "lesson") {
-      const form = document.getElementById("modalForm");
-      const lessonType = payload.lesson_type || form?.querySelector('[name="lesson_type"]')?.value;
-      if (lessonType === "actual") {
-        payload.teacher_settlement_month =
-          form?.querySelector('[name="teacher_settlement_month"]')?.value ||
-          monthFromDateV915(payload.lesson_date) ||
-          payload.year_month ||
-          null;
-      } else {
-        payload.teacher_settlement_month = null;
-      }
-    }
-    return payload;
-  };
-
-  const openCreateBeforeV915 = typeof openCreateModal === "function" ? openCreateModal : null;
-  if (openCreateBeforeV915) {
-    window.openCreateModal = function (type, prefill = {}) {
-      if (type === "lesson" && (prefill.lesson_type || "actual") === "actual" && !prefill.teacher_settlement_month) {
-        prefill = { ...prefill, teacher_settlement_month: monthFromDateV915(prefill.lesson_date) || prefill.year_month || "" };
-      }
-      openCreateBeforeV915(type, prefill);
-      if (type === "lesson") setTimeout(patchLessonModalV915, 0);
-    };
-  }
-
-  const openEditBeforeV915 = typeof openEditModal === "function" ? openEditModal : null;
-  if (openEditBeforeV915) {
-    window.openEditModal = function (type, id) {
-      openEditBeforeV915(type, id);
-      if (type === "lesson") setTimeout(patchLessonModalV915, 0);
-    };
-  }
-
-  document.addEventListener("DOMContentLoaded", () => setTimeout(patchLessonModalV915, 800));
   window.SchoolLessonTeacherSettlementMonthV915 = { monthFromDate: monthFromDateV915, patch: patchLessonModalV915 };
 })();
 

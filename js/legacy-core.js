@@ -836,7 +836,7 @@ function bindGlobalActions() {
     showMessage("数据已刷新。", "ok");
   });
 
-  document.querySelectorAll("[data-open-modal]").forEach(btn => {
+  document.querySelectorAll('[data-open-modal]:not([data-open-modal="lesson"])').forEach(btn => {
     btn.addEventListener("click", () => openCreateModal(btn.dataset.openModal));
   });
 
@@ -854,7 +854,7 @@ function bindGlobalActions() {
   if (document.body.dataset.boundTableActionsV72 !== "true") {
     document.body.dataset.boundTableActionsV72 = "true";
     document.body.addEventListener("click", async (e) => {
-      const editBtn = e.target.closest("[data-edit][data-type]");
+      const editBtn = e.target.closest('[data-edit][data-type]:not([data-type="lesson"])');
       const deleteBtn = e.target.closest("[data-delete][data-type]");
 
       if (editBtn) {
@@ -9043,19 +9043,6 @@ function makeActualFromPlannedV872(id) {
 makeActualFromPlanned = makeActualFromPlannedV872;
 makeActualFromPlannedV871 = makeActualFromPlannedV872;
 
-document.addEventListener("click", (e) => {
-  const btn = e.target?.closest?.("[data-create-actual]");
-  if (!btn) return;
-  const planId = btn.dataset.createActual;
-  if (!planId) return;
-
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
-
-  makeActualFromPlannedV872(planId);
-}, true);
-
 document.addEventListener("submit", (e) => {
   const form = e.target;
   if (!form || form.id !== "modalForm") return;
@@ -9176,19 +9163,6 @@ function buildLessonPairsStrictV872(rows) {
 }
 
 function bindLessonButtonsStrictV872() {
-  document.querySelectorAll("[data-create-actual]").forEach(btn => {
-    btn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      makeActualFromPlannedV872(btn.dataset.createActual);
-    };
-  });
-  document.querySelectorAll("[data-copy-lesson]").forEach(btn => {
-    btn.onclick = () => {
-      if (typeof copyLessonRecordV86 === "function") copyLessonRecordV86(btn.dataset.copyLesson);
-      else if (typeof copyLessonRecordV59 === "function") copyLessonRecordV59(btn.dataset.copyLesson);
-    };
-  });
 }
 
 bindLessonPairButtonsV59 = bindLessonButtonsStrictV872;

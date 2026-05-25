@@ -3061,6 +3061,24 @@ button:disabled {
   font-weight: 700;
 }
 
+#page-lessons .lesson-content-preview {
+  max-height: 4.8em;
+  overflow: hidden;
+  line-height: 1.35;
+}
+
+#page-lessons .lesson-content-preview .lesson-v920-content-main,
+#page-lessons .lesson-content-preview .lesson-v920-content-note {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+#page-lessons .lesson-content-preview .lesson-v920-content-note {
+  margin-top: 2px;
+}
+
 #page-lessons .lesson-v920-pill {
   display: inline-flex;
   margin: 1px;

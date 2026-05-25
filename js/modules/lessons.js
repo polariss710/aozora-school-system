@@ -140,10 +140,11 @@
   }
 
   function datePartsV920(item) {
-    const main = item?.lesson_date ? `${item.lesson_date}${String(item.lesson_date).endsWith("周") ? "" : "周"}` : "";
+    const date = item?.lesson_date || item?.created_at || "";
+    const main = date ? `${date}${String(date).endsWith("周") ? "" : "周"}` : "";
     return {
       main,
-      sub: item?.year_month || "",
+      sub: date,
       count: lessonCountTextV920(item),
     };
   }
@@ -175,10 +176,13 @@
     if (!item) return `<td class="lesson-v920-cell lesson-v920-content lesson-v920-${side}-content"></td>`;
     const content = textV920(item.lesson_content).trim();
     const note = textV920(item.note).trim();
+    const title = [content, note].filter(Boolean).join("\n");
     return `
       <td class="lesson-v920-cell lesson-v920-content lesson-v920-${side}-content">
-        ${content ? `<div class="lesson-v920-content-main">${escV920(content)}</div>` : ""}
-        ${note ? `<div class="lesson-v920-content-note muted-small">${escV920(note)}</div>` : ""}
+        <div class="lesson-content-preview" title="${attrV920(title)}">
+          ${content ? `<div class="lesson-v920-content-main">${escV920(content)}</div>` : ""}
+          ${note ? `<div class="lesson-v920-content-note muted-small">${escV920(note)}</div>` : ""}
+        </div>
       </td>
     `;
   }

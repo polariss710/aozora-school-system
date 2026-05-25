@@ -186,15 +186,20 @@
   function renderLessonActionsV920(item) {
     if (!item) return "";
     const id = attrV920(item.id);
-    const createActual = item.lesson_type === "planned"
-      ? `<button class="secondary-btn lesson-row-btn lesson-v920-action-btn" data-create-actual="${id}" type="button">生成实际</button>`
-      : "";
-    return `
-      ${createActual}
-      <button class="secondary-btn lesson-row-btn lesson-v920-action-btn" data-copy-lesson="${id}" type="button">复制</button>
-      <button class="secondary-btn lesson-row-btn lesson-v920-action-btn" data-edit="${id}" data-type="lesson" type="button">编辑</button>
-      <button class="danger-btn lesson-row-btn lesson-v920-action-btn" data-delete="${id}" data-type="lesson" type="button">删除</button>
-    `;
+    const buttons = item.lesson_type === "planned"
+      ? [
+        `<button class="secondary-btn lesson-row-btn lesson-v920-action-btn" data-create-actual="${id}" type="button">生成实际</button>`,
+        `<button class="secondary-btn lesson-row-btn lesson-v920-action-btn" data-copy-lesson="${id}" type="button">复制</button>`,
+        `<button class="secondary-btn lesson-row-btn lesson-v920-action-btn" data-edit="${id}" data-type="lesson" type="button">编辑</button>`,
+        `<button class="danger-btn lesson-row-btn lesson-v920-action-btn" data-delete="${id}" data-type="lesson" type="button">删除</button>`,
+      ]
+      : [
+        `<button class="secondary-btn lesson-row-btn lesson-v920-action-btn" data-copy-lesson="${id}" type="button">复制</button>`,
+        `<button class="secondary-btn lesson-row-btn lesson-v920-action-btn" data-edit="${id}" data-type="lesson" type="button">编辑</button>`,
+        `<button class="danger-btn lesson-row-btn lesson-v920-action-btn" data-delete="${id}" data-type="lesson" type="button">删除</button>`,
+        `<span class="lesson-v920-action-spacer" aria-hidden="true"></span>`,
+      ];
+    return `<div class="lesson-v920-action-grid">${buttons.join("")}</div>`;
   }
 
   function renderLessonSideCellsV920(item, side, message = "") {

@@ -2973,3 +2973,116 @@ button:disabled {
 .settlement-lessons-readonly-table td:nth-child(8) {
   border-left: 1px solid #dbeafe !important;
 }
+
+/* v9.2.0 lesson management formal 16-cell pair table */
+#page-lessons .lesson-v920-head th {
+  background: #f8fbff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  padding: 5px 4px;
+}
+
+#page-lessons .lesson-v920-row > td {
+  vertical-align: middle;
+  border-bottom: 1px solid var(--line);
+}
+
+#page-lessons .lesson-v920-row .lesson-v920-check,
+#page-lessons .lesson-v920-row .lesson-v920-status,
+#page-lessons .lesson-v920-row .lesson-v920-actions {
+  text-align: center;
+}
+
+#page-lessons .lesson-v920-row .lesson-v920-date,
+#page-lessons .lesson-v920-row .lesson-v920-student,
+#page-lessons .lesson-v920-row .lesson-v920-teacher,
+#page-lessons .lesson-v920-row .lesson-v920-subject,
+#page-lessons .lesson-v920-row .lesson-v920-content {
+  text-align: left;
+}
+
+#page-lessons .lesson-v920-row .lesson-v920-planned-actions {
+  border-right: 1px solid var(--line);
+}
+
+#page-lessons .lesson-v920-check {
+  width: 34px;
+  padding: 0;
+}
+
+#page-lessons .lesson-v920-date {
+  width: 90px;
+}
+
+#page-lessons .lesson-v920-student {
+  width: 72px;
+}
+
+#page-lessons .lesson-v920-teacher {
+  width: 92px;
+}
+
+#page-lessons .lesson-v920-subject {
+  width: 150px;
+}
+
+#page-lessons .lesson-v920-status {
+  width: 88px;
+}
+
+#page-lessons .lesson-v920-content {
+  width: 120px;
+}
+
+#page-lessons .lesson-v920-actions {
+  width: 132px;
+}
+
+#page-lessons .lesson-v920-date-sub,
+#page-lessons .lesson-v920-count,
+#page-lessons .lesson-v920-time,
+#page-lessons .lesson-v920-content-note {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+#page-lessons .lesson-v920-count {
+  font-weight: 800;
+  color: var(--primary-dark);
+}
+
+#page-lessons .lesson-v920-subject-name,
+#page-lessons .lesson-v920-content-main {
+  font-weight: 700;
+}
+
+#page-lessons .lesson-v920-pill {
+  display: inline-flex;
+  margin: 1px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #eaf6fd;
+  color: var(--primary-dark);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+#page-lessons .lesson-v920-pill.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+#page-lessons .lesson-v920-pill.muted {
+  background: #f1f5f9;
+  color: var(--muted);
+}
+
+#page-lessons .lesson-v920-actions .lesson-row-btn {
+  margin: 2px;
+}

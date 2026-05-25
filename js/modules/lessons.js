@@ -74,6 +74,290 @@
   });
 })();
 
+// === v9.2.0 formal lesson pair table renderer ===
+(function () {
+  const SIDE_COLUMNS_V920 = ["check", "date", "student", "teacher", "subject", "status", "content", "actions"];
+
+  function textV920(value) {
+    return String(value ?? "");
+  }
+
+  function escV920(value) {
+    if (typeof esc === "function") return esc(value);
+    return textV920(value).replace(/[&<>"']/g, ch => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;",
+    }[ch]));
+  }
+
+  function attrV920(value) {
+    if (typeof escAttr === "function") return escAttr(value);
+    return escV920(value);
+  }
+
+  function byIdV920(rows, id) {
+    return (rows || []).find(row => String(row.id) === String(id)) || null;
+  }
+
+  function studentNameV920(item) {
+    const id = item?.student_id;
+    const row = item?.student || byIdV920(state.students, id);
+    return row?.display_name || row?.name || item?.student_name || "";
+  }
+
+  function teacherNameV920(item) {
+    const id = item?.teacher_id;
+    const row = item?.teacher || byIdV920(state.teachers, id);
+    return row?.display_name || row?.name || item?.teacher_name || "";
+  }
+
+  function subjectNameV920(item) {
+    const id = item?.subject_id;
+    const row = item?.subject || byIdV920(state.subjects, id);
+    return row?.name || item?.subject_name || "";
+  }
+
+  function statusLabelV920(status) {
+    const map = {
+      planned: "待上课",
+      pending_makeup: "待补课",
+      completed: "已上课",
+      cancelled: "取消课",
+      holiday: "休课",
+      makeup: "补课",
+      makeup_completed: "已补课",
+    };
+    return map[status] || status || "";
+  }
+
+  function lessonCountTextV920(item) {
+    const raw = item?.lesson_count;
+    if (raw === null || raw === undefined || String(raw).trim() === "") return "";
+    return `第${String(raw).trim()}回`;
+  }
+
+  function datePartsV920(item) {
+    return {
+      main: item?.lesson_date || "",
+      sub: item?.year_month || "",
+      count: lessonCountTextV920(item),
+    };
+  }
+
+  function timeTextV920(item) {
+    const start = item?.start_time || "";
+    const end = item?.end_time || "";
+    const duration = item?.duration_hours;
+    const time = start && end ? `${start} - ${end}` : "时间未定";
+    const hours = duration === null || duration === undefined || duration === "" ? "" : ` / ${duration}H`;
+    return `${time}${hours}`;
+  }
+
+  function renderLessonDateCellV920(item, side, message = "") {
+    if (!item) {
+      return `<td class="lesson-v920-cell lesson-v920-date lesson-v920-${side}-date"><div>${escV920(message)}</div></td>`;
+    }
+    const d = datePartsV920(item);
+    return `
+      <td class="lesson-v920-cell lesson-v920-date lesson-v920-${side}-date">
+        <div class="lesson-v920-date-main">${escV920(d.main)}</div>
+        ${d.sub ? `<div class="lesson-v920-date-sub">${escV920(d.sub)}</div>` : ""}
+        ${d.count ? `<div class="lesson-v920-count">${escV920(d.count)}</div>` : ""}
+      </td>
+    `;
+  }
+
+  function renderLessonContentCellV920(item, side) {
+    if (!item) return `<td class="lesson-v920-cell lesson-v920-content lesson-v920-${side}-content"></td>`;
+    const content = textV920(item.lesson_content).trim();
+    const note = textV920(item.note).trim();
+    return `
+      <td class="lesson-v920-cell lesson-v920-content lesson-v920-${side}-content">
+        ${content ? `<div class="lesson-v920-content-main">${escV920(content)}</div>` : ""}
+        ${note ? `<div class="lesson-v920-content-note">${escV920(note)}</div>` : ""}
+      </td>
+    `;
+  }
+
+  function renderLessonActionsV920(item) {
+    if (!item) return "";
+    const id = attrV920(item.id);
+    const createActual = item.lesson_type === "planned"
+      ? `<button class="secondary-btn lesson-row-btn" data-create-actual="${id}" type="button">生成实际</button>`
+      : "";
+    return `
+      ${createActual}
+      <button class="secondary-btn lesson-row-btn" data-copy-lesson="${id}" type="button">复制</button>
+      <button class="secondary-btn lesson-row-btn" data-edit="${id}" data-type="lesson" type="button">编辑</button>
+      <button class="danger-btn lesson-row-btn" data-delete="${id}" data-type="lesson" type="button">删除</button>
+    `;
+  }
+
+  function renderLessonSideCellsV920(item, side, message = "") {
+    if (!item) {
+      return `
+        <td class="lesson-v920-cell lesson-v920-check lesson-v920-${side}-check"></td>
+        ${renderLessonDateCellV920(null, side, message)}
+        <td class="lesson-v920-cell lesson-v920-student lesson-v920-${side}-student"></td>
+        <td class="lesson-v920-cell lesson-v920-teacher lesson-v920-${side}-teacher"></td>
+        <td class="lesson-v920-cell lesson-v920-subject lesson-v920-${side}-subject"></td>
+        <td class="lesson-v920-cell lesson-v920-status lesson-v920-${side}-status"></td>
+        ${renderLessonContentCellV920(null, side)}
+        <td class="lesson-v920-cell lesson-v920-actions lesson-v920-${side}-actions"></td>
+      `;
+    }
+
+    const isDanger = item.status === "cancelled" || item.status === "holiday";
+    const billableLabel = item.is_billable === false ? "不计费" : "计费";
+    return `
+      <td class="lesson-v920-cell lesson-v920-check lesson-v920-${side}-check">
+        <label class="lesson-check-only">
+          <input type="checkbox" class="lesson-delete-check" value="${attrV920(item.id)}" />
+        </label>
+      </td>
+      ${renderLessonDateCellV920(item, side)}
+      <td class="lesson-v920-cell lesson-v920-student lesson-v920-${side}-student">${escV920(studentNameV920(item))}</td>
+      <td class="lesson-v920-cell lesson-v920-teacher lesson-v920-${side}-teacher">${escV920(teacherNameV920(item))}</td>
+      <td class="lesson-v920-cell lesson-v920-subject lesson-v920-${side}-subject">
+        <div class="lesson-v920-subject-name">${escV920(subjectNameV920(item))}</div>
+        <div class="lesson-v920-time">${escV920(timeTextV920(item))}</div>
+      </td>
+      <td class="lesson-v920-cell lesson-v920-status lesson-v920-${side}-status">
+        <span class="lesson-v920-pill ${isDanger ? "danger" : ""}">${escV920(statusLabelV920(item.status))}</span>
+        <span class="lesson-v920-pill ${item.is_billable === false ? "muted" : ""}">${escV920(billableLabel)}</span>
+      </td>
+      ${renderLessonContentCellV920(item, side)}
+      <td class="lesson-v920-cell lesson-v920-actions lesson-v920-${side}-actions">${renderLessonActionsV920(item)}</td>
+    `;
+  }
+
+  function idTextV920(value) {
+    return String(value || "").trim();
+  }
+
+  function compareLessonRowsV920(a, b) {
+    if (typeof compareLessonsV903 === "function") return compareLessonsV903(a, b);
+    const month = textV920(a?.year_month).localeCompare(textV920(b?.year_month));
+    if (month) return month;
+    const date = textV920(a?.lesson_date).localeCompare(textV920(b?.lesson_date));
+    if (date) return date;
+    const countA = Number(a?.lesson_count || 0);
+    const countB = Number(b?.lesson_count || 0);
+    if (countA !== countB) return countA - countB;
+    return idTextV920(a?.id).localeCompare(idTextV920(b?.id));
+  }
+
+  function lessonFilterValueV920(id) {
+    return document.getElementById(id)?.value || "";
+  }
+
+  function filteredLessonRowsV920() {
+    const month = lessonFilterValueV920("lessonMonthFilter");
+    const student = lessonFilterValueV920("lessonStudentFilter");
+    const teacher = lessonFilterValueV920("lessonTeacherFilter");
+    const subject = lessonFilterValueV920("lessonSubjectFilter");
+    const type = lessonFilterValueV920("lessonTypeFilter");
+    const status = lessonFilterValueV920("lessonStatusFilter");
+    const entity = lessonFilterValueV920("lessonBusinessEntityFilter");
+
+    return (state.lessonRecords || []).filter(row =>
+      (!month || row.year_month === month) &&
+      (!student || row.student_id === student) &&
+      (!teacher || row.teacher_id === teacher) &&
+      (!subject || row.subject_id === subject) &&
+      (!type || row.lesson_type === type) &&
+      (!status || row.status === status) &&
+      (!entity || row.business_entity_id === entity)
+    );
+  }
+
+  function buildLessonPairsV920(rows) {
+    const planned = rows.filter(row => row.lesson_type === "planned").slice().sort(compareLessonRowsV920);
+    const actual = rows.filter(row => row.lesson_type === "actual").slice().sort(compareLessonRowsV920);
+    const plannedIds = new Set(planned.map(row => idTextV920(row.id)).filter(Boolean));
+    const actualByPlan = new Map();
+    const unlinkedActual = [];
+
+    actual.forEach(row => {
+      const planId = idTextV920(row.planned_lesson_id);
+      if (planId && plannedIds.has(planId)) {
+        if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
+        actualByPlan.get(planId).push(row);
+      } else {
+        unlinkedActual.push(row);
+      }
+    });
+
+    return { planned, actualByPlan, unlinkedActual };
+  }
+
+  function addLessonMonthRowsV920(html, stateRef, ym) {
+    if (stateRef.lastMonth === ym) return;
+    stateRef.lastMonth = ym;
+    const label = typeof expenseMonthLabel === "function" ? expenseMonthLabel(ym) : ym;
+    html.push(`<tr class="month-group-row lesson-v920-month"><td colspan="16">${escV920(label)}</td></tr>`);
+    html.push(`<tr class="lesson-sub-head-body lesson-v920-head">
+      <th>选择</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+      <th>选择</th><th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
+    </tr>`);
+  }
+
+  function renderLessonPairRowV920(planned, actual, options = {}) {
+    const rowClass = options.samePlanned ? "same-planned" : "";
+    const plannedMessage = options.samePlanned ? "同一预定课时" : "未关联预定课时";
+    const actualMessage = "未登录实际课时";
+    return `<tr class="lesson-pair-row lesson-v920-row ${rowClass}">
+      ${renderLessonSideCellsV920(planned, "planned", plannedMessage)}
+      ${renderLessonSideCellsV920(actual, "actual", actualMessage)}
+    </tr>`;
+  }
+
+  function renderLessonPairRowsV920(rows) {
+    const { planned, actualByPlan, unlinkedActual } = buildLessonPairsV920(rows);
+    const html = [];
+    const monthState = { lastMonth: "" };
+
+    planned.forEach(plan => {
+      addLessonMonthRowsV920(html, monthState, plan.year_month || "未归属月份");
+      const actuals = (actualByPlan.get(idTextV920(plan.id)) || []).slice().sort(compareLessonRowsV920);
+      if (!actuals.length) {
+        html.push(renderLessonPairRowV920(plan, null));
+        return;
+      }
+      actuals.forEach((actual, index) => {
+        html.push(renderLessonPairRowV920(index === 0 ? plan : null, actual, { samePlanned: index > 0 }));
+      });
+    });
+
+    unlinkedActual.forEach(actual => {
+      addLessonMonthRowsV920(html, monthState, actual.year_month || "未归属月份");
+      html.push(renderLessonPairRowV920(null, actual));
+    });
+
+    return html.join("");
+  }
+
+  function renderLessonsV920() {
+    const tbody = document.getElementById("lessonsTable");
+    if (!tbody) return;
+    const rows = filteredLessonRowsV920();
+    tbody.innerHTML = renderLessonPairRowsV920(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
+    window.SchoolLessonStatsRpcV916?.refresh?.();
+  }
+
+  window.renderLessons = renderLessonsV920;
+  window.SchoolLessonsModule = window.SchoolLessonsModule || {};
+  window.SchoolLessonsModule.renderLessons = renderLessonsV920;
+  window.SchoolLessonsModule.renderLessonPairRows = renderLessonPairRowsV920;
+  window.SchoolLessonsModule.renderLessonPairRow = renderLessonPairRowV920;
+  window.SchoolLessonsModule.renderLessonSideCells = renderLessonSideCellsV920;
+  window.SchoolLessonsModule.renderLessonDateCell = renderLessonDateCellV920;
+  window.SchoolLessonsModule.renderLessonContentCell = renderLessonContentCellV920;
+})();
+
 // === v9.1.8 independent lesson form and save flow ===
 (function () {
   const PLANNED_STATUSES_V918 = [
@@ -1353,31 +1637,7 @@ function lessonPairDateText(item) {
       .forEach(node => node.remove());
   }
 
-  const renderLessonsBeforeV917 = typeof renderLessons === "function" ? renderLessons : null;
-  if (renderLessonsBeforeV917) {
-    window.renderLessons = function () {
-      if (typeof renderLessonRowsStrictV873 === "function") renderLessonRowsStrictV873 = renderLessonRowsV917;
-      renderLessonsBeforeV917();
-      patchLessonListCountV917();
-      removeLessonDateTimeRowsV917();
-    };
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    setTimeout(() => {
-      patchLessonListCountV917();
-      removeLessonDateTimeRowsV917();
-    }, 1000);
-  });
-
-  window.patchActualTimeDisplayV887 = removeLessonDateTimeRowsV917;
-  window.patchActualTimeDisplayV888 = removeLessonDateTimeRowsV917;
-  window.lessonCellV86 = lessonCellV917;
-  window.lessonPairCells = lessonCellV917;
-  window.renderLessonRowsStrictV873 = renderLessonRowsV917;
   window.SchoolLessonsModule = window.SchoolLessonsModule || {};
-  window.SchoolLessonsModule.lessonCell = lessonCellV917;
-  window.SchoolLessonsModule.renderLessonRows = renderLessonRowsV917;
-  window.SchoolLessonsModule.patchLessonListCount = patchLessonListCountV917;
-  window.SchoolLessonsModule.removeLessonDateTimeRows = removeLessonDateTimeRowsV917;
 })();
+
+window.renderLessons = window.SchoolLessonsModule.renderLessons;

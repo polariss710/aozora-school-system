@@ -518,109 +518,10 @@ function renderExpensesTable() {
 }
 
 
-function updateLessonFilters() {
-  const monthEl = document.getElementById("lessonMonthFilter");
-  if (monthEl && !monthEl.value) {
-    monthEl.value = currentYearMonth();
-  }
-
-  const month = monthEl?.value || "";
-  const studentEl = document.getElementById("lessonStudentFilter");
-  const teacherEl = document.getElementById("lessonTeacherFilter");
-  const subjectEl = document.getElementById("lessonSubjectFilter");
-
-  const monthLessons = month
-    ? (state.lessonRecords || []).filter(x => x.year_month === month)
-    : (state.lessonRecords || []);
-
-  const studentIds = new Set(monthLessons.filter(x => x.student_id).map(x => x.student_id));
-  const teacherIds = new Set(monthLessons.filter(x => x.teacher_id).map(x => x.teacher_id));
-  const subjectIds = new Set(monthLessons.filter(x => x.subject_id).map(x => x.subject_id));
-
-  if (studentEl) {
-    const old = studentEl.value;
-    const students = (state.students || [])
-      .filter(x => !month || studentIds.has(x.id))
-      .sort((a, b) => (a.display_name || a.name || "").localeCompare((b.display_name || b.name || ""), "zh-Hans-CN"));
-
-    studentEl.innerHTML = `<option value="">${month && !students.length ? "该月无课时学生" : "全部学生"}</option>` +
-      students.map(x => `<option value="${escAttr(x.id)}">${esc(x.display_name || x.name)}</option>`).join("");
-    studentEl.value = students.some(x => x.id === old) ? old : "";
-  }
-
-  if (teacherEl) {
-    const old = teacherEl.value;
-    const teachers = (state.teachers || [])
-      .filter(x => !month || teacherIds.has(x.id))
-      .sort((a, b) => (a.display_name || a.name || "").localeCompare((b.display_name || b.name || ""), "zh-Hans-CN"));
-
-    teacherEl.innerHTML = `<option value="">${month && !teachers.length ? "该月无课时老师" : "全部老师"}</option>` +
-      teachers.map(x => `<option value="${escAttr(x.id)}">${esc(x.display_name || x.name)}</option>`).join("");
-    teacherEl.value = teachers.some(x => x.id === old) ? old : "";
-  }
-
-  if (subjectEl) {
-    const old = subjectEl.value;
-    const subjects = (state.subjects || [])
-      .filter(x => !month || subjectIds.has(x.id))
-      .sort((a, b) => (a.name || "").localeCompare((b.name || ""), "zh-Hans-CN"));
-
-    subjectEl.innerHTML = `<option value="">${month && !subjects.length ? "该月无课时科目" : "全部科目"}</option>` +
-      subjects.map(x => `<option value="${escAttr(x.id)}">${esc(x.name)}</option>`).join("");
-    subjectEl.value = subjects.some(x => x.id === old) ? old : "";
-  }
-}
-
-function filterLessons() {
-  const month = document.getElementById("lessonMonthFilter")?.value || "";
-  const student = normalizeLessonSelectedStudentFilterV9812();
-  const teacher = document.getElementById("lessonTeacherFilter")?.value || "";
-  const subject = document.getElementById("lessonSubjectFilter")?.value || "";
-  const type = document.getElementById("lessonTypeFilter")?.value || "";
-  const status = document.getElementById("lessonStatusFilter")?.value || "";
-
-  return (state.lessonRecords || []).filter(x =>
-    (!month || x.year_month === month) &&
-    (!student || x.student_id === student) &&
-    (!teacher || x.teacher_id === teacher) &&
-    (!subject || x.subject_id === subject) &&
-    (!type || x.lesson_type === type) &&
-    (!status || x.status === status)
-  );
-}
-
-
 function formatCurrencyTotal(value, currency = "JPY") {
   const n = Number(value || 0);
   return `${n.toLocaleString()} ${currency}`;
 }
-
-function renderLessonStats(rows) {
-  const plannedRows = rows.filter(x => x.lesson_type === "planned");
-  const actualRows = rows.filter(x => x.lesson_type === "actual" && x.status !== "cancelled" && x.status !== "holiday");
-  const plannedHours = plannedRows.reduce((sum, x) => sum + Number(x.duration_hours || 0), 0);
-  const actualHours = actualRows.reduce((sum, x) => sum + Number(x.duration_hours || 0), 0);
-
-  const plannedFee = plannedRows
-    .filter(x => x.is_billable !== false)
-    .reduce((sum, x) => sum + Number(x.lesson_fee || (Number(x.unit_price || 0) * Number(x.duration_hours || 0)) || 0), 0);
-
-  const actualFee = actualRows
-    .filter(x => x.is_billable !== false)
-    .reduce((sum, x) => sum + Number(x.lesson_fee || (Number(x.unit_price || 0) * Number(x.duration_hours || 0)) || 0), 0);
-
-  const completedCount = rows.filter(x => x.status === "completed").length;
-  const cancelledCount = rows.filter(x => x.status === "cancelled" || x.status === "holiday").length;
-
-  setOptionalText("lessonPlannedHours", money(plannedHours));
-  setOptionalText("lessonActualHours", money(actualHours));
-  setOptionalText("lessonPlannedFeeTotal", formatCurrencyTotal(plannedFee, "JPY"));
-  setOptionalText("lessonActualFeeTotal", formatCurrencyTotal(actualFee, "JPY"));
-  setOptionalText("lessonCompletedCount", completedCount);
-  setOptionalText("lessonCancelledCount", cancelledCount);
-  setOptionalText("lessonRecordCount", rows.length);
-}
-
 
 function normalizeLessonSelectedStudentFilterV9812() {
   const select = document.getElementById("lessonStudentFilter");
@@ -631,87 +532,6 @@ function normalizeLessonSelectedStudentFilterV9812() {
     return "";
   }
   return select.value;
-}
-
-function renderLessons() {
-  const tbody = document.getElementById("lessonsTable");
-  if (!tbody) return;
-
-  const monthEl = document.getElementById("lessonMonthFilter");
-  if (monthEl && !monthEl.value) {
-    monthEl.value = currentYearMonth();
-  }
-
-  updateLessonFilters();
-  const rows = filterLessons().slice().sort((a, b) => {
-    const da = String(a.lesson_date || "");
-    const db = String(b.lesson_date || "");
-    if (da !== db) return db.localeCompare(da);
-    const ac = Number(String(a.lesson_count ?? "").replace(/[^\d.-]/g, ""));
-    const bc = Number(String(b.lesson_count ?? "").replace(/[^\d.-]/g, ""));
-    if (Number.isFinite(ac) || Number.isFinite(bc)) {
-      if (!Number.isFinite(ac)) return 1;
-      if (!Number.isFinite(bc)) return -1;
-      if (ac !== bc) return ac - bc;
-    }
-    return String(a.start_time || "").localeCompare(String(b.start_time || ""));
-  });
-
-  renderLessonStats(rows);
-
-  let lastMonth = "";
-  const html = [];
-
-  rows.forEach(item => {
-    const ym = item.year_month || "未归属月份";
-    if (ym !== lastMonth) {
-      lastMonth = ym;
-      html.push(`<tr class="month-group-row"><td colspan="12">${esc(expenseMonthLabel(ym))}</td></tr>`);
-    }
-
-    const timeText = [item.start_time, item.end_time].filter(Boolean).join(" - ");
-    html.push(`
-      <tr>
-        <td>${esc(displayRecordDate(item.lesson_date || item.created_at))}</td>
-        <td>${esc(item.year_month || "")}</td>
-        <td>${esc(lessonTypeLabel(item.lesson_type))}</td>
-        <td>${esc(item.student?.display_name || item.student?.name || "")}</td>
-        <td>${esc(item.teacher?.display_name || item.teacher?.name || "")}</td>
-        <td>${esc(item.subject?.name || "")}</td>
-        <td>${esc(timeText)}</td>
-        <td>${money(item.duration_hours)}</td>
-        <td>${badge(lessonStatusLabel(item.status), item.status === "cancelled" || item.status === "holiday" ? "red" : "")}</td>
-        <td>${item.is_billable ? badge("计费") : badge("不计费", "gray")}</td>
-        <td>${esc(short(item.lesson_content || item.note, 24))}</td>
-        <td>${actionButtons("lesson", item.id)}</td>
-      </tr>
-    `);
-  });
-
-  tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="12" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
-}
-
-function bindLessonFilters() {
-  ["lessonMonthFilter", "lessonStudentFilter", "lessonTeacherFilter", "lessonSubjectFilter", "lessonTypeFilter", "lessonStatusFilter"].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el || el.dataset.boundLesson === "true") return;
-    el.dataset.boundLesson = "true";
-    el.addEventListener("change", renderLessons);
-  });
-
-  const clearBtn = document.getElementById("lessonClearFilter");
-  if (clearBtn && clearBtn.dataset.boundLesson !== "true") {
-    clearBtn.dataset.boundLesson = "true";
-    clearBtn.addEventListener("click", () => {
-      document.getElementById("lessonMonthFilter").value = "";
-      document.getElementById("lessonStudentFilter").value = "";
-      document.getElementById("lessonTeacherFilter").value = "";
-      document.getElementById("lessonSubjectFilter").value = "";
-      document.getElementById("lessonTypeFilter").value = "";
-      document.getElementById("lessonStatusFilter").value = "";
-      renderLessons();
-    });
-  }
 }
 
 function renderFinanceSummary() {
@@ -786,7 +606,6 @@ function switchPage(page) {
   if (subtitleEl) subtitleEl.textContent = Array.isArray(meta) ? (meta[1] || "") : (meta.subtitle || "");
 
   if (page === "lessons") {
-    updateLessonFilters?.();
     renderLessons?.();
   }
 }
@@ -848,7 +667,6 @@ function bindGlobalActions() {
   document.getElementById("recalcAccountBalancesBtnFinance")?.addEventListener("click", () => { if (typeof recalcAccountBalances === "function") recalcAccountBalances(); });
   bindExpensePdfImport();
   bindFinanceFilters();
-  bindLessonFilters();
   bindReimbursementActions();
 
   if (document.body.dataset.boundTableActionsV72 !== "true") {
@@ -3610,10 +3428,6 @@ switchPage = function (page) {
   if (titleEl) titleEl.textContent = title;
   if (subtitleEl) subtitleEl.textContent = subtitle;
 
-  if (page === "lessons") {
-    if (typeof updateLessonFilters === "function") updateLessonFilters();
-    if (typeof renderLessons === "function") renderLessons();
-  }
 };
 
 
@@ -4072,19 +3886,6 @@ if (lessonTeacherOrderBeforeV80) {
       return `${String(orderMap.get(item.teacher_id)).padStart(6, "0")}_${name}`;
     }
     return lessonTeacherOrderBeforeV80(item);
-  };
-}
-
-const renderLessonsBeforeV80 = typeof renderLessons === "function" ? renderLessons : null;
-if (renderLessonsBeforeV80) {
-  renderLessons = function () {
-    try {
-      const rows = typeof filterLessons === "function" ? filterLessons() : (state.lessonRecords || []);
-      window.lessonTeacherOrderMapV80 = buildLessonTeacherOrderMapV80(rows);
-    } catch (error) {
-      console.warn("teacher order map failed", error);
-    }
-    renderLessonsBeforeV80();
   };
 }
 
@@ -5103,7 +4904,6 @@ if (renderAllBeforeV8311) {
   renderAll = function () {
     renderAllBeforeV8311();
     ensureSettlementReceivedJpyRowV8311();
-    if (typeof renderLessons === "function") renderLessons();
   };
 }
 
@@ -5112,14 +4912,12 @@ if (switchPageBeforeV8311) {
   switchPage = function (page) {
     switchPageBeforeV8311(page);
     if (page === "student-settlement") setTimeout(ensureSettlementReceivedJpyRowV8311, 0);
-    if (page === "lessons" && typeof renderLessons === "function") setTimeout(renderLessons, 0);
   };
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     ensureSettlementReceivedJpyRowV8311();
-    if (typeof renderLessons === "function") renderLessons();
   }, 1000);
 });
 
@@ -5145,7 +4943,6 @@ function subjectSortKeyV8312(item) {
 // Re-render current pages after overriding sort hooks.
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   }, 1000);
 });
@@ -5154,7 +4951,6 @@ const renderAllBeforeV8312 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV8312) {
   renderAll = function () {
     renderAllBeforeV8312();
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   };
 }
@@ -5163,7 +4959,6 @@ const switchPageBeforeV8312 = typeof switchPage === "function" ? switchPage : nu
 if (switchPageBeforeV8312) {
   switchPage = function (page) {
     switchPageBeforeV8312(page);
-    if (page === "lessons" && typeof renderLessons === "function") setTimeout(renderLessons, 0);
     if (page === "student-settlement" && typeof renderStudentSettlement === "function") setTimeout(renderStudentSettlement, 0);
   };
 }
@@ -5242,7 +5037,6 @@ if (buildFormBeforeV8314) {
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     if (typeof renderStudentsTable === "function") renderStudentsTable();
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   }, 1000);
 });
@@ -5252,7 +5046,6 @@ if (renderAllBeforeV8314) {
   renderAll = function () {
     renderAllBeforeV8314();
     if (typeof renderStudentsTable === "function") renderStudentsTable();
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   };
 }
@@ -5748,7 +5541,6 @@ if (typeof renderSettlementPairedLessonsV8310 === "function") {
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   }, 1000);
 });
@@ -5757,7 +5549,6 @@ const renderAllBeforeV852 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV852) {
   renderAll = function () {
     renderAllBeforeV852();
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   };
 }
@@ -5847,7 +5638,6 @@ if (typeof renderSettlementPairedLessonsV852 === "function") {
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   }, 1000);
 });
@@ -5856,7 +5646,6 @@ const renderAllBeforeV853 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV853) {
   renderAll = function () {
     renderAllBeforeV853();
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   };
 }
@@ -5993,7 +5782,6 @@ if (typeof renderSettlementPairedLessonsV853 === "function") renderSettlementPai
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   }, 1000);
 });
@@ -6002,7 +5790,6 @@ const renderAllBeforeV854 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV854) {
   renderAll = function () {
     renderAllBeforeV854();
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   };
 }
@@ -6100,7 +5887,6 @@ if (typeof renderSettlementPairedLessonsV854 === "function") renderSettlementPai
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   }, 1000);
 });
@@ -6109,7 +5895,6 @@ const renderAllBeforeV855 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV855) {
   renderAll = function () {
     renderAllBeforeV855();
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   };
 }
@@ -6200,7 +5985,6 @@ if (typeof renderSettlementPairedLessonsV855 === "function") {
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   }, 1000);
 });
@@ -6337,7 +6121,6 @@ if (typeof renderSettlementPairedLessonsV855 === "function") renderSettlementPai
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   }, 1000);
 });
@@ -6346,7 +6129,6 @@ const renderAllBeforeV857 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV857) {
   renderAll = function () {
     renderAllBeforeV857();
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   };
 }
@@ -6486,7 +6268,6 @@ if (typeof renderSettlementPairedLessonsV857 === "function") renderSettlementPai
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   }, 1000);
 });
@@ -6495,7 +6276,6 @@ const renderAllBeforeV858 = typeof renderAll === "function" ? renderAll : null;
 if (renderAllBeforeV858) {
   renderAll = function () {
     renderAllBeforeV858();
-    if (typeof renderLessons === "function") renderLessons();
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
   };
 }

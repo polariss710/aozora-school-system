@@ -496,6 +496,7 @@
   }
 
   function collectLessonFormPayloadV918(form) {
+    console.log("[lesson-save] collect:start");
     const fd = new FormData(form);
     const lessonType = String(fd.get("lesson_type") || "actual");
     const status = normalizeStatusV918(lessonType, fd.get("status"));
@@ -533,28 +534,83 @@
       if (!payload.teacher_settlement_month) payload.teacher_settlement_month = monthV918(payload.lesson_date);
     }
 
+    console.log("[lesson-save] collect:payload", {
+      payload,
+      required: {
+        business_entity_id: payload.business_entity_id,
+        student_id: payload.student_id,
+        teacher_id: payload.teacher_id,
+        subject_id: payload.subject_id,
+        lesson_date: payload.lesson_date,
+        year_month: payload.year_month,
+      },
+      rules: {
+        lesson_type: payload.lesson_type,
+        status: payload.status,
+        is_billable: payload.is_billable,
+        duration_hours: payload.duration_hours,
+        duration_hours_type: typeof payload.duration_hours,
+        lesson_fee: payload.lesson_fee,
+        lesson_fee_type: typeof payload.lesson_fee,
+      },
+    });
     return payload;
   }
 
   function validateLessonPayloadV918(payload) {
-    if (!payload.lesson_date) return "请填写上课日期。";
-    if (!payload.year_month) return "请填写归属月份。";
-    if (!payload.student_id) return "请选择学生。";
-    if (!payload.teacher_id) return "请选择老师。";
-    if (!payload.subject_id) return "请选择科目。";
-    if (!payload.business_entity_id) return "请选择业务归属。";
-    if (!payload.duration_hours || payload.duration_hours <= 0) return "请填写有效时长。";
-    if (payload.lesson_type === "planned" && !["planned", "pending_makeup"].includes(payload.status)) return "预定课时状态不合法。";
-    if (payload.lesson_type === "actual" && !["completed", "cancelled", "makeup_completed", "makeup"].includes(payload.status)) return "实际课时状态不合法。";
+    console.log("[lesson-save] validate:start", payload);
+    if (!payload.lesson_date) {
+      console.warn("[lesson-save] validate:failed", "请填写上课日期。");
+      return "请填写上课日期。";
+    }
+    if (!payload.year_month) {
+      console.warn("[lesson-save] validate:failed", "请填写归属月份。");
+      return "请填写归属月份。";
+    }
+    if (!payload.student_id) {
+      console.warn("[lesson-save] validate:failed", "请选择学生。");
+      return "请选择学生。";
+    }
+    if (!payload.teacher_id) {
+      console.warn("[lesson-save] validate:failed", "请选择老师。");
+      return "请选择老师。";
+    }
+    if (!payload.subject_id) {
+      console.warn("[lesson-save] validate:failed", "请选择科目。");
+      return "请选择科目。";
+    }
+    if (!payload.business_entity_id) {
+      console.warn("[lesson-save] validate:failed", "请选择业务归属。");
+      return "请选择业务归属。";
+    }
+    if (!payload.duration_hours || payload.duration_hours <= 0) {
+      console.warn("[lesson-save] validate:failed", "请填写有效时长。");
+      return "请填写有效时长。";
+    }
+    if (payload.lesson_type === "planned" && !["planned", "pending_makeup"].includes(payload.status)) {
+      console.warn("[lesson-save] validate:failed", "预定课时状态不合法。");
+      return "预定课时状态不合法。";
+    }
+    if (payload.lesson_type === "actual" && !["completed", "cancelled", "makeup_completed", "makeup"].includes(payload.status)) {
+      console.warn("[lesson-save] validate:failed", "实际课时状态不合法。");
+      return "实际课时状态不合法。";
+    }
+    console.log("[lesson-save] validate:ok");
     return "";
   }
 
   async function saveLessonRecordV918(payload, id) {
+    console.log("[lesson-save] save:called", { id, payload });
     const client = typeof db !== "undefined" ? db : null;
     if (!client?.from) throw new Error("数据库客户端未初始化。");
-    const query = client.from(lessonTableV918());
-    if (id) return query.update(payload).eq("id", id).select().single();
-    return query.insert(payload).select().single();
+    const tableName = lessonTableV918();
+    console.log("[lesson-save] save:before-db", { tableName, action: id ? "update" : "insert", payload });
+    const query = client.from(tableName);
+    const result = id
+      ? await query.update(payload).eq("id", id).select().single()
+      : await query.insert(payload).select().single();
+    console.log("[lesson-save] save:db-result", { data: result.data, error: result.error });
+    return result;
   }
 
   async function submitLessonFormV918(e) {
@@ -566,8 +622,11 @@
     const form = e.currentTarget;
     if (form.dataset.lessonSavingV918 === "true") return;
     const payload = collectLessonFormPayloadV918(form);
+    console.log("[lesson-save] submit:after-collect", payload);
     const message = validateLessonPayloadV918(payload);
+    console.log("[lesson-save] submit:validate-result", message || "ok");
     if (message) {
+      console.warn("[lesson-save] submit:validate-failed", message);
       showMessage?.(message, "error");
       return;
     }
@@ -579,9 +638,13 @@
       const id = state.editing?.id || null;
       const result = await saveLessonRecordV918(payload, id);
       if (result.error) throw result.error;
+      console.log("[lesson-save] submit:before-close-modal");
       closeModal();
+      console.log("[lesson-save] submit:before-loadAll");
       await loadAll();
+      console.log("[lesson-save] submit:before-renderAll");
       renderAll();
+      console.log("[lesson-save] submit:after-renderAll");
       showMessage?.(id ? "课时已更新。" : "课时已新增。", "ok");
     } catch (error) {
       console.error(error);

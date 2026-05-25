@@ -129,19 +129,19 @@
   }
 
   function businessOptionsV918() {
-    return optionRowsV918(state.businessEntities || [], row => row.name || row.code || row.id);
+    return optionRowsV918(state.businessEntities || [], row => row.name || row.code || row.id, true);
   }
 
   function studentOptionsV918() {
-    return optionRowsV918(state.students || [], row => row.display_name || row.name || row.id);
+    return optionRowsV918(state.students || [], row => row.display_name || row.name || row.id, true);
   }
 
   function teacherOptionsV918() {
-    return optionRowsV918(state.teachers || [], row => row.display_name || row.name || row.id);
+    return optionRowsV918(state.teachers || [], row => row.display_name || row.name || row.id, true);
   }
 
   function subjectOptionsV918() {
-    return optionRowsV918(state.subjects || [], row => row.name || row.id);
+    return optionRowsV918(state.subjects || [], row => row.name || row.id, true);
   }
 
   function selectedV918(value, current) {
@@ -428,6 +428,7 @@
     if (!modal || !form) return;
 
     state.editing = { type: "lesson", id: mode === "edit" ? record.id : null, data: record };
+    form.onsubmit = null;
     form.innerHTML = lessonFormHtmlV918(record, mode);
     applyInitialSelectValuesV918(form, record);
     syncLessonStatusOptionsV918(form);
@@ -557,6 +558,7 @@
   }
 
   async function submitLessonFormV918(e) {
+    console.log("[lesson-save] submit");
     e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();

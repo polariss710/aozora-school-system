@@ -9848,35 +9848,6 @@ function summarizeTeacherSubjectMinutesV887(rows) {
   return Array.from(map.values());
 }
 
-function actualTimeTextV887(item) {
-  if (!item || item.lesson_type !== "actual") return "";
-  const start = String(item.start_time || "").trim();
-  const end = String(item.end_time || "").trim();
-  if (!start && !end) return "";
-  const minutes = Number(item.actual_minutes || minutesBetweenV887(start, end) || 0);
-  const hourText = minutes ? ` / ${hoursFromMinutesExactV887(minutes)}H` : "";
-  return `${start || "--:--"}-${end || "--:--"}${hourText}`;
-}
-
-function patchActualTimeDisplayV887() {
-  document.querySelectorAll("tr.lesson-pair-row").forEach(tr => {
-    const actualEditBtn = Array.from(tr.querySelectorAll("[data-edit][data-type='lesson']")).find(btn => {
-      const item = (state.lessonRecords || []).find(x => String(x.id) === String(btn.dataset.edit));
-      return item?.lesson_type === "actual";
-    });
-    const actualId = actualEditBtn?.dataset?.edit;
-    const item = (state.lessonRecords || []).find(x => String(x.id) === String(actualId));
-    if (!item || tr.querySelector(".actual-time-v887")) return;
-
-    const cells = tr.querySelectorAll("td");
-    const dateCell = cells[9]; // actual side date column
-    const text = actualTimeTextV887(item);
-    if (dateCell && text) {
-      dateCell.insertAdjacentHTML("beforeend", `<div class="actual-time-v887">${esc(text)}</div>`);
-    }
-  });
-}
-
 function hideCancelHolidayStatV887() {
   document.querySelectorAll(".stat-card, .summary-card, .card, .metric-card").forEach(card => {
     const text = card.textContent || "";
@@ -10026,30 +9997,6 @@ function buildCompletedImportRecordsV887(file, rows, sheetName, col, context) {
 
   return { records, skipped, actualSkipped };
 }
-const renderAllBeforeV887 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV887) {
-  renderAll = function () {
-    renderAllBeforeV887();
-    hideCancelHolidayStatV887();
-    patchActualTimeDisplayV887();
-  };
-}
-
-const renderLessonsBeforeV887 = typeof renderLessons === "function" ? renderLessons : null;
-if (renderLessonsBeforeV887) {
-  renderLessons = function () {
-    renderLessonsBeforeV887();
-    hideCancelHolidayStatV887();
-    patchActualTimeDisplayV887();
-  };
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    hideCancelHolidayStatV887();
-    patchActualTimeDisplayV887();
-  }, 1000);
-});
 
 
 
@@ -10090,17 +10037,6 @@ function cleanTimeForDisplayV888(value) {
   return excelTimeToHHMMV888(value) || "";
 }
 
-function actualTimeTextV888(item) {
-  if (!item || item.lesson_type !== "actual") return "";
-  const start = cleanTimeForDisplayV888(item.start_time);
-  const end = cleanTimeForDisplayV888(item.end_time);
-  if (!start && !end) return "";
-  const minutes = Number(item.actual_minutes || minutesBetweenV887(start, end) || 0);
-  const hourText = minutes ? ` / ${hoursFromMinutesExactV887(minutes)}H` : "";
-  return `${start || "--:--"}-${end || "--:--"}${hourText}`;
-}
-actualTimeTextV887 = actualTimeTextV888;
-
 function patchBrokenExcelDateTimeTextV888() {
   const root = document.body;
   if (!root) return;
@@ -10133,23 +10069,6 @@ if (buildCompletedImportRecordsBeforeV888) {
   };
 }
 
-function patchActualTimeDisplayV888() {
-  patchBrokenExcelDateTimeTextV888();
-  document.querySelectorAll("tr.lesson-pair-row").forEach(tr => {
-    tr.querySelectorAll(".actual-time-v887, .actual-time-v888").forEach(x => x.remove());
-    const actualEditBtn = Array.from(tr.querySelectorAll("[data-edit][data-type='lesson']")).find(btn => {
-      const item = (state.lessonRecords || []).find(x => String(x.id) === String(btn.dataset.edit));
-      return item?.lesson_type === "actual";
-    });
-    const item = (state.lessonRecords || []).find(x => String(x.id) === String(actualEditBtn?.dataset?.edit));
-    if (!item) return;
-    const dateCell = tr.querySelectorAll("td")[9];
-    const text = actualTimeTextV888(item);
-    if (dateCell && text) dateCell.insertAdjacentHTML("beforeend", `<div class="actual-time-v888">${esc(text)}</div>`);
-  });
-}
-patchActualTimeDisplayV887 = patchActualTimeDisplayV888;
-
 async function repairLessonTimeStringsV888() {
   const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
   const targets = (state.lessonRecords || []).filter(row =>
@@ -10172,22 +10091,6 @@ async function repairLessonTimeStringsV888() {
   renderAll();
   showMessage(`已修复 ${targets.length} 条课时时间。`, "ok");
 }
-
-const renderAllBeforeV888 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV888) {
-  renderAll = function () {
-    renderAllBeforeV888();
-    setTimeout(patchActualTimeDisplayV888, 0);
-  };
-}
-const renderLessonsBeforeV888 = typeof renderLessons === "function" ? renderLessons : null;
-if (renderLessonsBeforeV888) {
-  renderLessons = function () {
-    renderLessonsBeforeV888();
-    setTimeout(patchActualTimeDisplayV888, 0);
-  };
-}
-document.addEventListener("DOMContentLoaded", () => setTimeout(patchActualTimeDisplayV888, 1000));
 
 
 

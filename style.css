@@ -2984,6 +2984,44 @@ button:disabled {
   padding: 5px 4px;
 }
 
+#page-lessons .panel-header {
+  align-items: flex-start;
+  gap: 12px;
+}
+
+#page-lessons .panel-actions {
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#page-lessons .panel-actions button {
+  min-height: 34px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+#page-lessons .toolbar.finance-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#page-lessons .toolbar.finance-toolbar input,
+#page-lessons .toolbar.finance-toolbar select {
+  min-width: 140px;
+  flex: 0 1 160px;
+}
+
+#page-lessons .toolbar.finance-toolbar button {
+  min-height: 34px;
+  white-space: nowrap;
+}
+
 #page-lessons .lesson-v920-row > td {
   vertical-align: middle;
   border-bottom: 1px solid var(--line);

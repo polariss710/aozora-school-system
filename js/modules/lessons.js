@@ -264,6 +264,18 @@
     return document.getElementById(id)?.value || "";
   }
 
+  function currentLessonMonthV920() {
+    if (typeof currentYearMonth === "function") return currentYearMonth();
+    return new Date().toISOString().slice(0, 7);
+  }
+
+  function ensureLessonMonthFilterV920() {
+    const el = document.getElementById("lessonMonthFilter");
+    if (!el) return "";
+    if (!el.value) el.value = currentLessonMonthV920();
+    return el.value || "";
+  }
+
   function optionHtmlV920(value, label, selectedValue = "") {
     return `<option value="${attrV920(value)}" ${String(value) === String(selectedValue) ? "selected" : ""}>${escV920(label)}</option>`;
   }
@@ -281,17 +293,68 @@
   }
 
   function updateLessonFilterOptionsV920() {
-    const month = lessonFilterValueV920("lessonMonthFilter");
-    const monthRows = month
-      ? (state.lessonRecords || []).filter(row => row.year_month === month)
-      : (state.lessonRecords || []);
-    const studentIds = new Set(monthRows.map(row => String(row.student_id || "")).filter(Boolean));
-    const teacherIds = new Set(monthRows.map(row => String(row.teacher_id || "")).filter(Boolean));
-    const subjectIds = new Set(monthRows.map(row => String(row.subject_id || "")).filter(Boolean));
+    ensureLessonMonthFilterV920();
+    setFilterOptionsV920("lessonStudentFilter", state.students || [], row => row.display_name || row.name || row.id, null);
+    setFilterOptionsV920("lessonTeacherFilter", state.teachers || [], row => row.display_name || row.name || row.id, null);
+    setFilterOptionsV920("lessonSubjectFilter", state.subjects || [], row => row.name || row.id, null);
+  }
 
-    setFilterOptionsV920("lessonStudentFilter", state.students || [], row => row.display_name || row.name || row.id, month ? studentIds : null);
-    setFilterOptionsV920("lessonTeacherFilter", state.teachers || [], row => row.display_name || row.name || row.id, month ? teacherIds : null);
-    setFilterOptionsV920("lessonSubjectFilter", state.subjects || [], row => row.name || row.id, month ? subjectIds : null);
+  function setStaticSelectOptionsV920(id, options) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const current = el.value || "";
+    el.innerHTML = options.map(option => optionHtmlV920(option.value, option.label, current)).join("");
+    el.value = current && Array.from(el.options).some(option => option.value === current) ? current : "";
+  }
+
+  function updateLessonStaticFilterOptionsV920() {
+    setStaticSelectOptionsV920("lessonTypeFilter", [
+      { value: "", label: "全部类型" },
+      { value: "planned", label: "预定课时" },
+      { value: "actual", label: "实际课时" },
+    ]);
+    setStaticSelectOptionsV920("lessonStatusFilter", [
+      { value: "", label: "全部状态" },
+      { value: "planned", label: "待上课" },
+      { value: "pending_makeup", label: "待补课" },
+      { value: "completed", label: "已上课" },
+      { value: "cancelled", label: "取消课" },
+      { value: "makeup_completed", label: "已补课" },
+      { value: "makeup", label: "补课" },
+      { value: "holiday", label: "放假" },
+    ]);
+  }
+
+  function bindLessonFiltersV920() {
+    const ids = [
+      "lessonMonthFilter",
+      "lessonStudentFilter",
+      "lessonTeacherFilter",
+      "lessonSubjectFilter",
+      "lessonTypeFilter",
+      "lessonStatusFilter",
+      "lessonBusinessEntityFilter",
+    ];
+
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el || el.dataset.lessonFilterBoundV920 === "true") return;
+      el.dataset.lessonFilterBoundV920 = "true";
+      el.addEventListener("change", () => renderLessonsV920());
+    });
+
+    const clear = document.getElementById("lessonClearFilter");
+    if (clear && clear.dataset.lessonFilterBoundV920 !== "true") {
+      clear.dataset.lessonFilterBoundV920 = "true";
+      clear.addEventListener("click", () => {
+        const month = currentLessonMonthV920();
+        ids.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = id === "lessonMonthFilter" ? month : "";
+        });
+        renderLessonsV920();
+      });
+    }
   }
 
   function filteredLessonRowsV920() {
@@ -383,7 +446,10 @@
   function renderLessonsV920() {
     const tbody = document.getElementById("lessonsTable");
     if (!tbody) return;
+    ensureLessonMonthFilterV920();
+    updateLessonStaticFilterOptionsV920();
     updateLessonFilterOptionsV920();
+    bindLessonFiltersV920();
     const rows = filteredLessonRowsV920();
     tbody.innerHTML = renderLessonPairRowsV920(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
     window.SchoolLessonStatsRpcV916?.refresh?.();
@@ -1356,7 +1422,11 @@ function lessonPairDateText(item) {
   let refreshTimerV916 = null;
 
   function optionalValueV916(id) {
-    const value = document.getElementById(id)?.value || "";
+    const el = document.getElementById(id);
+    if (id === "lessonMonthFilter" && el && !el.value) {
+      el.value = typeof currentYearMonth === "function" ? currentYearMonth() : new Date().toISOString().slice(0, 7);
+    }
+    const value = el?.value || "";
     return value || null;
   }
 

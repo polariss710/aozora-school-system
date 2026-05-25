@@ -496,8 +496,9 @@
   }
 
   function collectLessonFormPayloadV918(form) {
-    console.log("[lesson-save] collect:start");
+    console.log("[lesson-save] collect:start", { form });
     const fd = new FormData(form);
+    console.log("[lesson-save] collect:form-data-created", Array.from(fd.entries()));
     const lessonType = String(fd.get("lesson_type") || "actual");
     const status = normalizeStatusV918(lessonType, fd.get("status"));
     const date = String(fd.get("lesson_date") || "");
@@ -534,7 +535,8 @@
       if (!payload.teacher_settlement_month) payload.teacher_settlement_month = monthV918(payload.lesson_date);
     }
 
-    console.log("[lesson-save] collect:payload", {
+    if (!payload) console.warn("[lesson-save] collect returned empty payload", payload);
+    console.log("[lesson-save] collect:return", {
       payload,
       required: {
         business_entity_id: payload.business_entity_id,
@@ -595,62 +597,86 @@
       console.warn("[lesson-save] validate:failed", "实际课时状态不合法。");
       return "实际课时状态不合法。";
     }
-    console.log("[lesson-save] validate:ok");
+    console.log("[lesson-save] validate:return", "");
     return "";
   }
 
   async function saveLessonRecordV918(payload, id) {
-    console.log("[lesson-save] save:called", { id, payload });
+    console.log("[lesson-save] save:start", { id, payload });
     const client = typeof db !== "undefined" ? db : null;
+    console.log("[lesson-save] save:client", { hasClient: !!client, hasFrom: !!client?.from });
     if (!client?.from) throw new Error("数据库客户端未初始化。");
     const tableName = lessonTableV918();
     console.log("[lesson-save] save:before-db", { tableName, action: id ? "update" : "insert", payload });
     const query = client.from(tableName);
+    console.log("[lesson-save] save:query-created", query);
     const result = id
       ? await query.update(payload).eq("id", id).select().single()
       : await query.insert(payload).select().single();
     console.log("[lesson-save] save:db-result", { data: result.data, error: result.error });
+    if (result.error) console.error("[lesson-save] save:supabase-error", result.error);
+    console.log("[lesson-save] save:return", result);
     return result;
   }
 
   async function submitLessonFormV918(e) {
     console.log("[lesson-save] submit");
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-
-    const form = e.currentTarget;
-    if (form.dataset.lessonSavingV918 === "true") return;
-    const payload = collectLessonFormPayloadV918(form);
-    console.log("[lesson-save] submit:after-collect", payload);
-    const message = validateLessonPayloadV918(payload);
-    console.log("[lesson-save] submit:validate-result", message || "ok");
-    if (message) {
-      console.warn("[lesson-save] submit:validate-failed", message);
-      showMessage?.(message, "error");
-      return;
-    }
-
-    form.dataset.lessonSavingV918 = "true";
-    form.querySelector('button[type="submit"]')?.setAttribute("disabled", "disabled");
-
+    console.log("[lesson-save] submit:start", { event: e, form: e?.currentTarget });
+    let form = null;
     try {
+      console.log("[lesson-save] before preventDefault");
+      e.preventDefault();
+      console.log("[lesson-save] before stopPropagation");
+      e.stopPropagation();
+      console.log("[lesson-save] before stopImmediatePropagation");
+      e.stopImmediatePropagation();
+      console.log("[lesson-save] after event guards");
+
+      form = e.currentTarget;
+      console.log("[lesson-save] form found", form);
+      const mode = state.editing?.id ? "edit" : "create";
+      console.log("[lesson-save] mode", mode);
+      if (form.dataset.lessonSavingV918 === "true") {
+        console.warn("[lesson-save] submit:already-saving");
+        return;
+      }
+      console.log("[lesson-save] before collect");
+      const payload = collectLessonFormPayloadV918(form);
+      if (!payload) console.warn("[lesson-save] payload collected empty", payload);
+      console.log("[lesson-save] payload collected", payload);
+      console.log("[lesson-save] before validate");
+      const validateResult = validateLessonPayloadV918(payload);
+      console.log("[lesson-save] validate result", validateResult || "ok");
+      if (validateResult) {
+        console.warn("[lesson-save] submit:validate-failed", validateResult);
+        showMessage?.(validateResult, "error");
+        return;
+      }
+
+      form.dataset.lessonSavingV918 = "true";
+      form.querySelector('button[type="submit"]')?.setAttribute("disabled", "disabled");
+
       const id = state.editing?.id || null;
+      console.log("[lesson-save] before save");
       const result = await saveLessonRecordV918(payload, id);
+      console.log("[lesson-save] save result", result);
       if (result.error) throw result.error;
-      console.log("[lesson-save] submit:before-close-modal");
+      console.log("[lesson-save] before close modal");
       closeModal();
-      console.log("[lesson-save] submit:before-loadAll");
+      console.log("[lesson-save] before refresh");
+      console.log("[lesson-save] before loadAll");
       await loadAll();
-      console.log("[lesson-save] submit:before-renderAll");
+      console.log("[lesson-save] before renderAll");
       renderAll();
-      console.log("[lesson-save] submit:after-renderAll");
+      console.log("[lesson-save] done");
       showMessage?.(id ? "课时已更新。" : "课时已新增。", "ok");
     } catch (error) {
-      console.error(error);
+      console.error("[lesson-save] failed", error);
       showMessage?.(`保存课时失败：${error.message || error}`, "error");
-      form.dataset.lessonSavingV918 = "false";
-      form.querySelector('button[type="submit"]')?.removeAttribute("disabled");
+      if (form) {
+        form.dataset.lessonSavingV918 = "false";
+        form.querySelector('button[type="submit"]')?.removeAttribute("disabled");
+      }
     }
   }
 

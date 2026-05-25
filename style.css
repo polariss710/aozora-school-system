@@ -3083,6 +3083,15 @@ button:disabled {
   color: var(--muted);
 }
 
-#page-lessons .lesson-v920-actions .lesson-row-btn {
+#page-lessons .lesson-v920-actions .lesson-v920-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  height: 28px;
   margin: 2px;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
 }

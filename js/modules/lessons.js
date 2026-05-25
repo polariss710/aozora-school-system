@@ -140,8 +140,9 @@
   }
 
   function datePartsV920(item) {
+    const main = item?.lesson_date ? `${item.lesson_date}${String(item.lesson_date).endsWith("周") ? "" : "周"}` : "";
     return {
-      main: item?.lesson_date || "",
+      main,
       sub: item?.year_month || "",
       count: lessonCountTextV920(item),
     };
@@ -177,7 +178,7 @@
     return `
       <td class="lesson-v920-cell lesson-v920-content lesson-v920-${side}-content">
         ${content ? `<div class="lesson-v920-content-main">${escV920(content)}</div>` : ""}
-        ${note ? `<div class="lesson-v920-content-note">${escV920(note)}</div>` : ""}
+        ${note ? `<div class="lesson-v920-content-note muted-small">${escV920(note)}</div>` : ""}
       </td>
     `;
   }
@@ -186,13 +187,13 @@
     if (!item) return "";
     const id = attrV920(item.id);
     const createActual = item.lesson_type === "planned"
-      ? `<button class="secondary-btn lesson-row-btn" data-create-actual="${id}" type="button">生成实际</button>`
+      ? `<button class="secondary-btn lesson-row-btn lesson-v920-action-btn" data-create-actual="${id}" type="button">生成实际</button>`
       : "";
     return `
       ${createActual}
-      <button class="secondary-btn lesson-row-btn" data-copy-lesson="${id}" type="button">复制</button>
-      <button class="secondary-btn lesson-row-btn" data-edit="${id}" data-type="lesson" type="button">编辑</button>
-      <button class="danger-btn lesson-row-btn" data-delete="${id}" data-type="lesson" type="button">删除</button>
+      <button class="secondary-btn lesson-row-btn lesson-v920-action-btn" data-copy-lesson="${id}" type="button">复制</button>
+      <button class="secondary-btn lesson-row-btn lesson-v920-action-btn" data-edit="${id}" data-type="lesson" type="button">编辑</button>
+      <button class="danger-btn lesson-row-btn lesson-v920-action-btn" data-delete="${id}" data-type="lesson" type="button">删除</button>
     `;
   }
 
@@ -252,6 +253,36 @@
 
   function lessonFilterValueV920(id) {
     return document.getElementById(id)?.value || "";
+  }
+
+  function optionHtmlV920(value, label, selectedValue = "") {
+    return `<option value="${attrV920(value)}" ${String(value) === String(selectedValue) ? "selected" : ""}>${escV920(label)}</option>`;
+  }
+
+  function setFilterOptionsV920(id, rows, labelFn, allowedIds) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const current = el.value || "";
+    const options = [optionHtmlV920("", "全部", current)];
+    rows
+      .filter(row => !allowedIds || allowedIds.has(String(row.id)))
+      .forEach(row => options.push(optionHtmlV920(row.id, labelFn(row), current)));
+    el.innerHTML = options.join("");
+    el.value = current && Array.from(el.options).some(option => option.value === current) ? current : "";
+  }
+
+  function updateLessonFilterOptionsV920() {
+    const month = lessonFilterValueV920("lessonMonthFilter");
+    const monthRows = month
+      ? (state.lessonRecords || []).filter(row => row.year_month === month)
+      : (state.lessonRecords || []);
+    const studentIds = new Set(monthRows.map(row => String(row.student_id || "")).filter(Boolean));
+    const teacherIds = new Set(monthRows.map(row => String(row.teacher_id || "")).filter(Boolean));
+    const subjectIds = new Set(monthRows.map(row => String(row.subject_id || "")).filter(Boolean));
+
+    setFilterOptionsV920("lessonStudentFilter", state.students || [], row => row.display_name || row.name || row.id, month ? studentIds : null);
+    setFilterOptionsV920("lessonTeacherFilter", state.teachers || [], row => row.display_name || row.name || row.id, month ? teacherIds : null);
+    setFilterOptionsV920("lessonSubjectFilter", state.subjects || [], row => row.name || row.id, month ? subjectIds : null);
   }
 
   function filteredLessonRowsV920() {
@@ -343,6 +374,7 @@
   function renderLessonsV920() {
     const tbody = document.getElementById("lessonsTable");
     if (!tbody) return;
+    updateLessonFilterOptionsV920();
     const rows = filteredLessonRowsV920();
     tbody.innerHTML = renderLessonPairRowsV920(rows) || `<tr><td colspan="16" class="empty-row">当前筛选条件下没有课时记录</td></tr>`;
     window.SchoolLessonStatsRpcV916?.refresh?.();
@@ -356,6 +388,7 @@
   window.SchoolLessonsModule.renderLessonSideCells = renderLessonSideCellsV920;
   window.SchoolLessonsModule.renderLessonDateCell = renderLessonDateCellV920;
   window.SchoolLessonsModule.renderLessonContentCell = renderLessonContentCellV920;
+  window.SchoolLessonsModule.updateLessonFilterOptions = updateLessonFilterOptionsV920;
 })();
 
 // === v9.1.8 independent lesson form and save flow ===

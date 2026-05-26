@@ -1058,7 +1058,106 @@
     }
   }
 
+  function getSelectedLessonIdsV921() {
+    return Array.from(document.querySelectorAll("#page-lessons .lesson-delete-check:checked"))
+      .map(input => String(input.value || "").trim())
+      .filter(Boolean)
+      .filter((id, index, list) => list.indexOf(id) === index);
+  }
+
+  function clearSelectedLessonsV921() {
+    document.querySelectorAll("#page-lessons .lesson-delete-check").forEach(input => {
+      input.checked = false;
+    });
+  }
+
+  function selectAllLessonsV921() {
+    document.querySelectorAll("#page-lessons .lesson-delete-check").forEach(input => {
+      input.checked = true;
+    });
+  }
+
+  async function refreshLessonsAfterDeleteV921() {
+    await loadAll();
+    window.SchoolLessonsModule.renderLessons();
+    clearSelectedLessonsV921();
+  }
+
+  function lessonDeleteLabelV921(id) {
+    const item = rowByIdV918(state.lessonRecords, id);
+    const type = item?.lesson_type === "planned" ? "预定课时" : "实际课时";
+    return [type, item?.lesson_date || ""].filter(Boolean).join(" ");
+  }
+
+  async function deleteLessonRecordV921(id) {
+    const lessonId = String(id || "").trim();
+    if (!lessonId) return;
+    const label = lessonDeleteLabelV921(lessonId) || "这条课时记录";
+    if (!confirm(`确定删除「${label}」吗？`)) return;
+
+    try {
+      const { error } = await db.from(tables.lessons).delete().eq("id", lessonId);
+      if (error) throw error;
+      await refreshLessonsAfterDeleteV921();
+      showMessage?.("课时已删除。", "ok");
+    } catch (error) {
+      console.error("[lesson-delete] failed", error);
+      showMessage?.(`删除失败：${error.message || error}`, "error");
+    }
+  }
+
+  async function deleteSelectedLessonsV921() {
+    const ids = getSelectedLessonIdsV921();
+    if (!ids.length) {
+      showMessage?.("请先勾选要删除的课时。", "error");
+      return;
+    }
+    if (!confirm(`确定删除已勾选的 ${ids.length} 条课时记录吗？`)) return;
+
+    try {
+      const { error } = await db.from(tables.lessons).delete().in("id", ids);
+      if (error) throw error;
+      await refreshLessonsAfterDeleteV921();
+      showMessage?.(`已删除 ${ids.length} 条课时记录。`, "ok");
+    } catch (error) {
+      console.error("[lesson-delete-selected] failed", error);
+      showMessage?.(`删除失败：${error.message || error}`, "error");
+    }
+  }
+
+  function bindLessonSelectionActionsV921() {
+    const selectAllBtn = document.getElementById("lessonSelectAllBtn");
+    const deleteSelectedBtn = document.getElementById("lessonDeleteSelectedBtn");
+    const clearBtn = document.getElementById("lessonClearSelectionBtn");
+
+    if (selectAllBtn && selectAllBtn.dataset.lessonSelectionBoundV921 !== "true") {
+      selectAllBtn.dataset.lessonSelectionBoundV921 = "true";
+      selectAllBtn.addEventListener("click", event => {
+        event.preventDefault();
+        selectAllLessonsV921();
+      });
+    }
+
+    if (deleteSelectedBtn && deleteSelectedBtn.dataset.lessonSelectionBoundV921 !== "true") {
+      deleteSelectedBtn.dataset.lessonSelectionBoundV921 = "true";
+      deleteSelectedBtn.addEventListener("click", event => {
+        event.preventDefault();
+        deleteSelectedLessonsV921();
+      });
+    }
+
+    if (clearBtn && clearBtn.dataset.lessonSelectionBoundV921 !== "true") {
+      clearBtn.dataset.lessonSelectionBoundV921 = "true";
+      clearBtn.addEventListener("click", event => {
+        event.preventDefault();
+        clearSelectedLessonsV921();
+      });
+    }
+  }
+
   function bindLessonPageActionsV918() {
+    bindLessonSelectionActionsV921();
+
     document.getElementById("lessonAddBtn")?.addEventListener("click", e => {
       e.preventDefault();
       e.stopPropagation();
@@ -1069,6 +1168,7 @@
       const createActual = e.target?.closest?.("[data-create-actual]");
       const copy = e.target?.closest?.("[data-copy-lesson]");
       const edit = e.target?.closest?.('[data-edit][data-type="lesson"]');
+      const deleteBtn = e.target?.closest?.('[data-delete][data-type="lesson"]');
 
       if (createActual) {
         e.preventDefault();
@@ -1091,6 +1191,14 @@
         e.stopPropagation();
         e.stopImmediatePropagation();
         openLessonEditModalV918(edit.dataset.edit);
+        return;
+      }
+
+      if (deleteBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        deleteLessonRecordV921(deleteBtn.dataset.delete);
       }
     }, true);
   }
@@ -1104,6 +1212,10 @@
   window.SchoolLessonsModule.openActualFromPlannedModal = openLessonActualFromPlannedModalV918;
   window.SchoolLessonsModule.collectPayload = collectLessonFormPayloadV918;
   window.SchoolLessonsModule.saveLessonRecord = saveLessonRecordV918;
+  window.SchoolLessonsModule.getSelectedLessonIds = getSelectedLessonIdsV921;
+  window.SchoolLessonsModule.clearSelectedLessons = clearSelectedLessonsV921;
+  window.SchoolLessonsModule.deleteSelectedLessons = deleteSelectedLessonsV921;
+  window.SchoolLessonsModule.deleteLessonRecord = deleteLessonRecordV921;
 })();
 
 // === 清理旧函数-课程排序

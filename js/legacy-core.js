@@ -673,7 +673,7 @@ function bindGlobalActions() {
     document.body.dataset.boundTableActionsV72 = "true";
     document.body.addEventListener("click", async (e) => {
       const editBtn = e.target.closest('[data-edit][data-type]:not([data-type="lesson"])');
-      const deleteBtn = e.target.closest("[data-delete][data-type]");
+      const deleteBtn = e.target.closest('[data-delete][data-type]:not([data-type="lesson"])');
 
       if (editBtn) {
         e.preventDefault();
@@ -3503,61 +3503,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-function selectedLessonIdsV76() {
-  return [...document.querySelectorAll(".lesson-delete-check:checked")].map(x => x.value);
-}
-
-function clearSelectedLessonsV76() {
-  document.querySelectorAll(".lesson-delete-check").forEach(x => x.checked = false);
-}
-
-async function deleteSelectedLessonsV76() {
-  const ids = selectedLessonIdsV76();
-  if (!ids.length) {
-    showMessage("请先勾选要删除的课时。", "error");
-    return;
-  }
-  const ok = confirm(`确定删除已勾选的 ${ids.length} 条课时记录吗？`);
-  if (!ok) return;
-
-  const { error } = await db.from(tables.lessons).delete().in("id", ids);
-  if (error) {
-    showMessage(`删除失败：${error.message}`, "error");
-    return;
-  }
-  await loadAll();
-  renderAll();
-  showMessage(`已删除 ${ids.length} 条课时记录。`, "ok");
-}
-
-function bindLessonDeleteSelectedV76() {
-  const deleteBtn = document.getElementById("lessonDeleteSelectedBtn");
-  const clearBtn = document.getElementById("lessonClearSelectionBtn");
-  if (deleteBtn && deleteBtn.dataset.boundV76 !== "true") {
-    deleteBtn.dataset.boundV76 = "true";
-    deleteBtn.onclick = deleteSelectedLessonsV76;
-  }
-  if (clearBtn && clearBtn.dataset.boundV76 !== "true") {
-    clearBtn.dataset.boundV76 = "true";
-    clearBtn.onclick = clearSelectedLessonsV76;
-  }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(bindLessonDeleteSelectedV76, 500);
-});
-
-const renderAllBeforeV76 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV76) {
-  renderAll = function () {
-    renderAllBeforeV76();
-    bindLessonDeleteSelectedV76();
-  };
-}
-
-
-
-
 // === v7.7 lesson sort + select all ===
 function lessonTeacherOrderV77(item) {
   const name = item?.teacher?.display_name || item?.teacher?.name || "";
@@ -3587,38 +3532,6 @@ function compareLessonsV77(a, b) {
 
   return String(a.start_time || "").localeCompare(String(b.start_time || ""));
 }
-
-function selectAllLessonsV77() {
-  document.querySelectorAll(".lesson-delete-check").forEach(x => {
-    x.checked = true;
-  });
-}
-
-const bindLessonDeleteSelectedBeforeV77 = typeof bindLessonDeleteSelectedV76 === "function" ? bindLessonDeleteSelectedV76 : null;
-function bindLessonSelectAllV77() {
-  if (bindLessonDeleteSelectedBeforeV77) bindLessonDeleteSelectedBeforeV77();
-
-  const selectAllBtn = document.getElementById("lessonSelectAllBtn");
-  if (selectAllBtn && selectAllBtn.dataset.boundV77 !== "true") {
-    selectAllBtn.dataset.boundV77 = "true";
-    selectAllBtn.onclick = selectAllLessonsV77;
-  }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(bindLessonSelectAllV77, 500);
-});
-
-const renderAllBeforeV77 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV77) {
-  renderAll = function () {
-    renderAllBeforeV77();
-    bindLessonSelectAllV77();
-  };
-}
-
-
-
 
 // === v7.8 lesson sort adjustment ===
 function compareLessonsV78(a, b) {
@@ -8667,4 +8580,3 @@ if (openEditModalBeforeV8811) {
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(bindIncomeTuitionValidationV8811, 1000);
 });
-

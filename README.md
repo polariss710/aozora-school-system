@@ -2,6 +2,109 @@
 
 ## 更新记录（倒序）
 
+## 课时管理模块稳定点
+
+### 当前状态
+
+课时管理模块已完成一轮结构性整理，当前已进入稳定阶段。
+
+已完成内容：
+
+- 顶部统计已 DB 化，使用 Supabase RPC `public.school_get_lesson_management_stats` 输出结果。
+- 前端不再临时推算顶部统计，只负责读取和显示 RPC 返回值。
+- 课时新增、编辑、复制、生成实际课时已迁移到 `js/modules/lessons.js`。
+- 课时保存不再走 `legacy-core.js` 的旧 `buildForm / saveForm / openCreateModal` 链路。
+- 课时一览左右对照表已由 `js/modules/lessons.js` 新渲染源头接管。
+- 标准课时登记模板已更新为“预定课时 / 实际课时”左右对应格式。
+- 完整课时导入校验已更新，导入时会限制 planned / actual 的合法状态组合。
+- 已完成第一批和第二批 `legacy-core.js` 课时旧函数清理。
+- 页面默认月份、筛选下拉、筛选刷新、导入按钮布局均已修复。
+- 9月测试数据、10月/11月导入测试、校验测试均通过。
+
+### 当前业务规则
+
+#### 预定课时 planned
+
+`lesson_type='planned'` 只表示计划侧。
+
+允许状态：
+
+- `planned`：待上课
+- `pending_makeup`：待补课
+
+规则：
+
+- 预定课时默认 `is_billable=true`。
+- 预定课时进入 `planned_hours` 和 `planned_fee_jpy`。
+- 预定课时不应保存为 `completed / cancelled / makeup_completed`。
+
+#### 实际课时 actual
+
+`lesson_type='actual'` 只表示结果侧。
+
+允许状态：
+
+- `completed`：已上课
+- `cancelled`：取消课
+- `makeup_completed`：已补课
+
+规则：
+
+- `actual + completed + is_billable=true`：进入实际课时和实际课时费。
+- `actual + cancelled + is_billable=false`：不进入实际课时和实际课时费。
+- `actual + makeup_completed + is_billable=false`：表示补以前月份已收费课程，不进入补课月份实际课时和实际课时费。
+- `actual + makeup_completed + is_billable=true`：表示本月临时加课，或本月内补课且本月收费，进入本月实际课时和实际课时费。
+
+#### 待补课统计规则
+
+- `planned + pending_makeup` 如果还没有对应 actual 记录，则进入原月份实际课时和实际课时费，用于表示已收费但待履约。
+- 如果该 `planned + pending_makeup` 已经存在对应 actual 记录，则不再重复进入实际课时和实际课时费。
+- 判断对应 actual 的条件为：`actual.planned_lesson_id = planned.id`。
+
+### 已验证测试数据
+
+#### 2026年9月手动测试
+
+测试结果：
+
+- `planned_hours = 8`
+- `actual_hours = 7.5`
+- `planned_fee_jpy = 104000`
+- `actual_fee_jpy = 97500`
+- `completed_count = 3`
+- `cancelled_count = 1`
+- `pending_makeup_count = 2`
+- `record_count = 9`
+
+验证内容：
+
+- planned 保存状态正确。
+- actual 保存状态正确。
+- 取消课不进入实际统计。
+- 补以前月份已收费课不进入补课月份实际统计。
+- 本月临时加课进入实际统计。
+- planned pending_makeup 已有对应 actual 时不重复计入实际统计。
+
+#### Excel 导入测试
+
+已验证：
+
+- 只导入预定课时正常。
+- 导入完整课时，即预定课时 + 实际课时，正常。
+- 错误状态组合可被导入校验拦截。
+- 导入不会再生成 `planned + completed`、`planned + cancelled`、`actual + pending_makeup` 等脏数据。
+
+### 当前开发原则
+
+后续课时管理相关修改遵守以下原则：
+
+- 不再通过 wrapper / patch / fallback 叠加补丁。
+- 优先修改源头函数或迁移源头函数。
+- `legacy-core.js` 不再新增课时管理逻辑。
+- 已迁出的课时逻辑应继续保留在 `js/modules/lessons.js`、`js/modules/lesson-import.js`、`js/modules/lesson-standard-template-export.js` 等对应模块中。
+- 后续继续清理 `legacy-core.js` 中剩余的课时删除、批量选择、旧导入 helper 等残留逻辑。
+- 核心业务统计优先 DB/RPC 化，前端只负责显示、筛选、校验和导入解析。
+
 
 
 

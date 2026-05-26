@@ -53,8 +53,6 @@ function renderAttachmentLinks(attachments) {
   }).join("<br>");
 }
 
-// Fix v8.7 error: supabase.from is not a function. Use existing db client.
-let studentSettlementLockHistoryRequestV942 = 0;
 const SUPABASE_URL = "https://xlcdqvlfzspcxdoidsrr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6c7EFHXfq256rvv8KvY0Yw_FrAZtb6x";
 
@@ -6795,34 +6793,6 @@ function computeSettlementSnapshotV87(adjustment = 0, reason = "") {
     locked_at: new Date().toISOString()
   };
 }
-function ensureSettlementPanelV87() {
-  const page = document.getElementById("page-student-settlement") || document.querySelector("[data-page='student-settlement']");
-  if (!page || page.querySelector("#settlementLockPanelV87")) return;
-  const html = `
-    <section class="settlement-lock-panel-v87" id="settlementLockPanelV87">
-      <div class="section-title-row">
-        <div><h3>结算确认 / 锁定</h3><p class="muted-small">确认本月结算结果，并处理汇率差额、尾差、小额差异。</p></div>
-        <button class="secondary-btn" id="refreshSettlementLockV87">刷新计算</button>
-      </div>
-      <div class="settlement-lock-grid-v87">
-        <div class="settlement-lock-summary-v87">
-          <div class="settlement-lock-row-v87"><span>系统计算差额</span><strong id="settlementSystemDiffV87">暂未计算</strong></div>
-          <div class="settlement-lock-row-v87"><span>调整后结转</span><strong id="settlementCarryoverV87">暂未计算</strong></div>
-          <div class="settlement-lock-row-v87"><span>结算状态</span><strong id="settlementStatusTextV87">暂未计算</strong></div>
-        </div>
-        <div class="settlement-lock-form-v87">
-          <label><span>差额处理方式</span><select id="settlementAdjustModeV87"><option value="carry">按最终差额结转</option><option value="clear">抹平差额</option><option value="custom">手动调整</option></select></label>
-          <label><span>手动调整金额（人民币）</span><input id="settlementAdjustmentAmountV87" type="number" step="1" value="0" /></label>
-          <label class="full"><span>调整原因 / 备注</span><textarea id="settlementAdjustmentReasonV87" rows="2" placeholder="例：汇率差额抹平"></textarea></label>
-          <div class="settlement-lock-actions-v87"><button class="secondary-btn" id="previewSettlementLockV87">预览结果</button><button class="primary-btn" id="lockSettlementV87">确认并锁定本月结算</button><button class="danger-btn" id="unlockSettlementV932" type="button">撤销本月锁定</button></div>
-        </div>
-      </div>
-      <div class="settlement-lock-history-v87" id="settlementLockHistoryV87"></div>
-    </section>`;
-  const anchor = page.querySelector("#settlementLessonsTable")?.closest(".section-card, .card, .table-wrap") || page.querySelector(".section-card:last-of-type") || page;
-  anchor.insertAdjacentHTML("afterend", html);
-  bindSettlementLockPanelV87();
-}
 function adjustmentFromPanelV87() {
   const mode = document.getElementById("settlementAdjustModeV87")?.value || "carry";
   const base = computeSettlementSnapshotV87(0, "");
@@ -6830,57 +6800,6 @@ function adjustmentFromPanelV87() {
   if (mode === "clear") return { adjustment: -roundCnyV87(base.system_difference_cny), reason: document.getElementById("settlementAdjustmentReasonV87")?.value || "汇率差额/尾差抹平" };
   if (mode === "custom") return { adjustment: Number(document.getElementById("settlementAdjustmentAmountV87")?.value || 0), reason: document.getElementById("settlementAdjustmentReasonV87")?.value || "手动调整" };
   return { adjustment: 0, reason: document.getElementById("settlementAdjustmentReasonV87")?.value || "" };
-}
-function updateSettlementLockPreviewV87() {
-  ensureSettlementPanelV87();
-  const mode = document.getElementById("settlementAdjustModeV87")?.value || "carry";
-  const base = computeSettlementSnapshotV87(0, "");
-  if (!base) return;
-  if (mode === "clear") {
-    const input = document.getElementById("settlementAdjustmentAmountV87");
-    if (input) input.value = String(-roundCnyV87(base.system_difference_cny));
-    const reason = document.getElementById("settlementAdjustmentReasonV87");
-    if (reason && !reason.value) reason.value = "汇率差额/尾差抹平";
-  }
-  const input = document.getElementById("settlementAdjustmentAmountV87");
-  if (input) {
-    if (mode === "carry") {
-      input.value = "0";
-      input.disabled = true;
-      input.title = "按最终差额结转时，结转金额等于系统计算差额，不再单独修改。需要修正时请选择手动调整。";
-    } else {
-      input.disabled = false;
-      input.title = "";
-    }
-  }
-  const adj = adjustmentFromPanelV87();
-  const result = computeSettlementSnapshotV87(adj.adjustment, adj.reason);
-  if (!result) return;
-  const diffEl = document.getElementById("settlementSystemDiffV87");
-  const carryEl = document.getElementById("settlementCarryoverV87");
-  const statusEl = document.getElementById("settlementStatusTextV87");
-  if (diffEl) { diffEl.textContent = signedCnyV87(result.system_difference_cny); diffEl.className = `settlement-result ${settlementStatusClassV87(result.system_difference_cny)}`; }
-  if (carryEl) { carryEl.textContent = signedCnyV87(result.carryover_amount_cny); carryEl.className = `settlement-result ${settlementStatusClassV87(result.carryover_amount_cny)}`; }
-  if (statusEl) { statusEl.textContent = settlementStatusLabelV87(result.carryover_amount_cny); statusEl.className = `settlement-result ${settlementStatusClassV87(result.carryover_amount_cny)}`; }
-  const finalEl = document.getElementById("settlementFinalStatusCny");
-  if (finalEl) {
-    const label = settlementStatusLabelV87(result.carryover_amount_cny);
-    finalEl.textContent = roundCnyV87(result.carryover_amount_cny) === 0 ? "已结清" : `${label}：${signedCnyV87(result.carryover_amount_cny)}`;
-    finalEl.className = `settlement-result ${settlementStatusClassV87(result.carryover_amount_cny)}`;
-  }
-}
-async function fetchSettlementLockHistoryV87() {
-  const { month, studentId } = selectedSettlementContextV87();
-  const history = document.getElementById("settlementLockHistoryV87");
-  if (!history || !studentId) return;
-  try {
-    const { data, error } = await supabase.from(SETTLEMENTS_TABLE_V87).select("*").eq("student_id", studentId).eq("year_month", month).maybeSingle();
-    if (error && error.code !== "PGRST116") throw error;
-    if (!data) { history.innerHTML = `<div class="muted-small">当前月份尚未锁定。</div>`; return; }
-    history.innerHTML = `<div class="locked-settlement-v87"><strong>已锁定：</strong><span>${esc(data.year_month)}</span><span>${esc(settlementStatusLabelV87(data.carryover_amount_cny))}</span><span>结转 ${signedCnyV87(data.carryover_amount_cny)}</span><span>调整 ${signedCnyV87(data.adjustment_amount_cny)}</span><span>${data.locked_at ? esc(new Date(data.locked_at).toLocaleString()) : ""}</span></div>`;
-  } catch (error) {
-    history.innerHTML = `<div class="error-text">读取结算锁定状态失败：${esc(error.message || error)}</div>`;
-  }
 }
 async function lockSettlementV87() {
   const adj = adjustmentFromPanelV87();
@@ -6908,167 +6827,10 @@ async function lockSettlementV87() {
     alert(`锁定结算失败：${error.message || error}`);
   }
 }
-function bindSettlementLockPanelV87() {
-  document.getElementById("refreshSettlementLockV87")?.addEventListener("click", () => { updateSettlementLockPreviewV87(); fetchSettlementLockHistoryV87(); });
-  document.getElementById("previewSettlementLockV87")?.addEventListener("click", updateSettlementLockPreviewV87);
-  document.getElementById("lockSettlementV87")?.addEventListener("click", lockSettlementV87);
-  document.getElementById("unlockSettlementV932")?.addEventListener("click", unlockSettlementV932);
-  document.getElementById("settlementAdjustModeV87")?.addEventListener("change", updateSettlementLockPreviewV87);
-  document.getElementById("settlementAdjustmentAmountV87")?.addEventListener("input", (e) => { if (e.target?.disabled) return; const mode = document.getElementById("settlementAdjustModeV87"); if (mode) mode.value = "custom"; updateSettlementLockPreviewV87(); });
-  document.getElementById("settlementAdjustmentReasonV87")?.addEventListener("input", updateSettlementLockPreviewV87);
-}
-const renderStudentSettlementBeforeV87 = typeof renderStudentSettlement === "function" ? renderStudentSettlement : null;
-if (renderStudentSettlementBeforeV87) {
-  renderStudentSettlement = function () {
-    renderStudentSettlementBeforeV87();
-    ensureSettlementPanelV87();
-    updateSettlementLockPreviewV87();
-    fetchSettlementLockHistoryV87();
-    refreshStudentSettlementButtonStateV932();
-  };
-}
-document.addEventListener("DOMContentLoaded", () => {
-  document.body.addEventListener("change", (e) => {
-    if (e.target?.id === "settlementMonthFilter" || e.target?.id === "settlementStudentFilter") {
-      const history = document.getElementById("settlementLockHistoryV87");
-      if (history) history.innerHTML = `<div class="muted-small">正在切换结算月份...</div>`;
-      setStudentSettlementLockButtonStateV932(false);
-      setTimeout(() => {
-        updateSettlementLockPreviewV87();
-        fetchSettlementLockHistoryV87();
-        refreshStudentSettlementButtonStateV932();
-      }, 0);
-    }
-  }, true);
-
-  setTimeout(() => { ensureSettlementPanelV87(); updateSettlementLockPreviewV87(); fetchSettlementLockHistoryV87(); refreshStudentSettlementButtonStateV932(); }, 1000);
-});
-const renderAllBeforeV87 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV87) {
-  renderAll = function () {
-    renderAllBeforeV87();
-    ensureSettlementPanelV87();
-    if (document.getElementById("page-student-settlement")?.classList.contains("active")) {
-      updateSettlementLockPreviewV87();
-      fetchSettlementLockHistoryV87();
-      refreshStudentSettlementButtonStateV932();
-    }
-  };
-}
-
-
-
 // === v8.7.1 fixes: db client, stable actual link, import batch undo ===
 function dbClientV871() {
   return (typeof db !== "undefined" && db?.from) ? db : ((typeof supabase !== "undefined" && supabase?.from) ? supabase : null);
 }
-
-async function fetchSettlementLockHistoryV871() {
-  const requestId = ++studentSettlementLockHistoryRequestV942;
-  const { month, studentId } = selectedSettlementContextV87 ? selectedSettlementContextV87() : { month: "", studentId: "" };
-  const history = document.getElementById("settlementLockHistoryV87");
-  if (!history) return;
-
-  const currentContextStillSame = () => {
-    const now = selectedSettlementContextV87 ? selectedSettlementContextV87() : { month: "", studentId: "" };
-    return requestId === studentSettlementLockHistoryRequestV942 && now.month === month && now.studentId === studentId;
-  };
-
-  if (!studentId || !month) {
-    setStudentSettlementLockButtonStateV932(false);
-    history.innerHTML = `<div class="muted-small">请选择学生和月份。</div>`;
-    return;
-  }
-
-  setStudentSettlementLockButtonStateV932(false);
-  history.innerHTML = `<div class="muted-small">正在读取 ${esc(month)} 的锁定状态...</div>`;
-
-  const client = dbClientV871();
-  if (!client) {
-    setStudentSettlementLockButtonStateV932(false);
-    history.innerHTML = `<div class="error-text">读取结算锁定状态失败：数据库客户端未初始化</div>`;
-    return;
-  }
-  try {
-    const { data, error } = await client
-      .from(SETTLEMENTS_TABLE_V87)
-      .select("*")
-      .eq("student_id", studentId)
-      .eq("year_month", month)
-      .eq("settlement_status", "locked")
-      .maybeSingle();
-
-    if (!currentContextStillSame()) return;
-
-    if (error && error.code !== "PGRST116") throw error;
-
-    if (!data) {
-      setStudentSettlementLockButtonStateV932(false);
-      history.innerHTML = `<div class="muted-small">当前月份尚未锁定。</div>`;
-      return;
-    }
-
-    setStudentSettlementLockButtonStateV932(true);
-
-    history.innerHTML = `
-      <div class="locked-settlement-v87">
-        <strong>已锁定：</strong>
-        <span>${esc(data.year_month)}</span>
-        <span>${esc(settlementStatusLabelV87(data.carryover_amount_cny))}</span>
-        <span>结转 ${signedCnyV87(data.carryover_amount_cny)}</span>
-        <span>调整 ${signedCnyV87(data.adjustment_amount_cny)}</span>
-        <span>${data.locked_at ? esc(new Date(data.locked_at).toLocaleString()) : ""}</span>
-      </div>
-    `;
-  } catch (error) {
-    if (!currentContextStillSame()) return;
-    setStudentSettlementLockButtonStateV932(false);
-    history.innerHTML = `<div class="error-text">读取结算锁定状态失败：${esc(error.message || error)}</div>`;
-  }
-}
-
-
-function setStudentSettlementLockButtonStateV932(hasLocked) {
-  const lockBtn = document.getElementById("lockSettlementV87");
-  const unlockBtn = document.getElementById("unlockSettlementV932");
-
-  if (lockBtn) {
-    lockBtn.disabled = !!hasLocked;
-    lockBtn.title = hasLocked ? "当前学生月份已经锁定，请先撤销后再重新锁定。" : "";
-  }
-
-  if (unlockBtn) {
-    unlockBtn.disabled = !hasLocked;
-    unlockBtn.title = hasLocked ? "" : "当前学生月份尚未锁定。";
-  }
-}
-
-async function getCurrentStudentSettlementLockV932() {
-  const { month, studentId } = selectedSettlementContextV87 ? selectedSettlementContextV87() : { month: "", studentId: "" };
-  if (!studentId || !month) return null;
-  const client = dbClientV871();
-  if (!client) return null;
-
-  const { data, error } = await client
-    .from(SETTLEMENTS_TABLE_V87)
-    .select("*")
-    .eq("student_id", studentId)
-    .eq("year_month", month)
-    .eq("settlement_status", "locked")
-    .maybeSingle();
-
-  if (error && error.code !== "PGRST116") {
-    console.warn("student settlement lock state check failed", error);
-    return null;
-  }
-  return data || null;
-}
-
-async function refreshStudentSettlementButtonStateV932() {
-  const lock = await getCurrentStudentSettlementLockV932();
-  setStudentSettlementLockButtonStateV932(!!lock);
-}
-
 
 async function upsertStudentCarryoverV987(client, snapshot, settlementId = null) {
   if (!client || !snapshot) return;
@@ -7196,7 +6958,6 @@ async function lockSettlementV871() {
 }
 
 // Override v8.7 functions if present.
-fetchSettlementLockHistoryV87 = fetchSettlementLockHistoryV871;
 lockSettlementV87 = lockSettlementV871;
 
 // Add import fields into lesson whitelist if previous code has whitelist sanitizer.
@@ -7207,12 +6968,6 @@ if (normalizePayloadBeforeImportBatchV871) {
     return payload;
   };
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    fetchSettlementLockHistoryV871();
-  }, 1000);
-});
 
 // === v8.7.4 settlement RLS guidance ===
 function settlementRlsHelpV874(message) {
@@ -7239,76 +6994,6 @@ function settlementRlsHelpV875(message) {
   const text = String(message || "");
   if (!/row-level security|RLS|policy/i.test(text)) return message;
   return `${message}\n\n当前系统可能使用的是 anon role。请执行 school_v8_7_5_rls_anon_fix.sql 后刷新页面再试。`;
-}
-
-
-// === v8.7.6 settlement adjustment input UX fix ===
-function settlementModeV876() {
-  return document.getElementById("settlementAdjustModeV87")?.value || "carry";
-}
-
-function normalizeSettlementAdjustmentInputV876() {
-  const mode = settlementModeV876();
-  const input = document.getElementById("settlementAdjustmentAmountV87");
-  if (!input) return;
-
-  if (mode === "carry") {
-    input.value = "0";
-    input.placeholder = "0";
-  } else if (mode === "clear") {
-    const base = typeof computeSettlementSnapshotV87 === "function" ? computeSettlementSnapshotV87(0, "") : null;
-    if (base) input.value = String(-Math.round(Number(base.system_difference_cny || 0)));
-    input.placeholder = "自动抹平";
-  } else if (mode === "custom") {
-    if (input.value === "0") input.value = "";
-    input.placeholder = "请输入调整金额";
-  }
-}
-
-const updateSettlementLockPreviewBeforeV876 = typeof updateSettlementLockPreviewV87 === "function" ? updateSettlementLockPreviewV87 : null;
-if (updateSettlementLockPreviewBeforeV876) {
-  updateSettlementLockPreviewV87 = function () {
-    normalizeSettlementAdjustmentInputV876();
-    updateSettlementLockPreviewBeforeV876();
-    const input = document.getElementById("settlementAdjustmentAmountV87");
-    if (input && settlementModeV876() === "custom" && input.value === "0") input.value = "";
-  };
-}
-
-function bindSettlementAdjustmentInputV876() {
-  const mode = document.getElementById("settlementAdjustModeV87");
-  const input = document.getElementById("settlementAdjustmentAmountV87");
-  if (!mode || !input || input.dataset.boundV876 === "true") return;
-
-  input.dataset.boundV876 = "true";
-  mode.addEventListener("change", normalizeSettlementAdjustmentInputV876);
-  input.addEventListener("focus", () => {
-    if (settlementModeV876() === "custom" && input.value === "0") input.value = "";
-  });
-  normalizeSettlementAdjustmentInputV876();
-}
-
-const ensureSettlementPanelBeforeV876 = typeof ensureSettlementPanelV87 === "function" ? ensureSettlementPanelV87 : null;
-if (ensureSettlementPanelBeforeV876) {
-  ensureSettlementPanelV87 = function () {
-    ensureSettlementPanelBeforeV876();
-    bindSettlementAdjustmentInputV876();
-  };
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    bindSettlementAdjustmentInputV876();
-    normalizeSettlementAdjustmentInputV876();
-  }, 1000);
-});
-
-const renderAllBeforeV876 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV876) {
-  renderAll = function () {
-    renderAllBeforeV876();
-    bindSettlementAdjustmentInputV876();
-  };
 }
 
 
@@ -7599,20 +7284,6 @@ if (saveFormBeforeV8810) {
       }
     }
     return saveFormBeforeV8810(e);
-  };
-}
-
-// 5) 结算调整原因允许清空。
-// 之前出现“删到最后一个字自动回到初始状态”，不是业务设置，属于预览刷新时回填的问题。
-const updateSettlementLockPreviewBeforeV8810 = typeof updateSettlementLockPreviewV87 === "function" ? updateSettlementLockPreviewV87 : null;
-if (updateSettlementLockPreviewBeforeV8810) {
-  updateSettlementLockPreviewV87 = function () {
-    const reasonInput = document.getElementById("settlementAdjustmentReasonV87");
-    const userReason = reasonInput ? reasonInput.value : "";
-    updateSettlementLockPreviewBeforeV8810();
-    if (reasonInput) {
-      reasonInput.value = userReason;
-    }
   };
 }
 

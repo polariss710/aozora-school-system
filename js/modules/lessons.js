@@ -1566,6 +1566,7 @@ function lessonPairDateText(item) {
     "lessonActualFeeTotal",
     "lessonCompletedCount",
     "lessonCancelledCount",
+    "lessonPendingMakeupCount",
     "lessonRecordCount",
   ];
   let requestSeqV916 = 0;
@@ -1627,6 +1628,7 @@ function lessonPairDateText(item) {
     setTextV916("lessonActualFeeTotal", formatJpyV916(0));
     setTextV916("lessonCompletedCount", "0");
     setTextV916("lessonCancelledCount", "0");
+    setTextV916("lessonPendingMakeupCount", "0");
     setTextV916("lessonRecordCount", "0");
   }
 
@@ -1648,6 +1650,7 @@ function lessonPairDateText(item) {
     setTextV916("lessonActualFeeTotal", formatJpyV916(stats.actual_fee_jpy));
     setTextV916("lessonCompletedCount", String(Number(stats.completed_count || 0)));
     setTextV916("lessonCancelledCount", String(Number(stats.cancelled_count || 0)));
+    setTextV916("lessonPendingMakeupCount", String(Number(stats.pending_makeup_count || 0)));
     setTextV916("lessonRecordCount", String(Number(stats.record_count || 0)));
   }
 

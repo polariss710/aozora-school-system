@@ -3407,48 +3407,6 @@ if (typeof money !== "function") {
 
 
 
-// === v7.3 lesson Excel import/export ===
-function lessonExcelRequireXLSX() {
-  if (typeof XLSX === "undefined") {
-    showMessage("Excel 功能库尚未加载，请刷新页面后再试。", "error");
-    return false;
-  }
-  return true;
-}
-
-function formatDateYmd(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function teacherIdFromExcelName(name) {
-  const text = String(name || "").replace(/\s+/g, "").toLowerCase();
-  if (!text) return "";
-
-  const matched = (state.teachers || []).find(t => {
-    const name1 = String(t.name || "").replace(/\s+/g, "").toLowerCase();
-    const name2 = String(t.display_name || "").replace(/\s+/g, "").toLowerCase();
-    return (name1 && (name1.includes(text) || text.includes(name1))) ||
-      (name2 && (name2.includes(text) || text.includes(name2)));
-  });
-
-  return matched?.id || "";
-}
-
-function subjectIdFromExcelName(name) {
-  const text = String(name || "").replace(/\s+/g, "").toLowerCase();
-  if (!text) return "";
-
-  const matched = (state.subjects || []).find(s => {
-    const subject = String(s.name || "").replace(/\s+/g, "").toLowerCase();
-    return subject && (subject.includes(text) || text.includes(subject));
-  });
-
-  return matched?.id || "";
-}
-
 // v9.8-final.10: old lesson Excel import/export action block removed. Use completed import + standard template export.
 
 
@@ -7517,85 +7475,6 @@ if (normalizePayloadBeforeImportBatchV871) {
   };
 }
 
-function newImportBatchIdV871() {
-  return `lesson_import_${new Date().toISOString().replace(/[-:.TZ]/g, "")}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function selectedImportStudentNameV871() {
-  const select = document.getElementById("lessonStudentFilter");
-  return select?.selectedOptions?.[0]?.textContent?.trim() || "";
-}
-
-function ensureImportUndoPanelV871() {
-  const page = document.getElementById("page-lessons") || document.querySelector("[data-page='lessons']");
-  if (!page || page.querySelector("#lessonImportUndoPanelV871")) return;
-
-  const toolbar =
-    page.querySelector(".section-title-row") ||
-    page;
-
-  toolbar.insertAdjacentHTML("beforeend", `
-    <button class="secondary-btn" id="undoLastLessonImportV871" style="display:none;">撤回本次导入</button>
-  `);
-
-  document.getElementById("undoLastLessonImportV871")?.addEventListener("click", undoLastLessonImportV871);
-}
-
-function saveLastImportBatchV871(info) {
-  localStorage.setItem("lastLessonImportBatchV871", JSON.stringify(info));
-  updateUndoImportButtonV871();
-}
-
-function lastImportBatchV871() {
-  try { return JSON.parse(localStorage.getItem("lastLessonImportBatchV871") || "null"); }
-  catch { return null; }
-}
-
-function updateUndoImportButtonV871() {
-  const btn = document.getElementById("undoLastLessonImportV871");
-  if (!btn) return;
-  const info = lastImportBatchV871();
-  if (info?.batchId) {
-    btn.style.display = "";
-    btn.textContent = `撤回本次导入（${info.count || 0}条）`;
-  } else {
-    btn.style.display = "none";
-  }
-}
-
-async function undoLastLessonImportV871() {
-  const info = lastImportBatchV871();
-  if (!info?.batchId) {
-    showMessage("没有可撤回的导入批次。", "error");
-    return;
-  }
-
-  const ok = confirm(`确认撤回本次导入吗？\n学生：${info.studentName || ""}\n文件：${info.fileName || ""}\n记录数：${info.count || 0}\n\n撤回后会删除该批次导入的课时记录。`);
-  if (!ok) return;
-
-  const client = dbClientV871();
-  if (!client) {
-    showMessage("撤回失败：数据库客户端未初始化。", "error");
-    return;
-  }
-
-  const { error } = await client
-    .from(tables.lessons)
-    .delete()
-    .eq("import_batch_id", info.batchId);
-
-  if (error) {
-    showMessage(`撤回失败：${error.message}`, "error");
-    return;
-  }
-
-  localStorage.removeItem("lastLessonImportBatchV871");
-  await loadAll();
-  renderAll();
-  updateUndoImportButtonV871();
-  showMessage(`已撤回本次导入：${info.count || 0} 条。`, "ok");
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     fetchSettlementLockHistoryV871();
@@ -7700,71 +7579,6 @@ if (renderAllBeforeV876) {
 }
 
 
-// === v8.8 completed lesson import + reimbursed expense label ===
-function tx88(v) { return String(v || "").trim().replace(/\s+/g, ""); }
-function num88(v) { if (typeof v === "number") return v; const n = Number(String(v || "").replace(/[,，円￥¥]/g, "").trim()); return Number.isFinite(n) ? n : 0; }
-function dt88(v, baseYear) {
-  if (!v && v !== 0) return "";
-  if (v instanceof Date && !Number.isNaN(v.getTime())) return formatDateYmd(v);
-  if (typeof v === "number") { const d = new Date(Math.round((v - 25569) * 86400 * 1000)); if (!Number.isNaN(d.getTime())) return formatDateYmd(d); }
-  let s = String(v).trim().replace(/周|週|星期|礼拜/g, "").replace(/[年月]/g, "-").replace(/日/g, "").replace(/\//g, "-");
-  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(s)) { const [y, m, d] = s.split("-").map(Number); return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`; }
-  if (/^\d{1,2}[-.]\d{1,2}$/.test(s)) { const [m, d] = s.replace(".", "-").split("-").map(Number); const y = Number(baseYear || new Date().getFullYear()); return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`; }
-  return "";
-}
-function timeRange88(v) { const m = String(v || "").match(/(\d{1,2}:\d{2})\s*[-~〜～]\s*(\d{1,2}:\d{2})/); return m ? { start: m[1], end: m[2] } : { start: "", end: "" }; }
-function headerMap88(h) {
-  const m = {};
-  (h || []).forEach((c, i) => {
-    const k = tx88(c); if (!k) return;
-    if ((/学生|学生姓名|生徒/.test(k) || (i === 0 && /姓名/.test(k))) && m.student === undefined) m.student = i;
-    if (/担当|老师|教師|先生/.test(k) && m.teacher === undefined) m.teacher = i;
-    if (/科目|课程|講座/.test(k) && m.subject === undefined) m.subject = i;
-    if ((/预定.*日期|予定.*日|^日期$|^周$|^週$/.test(k)) && m.plannedDate === undefined) m.plannedDate = i;
-    if (/实际.*日期|実際.*日|实际上课日期|上课日/.test(k) && m.actualDate === undefined) m.actualDate = i;
-    if (/时间帯|时间段|時間帯|时段/.test(k) && m.timeRange === undefined) m.timeRange = i;
-    if (/开始|開始/.test(k) && m.start === undefined) m.start = i;
-    if (/结束|終了/.test(k) && m.end === undefined) m.end = i;
-    if (/时长|時間数|课时|授業時間/.test(k) && m.duration === undefined) m.duration = i;
-    if (/单价|単価/.test(k) && m.unitPrice === undefined) m.unitPrice = i;
-    if (/应收|课时费|授業料|金額|金额/.test(k) && m.lessonFee === undefined) m.lessonFee = i;
-    if (/内容|授業内容/.test(k)) { if (/预定|予定/.test(k) && m.plannedContent === undefined) m.plannedContent = i; else if (/实际|実際/.test(k) && m.actualContent === undefined) m.actualContent = i; else if (m.content === undefined) m.content = i; }
-    if (/状态|ステータス/.test(k) && m.status === undefined) m.status = i;
-    if (/备注|備考|メモ/.test(k) && m.note === undefined) m.note = i;
-  });
-  return m;
-}
-function findHeader88(rows) { for (let i = 0; i < Math.min(rows.length, 25); i++) { const t = (rows[i] || []).map(tx88).join("|"); if (/科目/.test(t) && (/日期|予定|预定|上课|実際|实际/.test(t)) && (/时长|時間|单价|课时费|金额/.test(t))) return i; } return -1; }
-function ensureCompletedImportButtonV88() {
-  const btn = document.getElementById("lessonImportCompletedExcelBtnV88");
-  const input = document.getElementById("lessonImportCompletedExcelInputV88");
-  if (!btn || !input) return;
-  btn.disabled = false;
-  btn.classList.remove("disabled");
-  btn.removeAttribute("title");
-  btn.removeAttribute("aria-disabled");
-  if (btn.dataset.boundCompletedImportV9814 === "true") return;
-  btn.dataset.boundCompletedImportV9814 = "true";
-  btn.onclick = () => { input.click(); };
-  input.onchange = async e => { const f = e.target.files?.[0]; if (f) await importCompletedLessonExcel(f); e.target.value = ""; };
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    ensureCompletedImportButtonV884();
-  }, 800);
-});
-
-const renderAllBeforeV884 = typeof renderAll === "function" ? renderAll : null;
-if (renderAllBeforeV884) {
-  renderAll = function () {
-    renderAllBeforeV884();
-    ensureCompletedImportButtonV884();
-  };
-}
-
-
-
 // === v8.8.5 lesson status options + completed import business rules ===
 // 课时状态统一：已上课 / 待补课 / 已补课
 function lessonStatusOptionsV885() {
@@ -7804,46 +7618,6 @@ if (typeof lessonStatusLabel === "function") {
   lessonStatusLabel = function (status) {
     return lessonStatusLabelV885(status);
   };
-}
-
-// Header map override: support 回数 and 工资结算备注
-const headerMapBeforeV885 = typeof headerMap88 === "function" ? headerMap88 : null;
-if (headerMapBeforeV885) {
-  headerMap88 = function (header) {
-    const map = headerMapBeforeV885(header);
-    (header || []).forEach((cell, idx) => {
-      const key = tx88(cell);
-      if (/回数|回次|课次|回/.test(key) && map.count === undefined) map.count = idx;
-      if (/工资.*结算.*月份|工资结算月份|給料.*締.*月|給料.*月|工资月份/.test(key) && map.teacherSettlementMonth === undefined) map.teacherSettlementMonth = idx;
-      if (/工资.*结算.*备注|工资结算备注|給料.*備考|工资备注/.test(key) && map.salaryNote === undefined) map.salaryNote = idx;
-    });
-    return map;
-  };
-}
-
-// === v8.8.6 lesson_count field ===
-// lesson_count becomes the formal field for 回数.
-// It is used in completed lesson import, duplicate warning, display, and modal payload.
-
-function normalizeLessonCountV886(value) {
-  if (value === null || value === undefined || value === "") return null;
-  const n = Number(String(value).replace(/[^\d.-]/g, ""));
-  return Number.isFinite(n) ? n : null;
-}
-
-// Add lesson_count to completed import common payload.
-const importCompletedLessonExcelBeforeV886 = typeof importCompletedLessonExcelV885 === "function" ? importCompletedLessonExcelV885 : null;
-
-function selectedStudentFallbackV9810() {
-  const id = normalizeLessonSelectedStudentFilterV9812();
-  return id ? (state.students || []).find(s => s.id === id) || null : null;
-}
-const ensureCompletedImportButtonBeforeV886 = typeof ensureCompletedImportButtonV884 === "function" ? ensureCompletedImportButtonV884 : (typeof ensureCompletedImportButtonV88 === "function" ? ensureCompletedImportButtonV88 : null);
-if (ensureCompletedImportButtonBeforeV886) {
-  ensureCompletedImportButtonV884 = function () {
-    ensureCompletedImportButtonBeforeV886();
-  };
-  ensureCompletedImportButtonV88 = ensureCompletedImportButtonV884;
 }
 
 // === v8.8.7 lesson time display / actual minutes / stats cleanup ===
@@ -7898,24 +7672,6 @@ function summarizeTeacherSubjectMinutesV887(rows) {
     value.rounded_hours = floorHoursBy15MinV887(value.total_minutes);
   });
   return Array.from(map.values());
-}
-
-// Header support:
-// - old template: 时间
-// - new template: 开始时间 / 结束时间
-// - actual duration column can be absent
-const headerMapBeforeV887 = typeof headerMap88 === "function" ? headerMap88 : null;
-if (headerMapBeforeV887) {
-  headerMap88 = function (header) {
-    const map = headerMapBeforeV887(header);
-    (header || []).forEach((cell, idx) => {
-      const key = tx88(cell);
-      if (/^开始时间$|^開始時間$|^实际开始时间$|^実際開始時間$/.test(key)) map.start = idx;
-      if (/^结束时间$|^終了時間$|^实际结束时间$|^実際終了時間$/.test(key)) map.end = idx;
-      if (/^时间$|^時間$|^上课时间$|^授课时间$/.test(key)) map.timeRange = idx;
-    });
-    return map;
-  };
 }
 
 // === v8.8.8 Excel time parse/display fix ===
@@ -8196,23 +7952,6 @@ function defaultBillableByStatusV8810(status) {
   if (status === "makeup_completed") return false;
   if (status === "cancelled") return false;
   return true; // 已上课、待补课默认计费
-}
-
-// Header map override: support 计费 column
-const headerMapBeforeV8810 = typeof headerMap88 === "function" ? headerMap88 : null;
-if (headerMapBeforeV8810) {
-  headerMap88 = function (header) {
-    const map = headerMapBeforeV8810(header);
-    (header || []).forEach((cell, idx) => {
-      const key = tx88(cell);
-      if (/^计费$|^是否计费$|^收费$|^是否收费$|^請求$|^請求対象$/.test(key) && map.billable === undefined) {
-        map.billable = idx;
-      }
-      if (/^开始时间$|^開始時間$|^实际开始时间$|^実際開始時間$/.test(key)) map.start = idx;
-      if (/^结束时间$|^終了時間$|^实际结束时间$|^実際終了時間$/.test(key)) map.end = idx;
-    });
-    return map;
-  };
 }
 
 // 4) 收入分类为学费时，必须指定学生

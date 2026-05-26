@@ -3,18 +3,247 @@
 window.SchoolModules = window.SchoolModules || {};
 window.SchoolModules["lesson-import.js"] = { version: "9.0", migrated: false };
 
+function requireXlsxForLessonImport() {
+  if (typeof XLSX === "undefined") {
+    showMessage("Excel 功能库尚未加载，请刷新页面后再试。", "error");
+    return false;
+  }
+  return true;
+}
+
+function formatImportDateYmd(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function createLessonImportBatchId() {
+  return `lesson_import_${new Date().toISOString().replace(/[-:.TZ]/g, "")}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function saveLastLessonImportBatch(info) {
+  localStorage.setItem("lastLessonImportBatchV871", JSON.stringify(info));
+  updateUndoLessonImportButton();
+}
+
+function lastLessonImportBatch() {
+  try {
+    return JSON.parse(localStorage.getItem("lastLessonImportBatchV871") || "null");
+  } catch {
+    return null;
+  }
+}
+
+function ensureLessonImportUndoPanel() {
+  const page = document.getElementById("page-lessons") || document.querySelector("[data-page='lessons']");
+  if (!page || page.querySelector("#undoLastLessonImportV871")) return;
+  const toolbar = page.querySelector(".section-title-row") || page;
+  toolbar.insertAdjacentHTML("beforeend", `
+    <button class="secondary-btn" id="undoLastLessonImportV871" style="display:none;">撤回本次导入</button>
+  `);
+  document.getElementById("undoLastLessonImportV871")?.addEventListener("click", undoLastLessonImport);
+}
+
+function updateUndoLessonImportButton() {
+  const btn = document.getElementById("undoLastLessonImportV871");
+  if (!btn) return;
+  const info = lastLessonImportBatch();
+  if (info?.batchId) {
+    btn.style.display = "";
+    btn.textContent = `撤回本次导入（${info.count || 0}条）`;
+  } else {
+    btn.style.display = "none";
+  }
+}
+
+async function undoLastLessonImport() {
+  const info = lastLessonImportBatch();
+  if (!info?.batchId) {
+    showMessage("没有可撤回的导入批次。", "error");
+    return;
+  }
+
+  const ok = confirm(`确认撤回本次导入吗？\n学生：${info.studentName || ""}\n文件：${info.fileName || ""}\n记录数：${info.count || 0}\n\n撤回后会删除该批次导入的课时记录。`);
+  if (!ok) return;
+
+  const client = (typeof db !== "undefined" && db?.from) ? db : supabase;
+  if (!client?.from) {
+    showMessage("撤回失败：数据库客户端未初始化。", "error");
+    return;
+  }
+
+  const { error } = await client
+    .from(tables.lessons)
+    .delete()
+    .eq("import_batch_id", info.batchId);
+
+  if (error) {
+    console.error("[lesson-import] undo failed", error);
+    showMessage(`撤回失败：${error.message}`, "error");
+    return;
+  }
+
+  localStorage.removeItem("lastLessonImportBatchV871");
+  await loadAll();
+  renderAll();
+  updateUndoLessonImportButton();
+  showMessage(`已撤回本次导入：${info.count || 0} 条。`, "ok");
+}
+
+function teacherIdFromLessonImportName(name) {
+  const text = String(name || "").replace(/\s+/g, "").toLowerCase();
+  if (!text) return "";
+  const matched = (state.teachers || []).find(t => {
+    const name1 = String(t.name || "").replace(/\s+/g, "").toLowerCase();
+    const name2 = String(t.display_name || "").replace(/\s+/g, "").toLowerCase();
+    return (name1 && (name1.includes(text) || text.includes(name1))) ||
+      (name2 && (name2.includes(text) || text.includes(name2)));
+  });
+  return matched?.id || "";
+}
+
+function subjectIdFromLessonImportName(name) {
+  const text = String(name || "").replace(/\s+/g, "").toLowerCase();
+  if (!text) return "";
+  const matched = (state.subjects || []).find(s => {
+    const subject = String(s.name || "").replace(/\s+/g, "").toLowerCase();
+    return subject && (subject.includes(text) || text.includes(subject));
+  });
+  return matched?.id || "";
+}
+
+function normalizeLessonImportCount(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(String(value).replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseImportDate(value, baseYear) {
+  if (!value && value !== 0) return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return formatImportDateYmd(value);
+  if (typeof value === "number") {
+    const date = new Date(Math.round((value - 25569) * 86400 * 1000));
+    if (!Number.isNaN(date.getTime())) return formatImportDateYmd(date);
+  }
+  const text = String(value).trim()
+    .replace(/周|週|星期|礼拜/g, "")
+    .replace(/[年月]/g, "-")
+    .replace(/日/g, "")
+    .replace(/\//g, "-");
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(text)) {
+    const [y, m, d] = text.split("-").map(Number);
+    return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  }
+  if (/^\d{1,2}[-.]\d{1,2}$/.test(text)) {
+    const [m, d] = text.replace(".", "-").split("-").map(Number);
+    const y = Number(baseYear || new Date().getFullYear());
+    return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  }
+  return "";
+}
+
+function parseImportClockMinutes(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const match = text.match(/(\d{1,2})[:：](\d{1,2})/);
+  if (!match) return null;
+  const h = Number(match[1]);
+  const min = Number(match[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(min)) return null;
+  return h * 60 + min;
+}
+
+function minutesBetweenTimes(start, end) {
+  const s = parseImportClockMinutes(start);
+  const e = parseImportClockMinutes(end);
+  if (s === null || e === null) return null;
+  let diff = e - s;
+  if (diff < 0) diff += 24 * 60;
+  return diff > 0 ? diff : null;
+}
+
+function hoursFromMinutesExact(minutes) {
+  if (!minutes) return 0;
+  return Math.round((minutes / 60) * 100) / 100;
+}
+
+function excelTimeToHHMMForImport(value) {
+  if (value === null || value === undefined || value === "") return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return `${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}`;
+  }
+  if (typeof value === "number") {
+    if (value >= 0 && value < 1) {
+      const total = Math.round(value * 24 * 60);
+      return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+    }
+    return "";
+  }
+  const text = String(value).trim();
+  if (!text) return "";
+  const dateLike = text.match(/(?:Sat Dec 30 1899\s+)?(\d{1,2}):(\d{2}):?\d{0,2}/);
+  if (dateLike) return `${String(Number(dateLike[1])).padStart(2, "0")}:${dateLike[2]}`;
+  const match = text.match(/(\d{1,2})[:：](\d{1,2})/);
+  if (match) return `${String(Number(match[1])).padStart(2, "0")}:${String(Number(match[2])).padStart(2, "0")}`;
+  return "";
+}
+
+function cleanImportTimeText(value) {
+  return excelTimeToHHMMForImport(value) || "";
+}
+
+function buildImportHeaderMap(header) {
+  const map = {};
+  (header || []).forEach((cell, index) => {
+    const key = txImportV920(cell);
+    if (!key) return;
+    if ((/学生|学生姓名|生徒/.test(key) || (index === 0 && /姓名/.test(key))) && map.student === undefined) map.student = index;
+    if (/担当|老师|教師|先生/.test(key) && map.teacher === undefined) map.teacher = index;
+    if (/科目|课程|講座/.test(key) && map.subject === undefined) map.subject = index;
+    if ((/预定.*日期|予定.*日|^日期$|^周$|^週$/.test(key)) && map.plannedDate === undefined) map.plannedDate = index;
+    if (/实际.*日期|実際.*日|实际上课日期|上课日/.test(key) && map.actualDate === undefined) map.actualDate = index;
+    if (/时间帯|时间段|時間帯|时段/.test(key) && map.timeRange === undefined) map.timeRange = index;
+    if (/开始|開始/.test(key) && map.start === undefined) map.start = index;
+    if (/结束|終了/.test(key) && map.end === undefined) map.end = index;
+    if (/时长|時間数|课时|授業時間/.test(key) && map.duration === undefined) map.duration = index;
+    if (/单价|単価/.test(key) && map.unitPrice === undefined) map.unitPrice = index;
+    if (/应收|课时费|授業料|金額|金额/.test(key) && map.lessonFee === undefined) map.lessonFee = index;
+    if (/内容|授業内容/.test(key)) {
+      if (/预定|予定/.test(key) && map.plannedContent === undefined) map.plannedContent = index;
+      else if (/实际|実際/.test(key) && map.actualContent === undefined) map.actualContent = index;
+      else if (map.content === undefined) map.content = index;
+    }
+    if (/状态|ステータス/.test(key) && map.status === undefined) map.status = index;
+    if (/备注|備考|メモ/.test(key) && map.note === undefined) map.note = index;
+    if (/回数|回次|课次|回/.test(key) && map.count === undefined) map.count = index;
+    if (/工资.*结算.*月份|工资结算月份|給料.*締.*月|給料.*月|工资月份/.test(key) && map.teacherSettlementMonth === undefined) map.teacherSettlementMonth = index;
+    if (/工资.*结算.*备注|工资结算备注|給料.*備考|工资备注/.test(key) && map.salaryNote === undefined) map.salaryNote = index;
+    if (/^计费$|^是否计费$|^收费$|^是否收费$|^請求$|^請求対象$/.test(key) && map.billable === undefined) map.billable = index;
+  });
+  return map;
+}
+
+function findImportHeader(rows) {
+  for (let i = 0; i < Math.min(rows.length, 25); i++) {
+    const text = (rows[i] || []).map(txImportV920).join("|");
+    if (/科目/.test(text) && (/日期|予定|预定|上课|実際|实际/.test(text)) && (/时长|時間|单价|课时费|金额/.test(text))) return i;
+  }
+  return -1;
+}
+
 
 
 
 // 导入完整课时功能
 async function importCompletedLessonExcel(file) {
-  if (!lessonExcelRequireXLSX()) return;
+  if (!requireXlsxForLessonImport()) return;
 
   const importedStudents = new Map();
   const errors = [];
   const warnings = [];
 
-  const batchId = typeof newImportBatchIdV871 === "function" ? newImportBatchIdV871() : `completed_import_${Date.now()}`;
+  const batchId = createLessonImportBatchId();
   const importedAt = new Date().toISOString();
 
   const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
@@ -69,8 +298,8 @@ async function importCompletedLessonExcel(file) {
     const subjectCell = readImportCellV920(row, col.subject);
     if (teacherCell) curT = teacherCell;
     if (subjectCell) curS = subjectCell;
-    const subjectId = subjectIdFromExcelName(curS) || document.getElementById("lessonSubjectFilter")?.value || "";
-    const teacherId = teacherIdFromExcelName(curT) || document.getElementById("lessonTeacherFilter")?.value || "";
+    const subjectId = subjectIdFromLessonImportName(curS) || document.getElementById("lessonSubjectFilter")?.value || "";
+    const teacherId = teacherIdFromLessonImportName(curT) || document.getElementById("lessonTeacherFilter")?.value || "";
 
     if (!teacherId) addImportErrorV920(errors, rowNo, "担当老师", teacherCell, "未能在老师列表中识别。");
     if (!subjectId) addImportErrorV920(errors, rowNo, "科目", subjectCell, "未能在科目列表中识别。");
@@ -140,16 +369,14 @@ async function importCompletedLessonExcel(file) {
     return;
   }
 
-  if (typeof saveLastImportBatchV871 === "function") {
-    saveLastImportBatchV871({
-      batchId,
-      studentId: firstStudentId,
-      studentName: studentNameText,
-      fileName: file.name,
-      count: records.length,
-      importedAt
-    });
-  }
+  saveLastLessonImportBatch({
+    batchId,
+    studentId: firstStudentId,
+    studentName: studentNameText,
+    fileName: file.name,
+    count: records.length,
+    importedAt
+  });
 
   await loadAll();
   renderAll();
@@ -165,7 +392,7 @@ function buildPlannedImportRecordV920({ row, rowNo, col, baseYear, yearMonth, co
   const status = normalizePlannedStatusV920(statusRaw);
   const billableRaw = readImportCellV920(row, col.plannedBillable);
   const plannedDateRaw = readImportCellRawV920(row, col.plannedDate);
-  const count = normalizeLessonCountV886(readImportCellRawV920(row, col.plannedCount));
+  const count = normalizeLessonImportCount(readImportCellRawV920(row, col.plannedCount));
 
   if (!plannedDate && !String(plannedDateRaw ?? "").trim()) addImportErrorV920(errors, rowNo, "预定日期", plannedDateRaw, "必须填写预定日期。");
   if (!duration) addImportErrorV920(errors, rowNo, "预定课时时长", readImportCellRawV920(row, col.plannedDuration), "必须填写可转换为数字且大于 0 的课时时长。");
@@ -208,7 +435,7 @@ function buildActualImportRecordV920({ row, rowNo, col, baseYear, yearMonth, com
   const actualDateRaw = readImportCellRawV920(row, col.actualDate);
   const start = parseImportTimeV920(row, col.actualStart);
   const end = parseImportTimeV920(row, col.actualEnd);
-  const actualMinutes = typeof minutesBetweenV887 === "function" ? minutesBetweenV887(start, end) : null;
+  const actualMinutes = minutesBetweenTimes(start, end);
 
   if (!actualDate && !String(actualDateRaw ?? "").trim()) addImportErrorV920(errors, rowNo, "实际日期", actualDateRaw, "必须填写实际日期。");
   if (!duration) addImportErrorV920(errors, rowNo, "实际课时时长", readImportCellRawV920(row, col.actualDuration), "必须填写可转换为数字且大于 0 的课时时长。");
@@ -253,7 +480,7 @@ function findLessonPairHeaderRowV920(rows) {
     const text = (rows[i] || []).map(txImportV920).join("|");
     if (/学生姓名/.test(text) && /预定日期/.test(text) && /实际日期/.test(text) && /预定状态/.test(text) && /实际状态/.test(text)) return i;
   }
-  return typeof findHeader88 === "function" ? findHeader88(rows) : -1;
+  return findImportHeader(rows);
 }
 
 function buildLessonPairColumnMapV920(header) {
@@ -289,7 +516,7 @@ function buildLessonPairColumnMapV920(header) {
     if (/^关联标识$/.test(key)) set("association");
   });
 
-  const legacy = typeof headerMap88 === "function" ? headerMap88(header) : {};
+  const legacy = buildImportHeaderMap(header);
   return {
     student: map.student ?? legacy.student,
     teacher: map.teacher ?? legacy.teacher,
@@ -335,20 +562,20 @@ function readImportCellRawV920(row, index) {
 
 function readImportCellV920(row, index) {
   const value = readImportCellRawV920(row, index);
-  if (value instanceof Date) return formatDateYmd(value);
+  if (value instanceof Date) return formatImportDateYmd(value);
   return String(value ?? "").trim();
 }
 
 function parseImportDateV920(row, index, baseYear, rowNo, field, errors) {
   const raw = readImportCellRawV920(row, index);
-  const date = dt88(raw, baseYear);
+  const date = parseImportDate(raw, baseYear);
   if (!date && String(raw ?? "").trim()) addImportErrorV920(errors, rowNo, field, raw, "无法转换为日期。");
   return date;
 }
 
 function parseImportTimeV920(row, index) {
   if (index === undefined) return "";
-  return typeof cleanTimeForDisplayV888 === "function" ? cleanTimeForDisplayV888(row[index]) : String(row[index] || "").trim();
+  return cleanImportTimeText(row[index]);
 }
 
 function parseImportNumberV920(row, index, rowNo, field, errors, required) {
@@ -515,13 +742,9 @@ window.normalizeTeacherSettlementMonthV916 = normalizeTeacherSettlementMonthV916
   function patchCompletedImportButtonV917() {
     const btn = document.getElementById("lessonImportCompletedExcelBtnV88");
     const input = document.getElementById("lessonImportCompletedExcelInputV88");
-    if (!btn || !input || btn.dataset.boundMonthRequiredV917 === "true") return;
+    if (!btn || !input || btn.dataset.boundLessonImportV922 === "true") return;
 
-    btn.dataset.boundMonthRequiredV917 = "true";
-    btn.disabled = false;
-    btn.classList.remove("disabled");
-    btn.removeAttribute("title");
-    btn.removeAttribute("aria-disabled");
+    btn.dataset.boundLessonImportV922 = "true";
     btn.disabled = false;
     btn.classList.remove("disabled");
     btn.removeAttribute("title");
@@ -529,43 +752,17 @@ window.normalizeTeacherSettlementMonthV916 = normalizeTeacherSettlementMonthV916
     btn.onclick = () => {
       input.click();
     };
-  }
-
-  function wrapCompletedImportFunctionV917(name) {
-    // v9.8-final.14: no month/student restriction wrapper for completed import.
+    input.onchange = async event => {
+      const file = event.target.files?.[0];
+      if (file) await importCompletedLessonExcel(file);
+      event.target.value = "";
+    };
+    ensureLessonImportUndoPanel();
+    updateUndoLessonImportButton();
   }
 
   function applyCompletedImportMonthRequiredV917() {
-    // 旧完整课时导入包装逻辑已废弃。
-  }
-
-  const ensureBeforeV917 = typeof ensureCompletedImportButtonV884 === "function"
-    ? ensureCompletedImportButtonV884
-    : (typeof ensureCompletedImportButtonV88 === "function" ? ensureCompletedImportButtonV88 : null);
-
-  if (ensureBeforeV917) {
-    window.ensureCompletedImportButtonV884 = function () {
-      ensureBeforeV917();
-      setTimeout(applyCompletedImportMonthRequiredV917, 0);
-    };
-  }
-
-  const switchPageBeforeV917 = typeof switchPage === "function" ? switchPage : null;
-  if (switchPageBeforeV917) {
-    window.switchPage = function (page) {
-      switchPageBeforeV917(page);
-      if (page === "lessons") setTimeout(applyCompletedImportMonthRequiredV917, 0);
-    };
-  }
-
-  const renderAllBeforeV917 = typeof renderAll === "function" ? renderAll : null;
-  if (renderAllBeforeV917) {
-    window.renderAll = function () {
-      renderAllBeforeV917();
-      if (document.getElementById("page-lessons")?.classList.contains("active")) {
-        setTimeout(applyCompletedImportMonthRequiredV917, 0);
-      }
-    };
+    patchCompletedImportButtonV917();
   }
 
   document.addEventListener("DOMContentLoaded", () => {

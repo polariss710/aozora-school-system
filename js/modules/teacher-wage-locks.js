@@ -600,7 +600,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     document.body.addEventListener("change", (e) => {
-      if (e.target?.id === "teacherWageMonthFilter" || e.target?.id === "teacherWageTeacherFilter") {
+      if (e.target?.id === "teacherWageMonthFilter" || e.target?.id === "teacherWageTeacherFilter" || e.target?.id === "teacherWageBusinessFilter") {
         refreshTeacherWageLocksSoonV941();
       }
     }, true);

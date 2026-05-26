@@ -289,12 +289,28 @@
       .map(r => r.teacher_id));
   }
 
+  function fillBusinessFilterV982() {
+    const sel = document.getElementById("teacherWageBusinessFilter");
+    if (!sel) return;
+
+    const old = sel.value;
+    const entities = (state.businessEntities || [])
+      .slice()
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "zh-Hans-CN"));
+
+    sel.innerHTML = `<option value="">全部业务归属</option>` + entities
+      .map(item => `<option value="${escAttr(item.id)}">${esc(item.name || item.code || "")}</option>`)
+      .join("");
+    sel.value = entities.some(item => String(item.id) === String(old)) ? old : "";
+  }
+
   function fillFilters(){
     const m = document.getElementById("teacherWageMonthFilter");
     if (m && !m.value) m.value = currentMonth();
 
     const month = m?.value || currentMonth();
     const sel = document.getElementById("teacherWageTeacherFilter");
+    fillBusinessFilterV982();
     if (!sel) return;
 
     const old = sel.value;
@@ -328,8 +344,14 @@
   function targetLessons(){
     const month = document.getElementById("teacherWageMonthFilter")?.value || currentMonth();
     const teacherId = document.getElementById("teacherWageTeacherFilter")?.value || "";
+    const businessId = document.getElementById("teacherWageBusinessFilter")?.value || "";
     return sortLessons((state.lessonRecords || [])
-      .filter(r => teacherSettlementMonth(r) === month && (!teacherId || r.teacher_id === teacherId) && isTarget(r)));
+      .filter(r =>
+        teacherSettlementMonth(r) === month &&
+        (!teacherId || r.teacher_id === teacherId) &&
+        (!businessId || lessonBusinessId(r) === businessId) &&
+        isTarget(r)
+      ));
   }
 
   function summarize(list){
@@ -551,13 +573,23 @@
       });
     }
 
+    const business = document.getElementById("teacherWageBusinessFilter");
+    if (business && business.dataset.boundTeacherWageV9110 !== "true") {
+      business.dataset.boundTeacherWageV9110 = "true";
+      business.addEventListener("change", () => {
+        render();
+        window.SchoolTeacherWageLocksV920?.renderLocks?.();
+      });
+    }
+
     const clear = document.getElementById("teacherWageClearFilter");
     if (clear && clear.dataset.boundTeacherWageV9110 !== "true") {
       clear.dataset.boundTeacherWageV9110 = "true";
       clear.addEventListener("click", () => {
-        const m = document.getElementById("teacherWageMonthFilter"), t = document.getElementById("teacherWageTeacherFilter");
+        const m = document.getElementById("teacherWageMonthFilter"), t = document.getElementById("teacherWageTeacherFilter"), b = document.getElementById("teacherWageBusinessFilter");
         if (m) m.value = currentMonth();
         if (t) t.value = "";
+        if (b) b.value = "";
         payHourOverrides.clear();
         rowFeeOverrides.clear();
         render();

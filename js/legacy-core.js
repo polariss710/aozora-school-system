@@ -6801,32 +6801,6 @@ function adjustmentFromPanelV87() {
   if (mode === "custom") return { adjustment: Number(document.getElementById("settlementAdjustmentAmountV87")?.value || 0), reason: document.getElementById("settlementAdjustmentReasonV87")?.value || "手动调整" };
   return { adjustment: 0, reason: document.getElementById("settlementAdjustmentReasonV87")?.value || "" };
 }
-async function lockSettlementV87() {
-  const adj = adjustmentFromPanelV87();
-  const snapshot = computeSettlementSnapshotV87(adj.adjustment, adj.reason);
-  if (!snapshot) { alert("请先选择学生和月份。"); return; }
-  const ok = confirm(`确认锁定 ${snapshot.year_month} 的结算吗？\n状态：${settlementStatusLabelV87(snapshot.carryover_amount_cny)}\n结转：${signedCnyV87(snapshot.carryover_amount_cny)}`);
-  if (!ok) return;
-  const payload = { ...snapshot };
-  delete payload.student;
-  try {
-    const { data: saved, error } = await supabase.from(SETTLEMENTS_TABLE_V87)
-      .upsert(payload, { onConflict: "student_id,year_month" })
-      .select("id")
-      .single();
-    if (error) throw error;
-    await upsertStudentCarryoverV987(supabase, snapshot, saved?.id || null);
-    window.__studentSettlementCarryoverV987 = {
-      month: nextMonthV987(snapshot.year_month),
-      studentId: snapshot.student_id,
-      amount: Number(snapshot.carryover_amount_cny || 0),
-    };
-    alert("结算已锁定，并已写入下月结转记录。");
-    await fetchSettlementLockHistoryV87();
-  } catch (error) {
-    alert(`锁定结算失败：${error.message || error}`);
-  }
-}
 // === v8.7.1 fixes: db client, stable actual link, import batch undo ===
 function dbClientV871() {
   return (typeof db !== "undefined" && db?.from) ? db : ((typeof supabase !== "undefined" && supabase?.from) ? supabase : null);
@@ -6917,49 +6891,6 @@ async function unlockSettlementV932() {
   }
 }
 
-async function lockSettlementV871() {
-  const adj = adjustmentFromPanelV87();
-  const snapshot = computeSettlementSnapshotV87(adj.adjustment, adj.reason);
-  if (!snapshot) {
-    alert("请先选择学生和月份。");
-    return;
-  }
-  const ok = confirm(`确认锁定 ${snapshot.year_month} 的结算吗？\n状态：${settlementStatusLabelV87(snapshot.carryover_amount_cny)}\n结转：${signedCnyV87(snapshot.carryover_amount_cny)}`);
-  if (!ok) return;
-
-  const client = dbClientV871();
-  if (!client) {
-    alert("锁定结算失败：数据库客户端未初始化");
-    return;
-  }
-
-  const payload = { ...snapshot };
-  delete payload.student;
-
-  try {
-    const { data: saved, error } = await client
-      .from(SETTLEMENTS_TABLE_V87)
-      .upsert(payload, { onConflict: "student_id,year_month" })
-      .select("id")
-      .single();
-    if (error) throw error;
-    await upsertStudentCarryoverV987(client, snapshot, saved?.id || null);
-    window.__studentSettlementCarryoverV987 = {
-      month: nextMonthV987(snapshot.year_month),
-      studentId: snapshot.student_id,
-      amount: Number(snapshot.carryover_amount_cny || 0),
-    };
-    alert("结算已锁定，并已写入下月结转记录。");
-    await fetchSettlementLockHistoryV871();
-    await refreshStudentSettlementButtonStateV932();
-  } catch (error) {
-    alert(`锁定结算失败：${error.message || error}`);
-  }
-}
-
-// Override v8.7 functions if present.
-lockSettlementV87 = lockSettlementV871;
-
 // Add import fields into lesson whitelist if previous code has whitelist sanitizer.
 const normalizePayloadBeforeImportBatchV871 = typeof normalizePayload === "function" ? normalizePayload : null;
 if (normalizePayloadBeforeImportBatchV871) {
@@ -6968,26 +6899,6 @@ if (normalizePayloadBeforeImportBatchV871) {
     return payload;
   };
 }
-
-// === v8.7.4 settlement RLS guidance ===
-function settlementRlsHelpV874(message) {
-  const text = String(message || "");
-  if (!/row-level security|RLS|policy/i.test(text)) return message;
-  return `${message}\n\n请先在 Supabase SQL Editor 执行 school_v8_7_4_rls_fix.sql，然后刷新页面再试。`;
-}
-
-const lockSettlementBeforeV874 = typeof lockSettlementV87 === "function" ? lockSettlementV87 : null;
-if (lockSettlementBeforeV874) {
-  lockSettlementV87 = async function () {
-    try {
-      await lockSettlementBeforeV874();
-    } catch (error) {
-      alert(`锁定结算失败：${settlementRlsHelpV874(error.message || error)}`);
-    }
-  };
-}
-
-
 
 // === v8.7.5 RLS role hint ===
 function settlementRlsHelpV875(message) {

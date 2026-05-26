@@ -2,6 +2,7 @@
 // Owns the lock panel display, preview, lock-state history, and button state.
 
 const STUDENT_SETTLEMENT_LOCK_TABLE = "school_student_monthly_settlements";
+const STUDENT_SETTLEMENT_SUMMARY_RPC = "school_get_student_monthly_settlement_summary";
 let studentSettlementLockHistoryRequest = 0;
 
 function settlementLockDbClient() {
@@ -51,6 +52,59 @@ function settlementLockContext() {
   const month = document.getElementById("settlementMonthFilter")?.value || (typeof currentYearMonth === "function" ? currentYearMonth() : new Date().toISOString().slice(0, 7));
   const studentId = document.getElementById("settlementStudentFilter")?.value || "";
   return { month, studentId };
+}
+
+function settlementLockNormalizeSummary(row) {
+  if (!row) return null;
+  const num = value => {
+    const n = Number(value || 0);
+    return Number.isFinite(n) ? n : 0;
+  };
+  return {
+    studentId: row.student_id,
+    month: row.year_month,
+    rate: num(row.exchange_rate),
+    carryoverCny: num(row.carryover_cny),
+    plannedHours: num(row.planned_hours),
+    actualHours: num(row.actual_hours),
+    plannedFeeJpy: num(row.planned_fee_jpy),
+    plannedFeeCny: num(row.planned_fee_cny),
+    plannedTotalCny: num(row.planned_total_cny),
+    actualFeeJpy: num(row.actual_fee_jpy),
+    actualFeeCny: num(row.actual_fee_cny),
+    receivedJpy: num(row.received_jpy),
+    receivedCny: num(row.received_cny),
+    receivedEquivalentCny: num(row.received_equivalent_cny),
+    finalDueCny: num(row.final_due_cny),
+    lockedCarryoverCny: num(row.locked_carryover_cny ?? row.final_due_cny),
+  };
+}
+
+async function refreshSettlementLockSummaryFromRpc() {
+  const { month, studentId } = settlementLockContext();
+  if (!studentId || !month) return null;
+
+  const client = settlementLockDbClient();
+  if (!client?.rpc) throw new Error("数据库客户端未初始化");
+
+  const { data, error } = await client.rpc(STUDENT_SETTLEMENT_SUMMARY_RPC, {
+    p_student_id: studentId,
+    p_year_month: month,
+  });
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const summary = settlementLockNormalizeSummary(row);
+  if (!summary) return null;
+
+  window.__studentSettlementSummaryClean = summary;
+  window.__studentSettlementSummaryDbV989 = summary;
+  window.__studentSettlementCarryoverV987 = {
+    month: summary.month,
+    studentId: summary.studentId,
+    amount: summary.carryoverCny,
+  };
+  return summary;
 }
 
 function settlementLockHasDbSummary() {
@@ -110,6 +164,97 @@ function settlementLockAdjustmentFromPanel(base = null) {
     return { adjustment: amount, reason };
   }
   return { adjustment: Number(input?.value || 0), reason };
+}
+
+function settlementLockSnapshotPayload(snapshot) {
+  return {
+    student_id: snapshot.student_id,
+    year_month: snapshot.year_month,
+    business_entity_id: snapshot.business_entity_id || null,
+    preset_exchange_rate: snapshot.preset_exchange_rate,
+    planned_lesson_fee_jpy: snapshot.planned_lesson_fee_jpy,
+    planned_lesson_fee_cny: snapshot.planned_lesson_fee_cny,
+    actual_lesson_fee_jpy: snapshot.actual_lesson_fee_jpy,
+    actual_lesson_fee_cny: snapshot.actual_lesson_fee_cny,
+    previous_balance_cny: snapshot.previous_balance_cny,
+    received_jpy: snapshot.received_jpy,
+    received_cny: snapshot.received_cny,
+    received_equivalent_cny: snapshot.received_equivalent_cny,
+    system_difference_cny: snapshot.system_difference_cny,
+    adjustment_amount_cny: snapshot.adjustment_amount_cny,
+    adjustment_reason: snapshot.adjustment_reason,
+    carryover_amount_cny: snapshot.carryover_amount_cny,
+    settlement_status: snapshot.settlement_status,
+    locked_at: snapshot.locked_at,
+  };
+}
+
+async function lockSettlementV87() {
+  const { month, studentId } = settlementLockContext();
+  if (!studentId || !month) {
+    alert("请先选择学生和月份。");
+    return;
+  }
+
+  const client = settlementLockDbClient();
+  if (!client) {
+    alert("锁定结算失败：数据库客户端未初始化");
+    return;
+  }
+
+  try {
+    await refreshSettlementLockSummaryFromRpc();
+  } catch (error) {
+    alert(`锁定前刷新结算摘要失败：${error.message || error}`);
+    return;
+  }
+
+  const base = settlementLockSnapshot(0, "");
+  if (!base) {
+    alert("锁定结算失败：无法读取最新DB结算摘要。");
+    return;
+  }
+
+  const adjustment = settlementLockAdjustmentFromPanel(base);
+  const snapshot = settlementLockSnapshot(adjustment.adjustment, adjustment.reason);
+  if (!snapshot) {
+    alert("锁定结算失败：无法生成锁定快照。");
+    return;
+  }
+
+  const ok = confirm(`确认锁定 ${snapshot.year_month} 的结算吗？\n状态：${settlementLockStatusLabel(snapshot.carryover_amount_cny)}\n结转：${settlementLockSignedCny(snapshot.carryover_amount_cny)}`);
+  if (!ok) return;
+
+  try {
+    const { data: saved, error } = await client
+      .from(STUDENT_SETTLEMENT_LOCK_TABLE)
+      .upsert(settlementLockSnapshotPayload(snapshot), { onConflict: "student_id,year_month" })
+      .select("id")
+      .single();
+    if (error) throw error;
+
+    if (typeof upsertStudentCarryoverV987 === "function") {
+      await upsertStudentCarryoverV987(client, snapshot, saved?.id || null);
+    }
+    if (typeof nextMonthV987 === "function") {
+      window.__studentSettlementCarryoverV987 = {
+        month: nextMonthV987(snapshot.year_month),
+        studentId: snapshot.student_id,
+        amount: Number(snapshot.carryover_amount_cny || 0),
+      };
+    }
+
+    alert("结算已锁定，并已写入下月结转记录。");
+    await refreshSettlementLockSummaryFromRpc();
+    updateSettlementLockPreviewV87();
+    await fetchSettlementLockHistoryV871();
+    await refreshStudentSettlementButtonStateV932();
+    if (window.SchoolStudentSettlementClean?.render) {
+      await window.SchoolStudentSettlementClean.render();
+    }
+  } catch (error) {
+    alert(`锁定结算失败：${error.message || error}`);
+  }
 }
 
 function ensureSettlementPanelV87() {
@@ -321,9 +466,7 @@ function bindSettlementLockPanelV87() {
   }
   if (lock && lock.dataset.boundSettlementLock !== "true") {
     lock.dataset.boundSettlementLock = "true";
-    lock.addEventListener("click", () => {
-      if (typeof lockSettlementV87 === "function") lockSettlementV87();
-    });
+    lock.addEventListener("click", lockSettlementV87);
   }
   if (unlock && unlock.dataset.boundSettlementLock !== "true") {
     unlock.dataset.boundSettlementLock = "true";

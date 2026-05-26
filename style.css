@@ -338,6 +338,24 @@ tr:last-child td { border-bottom: 0; }
   margin-top: 8px;
 }
 
+.lesson-form-errors-v922 {
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+  border: 1px solid #fca5a5;
+  border-radius: 10px;
+  background: #fff1f2;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.modal-form .lesson-field-error-v922 {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14) !important;
+}
+
 .info-list {
   display: grid;
   gap: 10px;

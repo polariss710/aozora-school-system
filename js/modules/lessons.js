@@ -685,6 +685,7 @@
         <label>备注</label>
         <textarea name="note">${hV918(item.note)}</textarea>
       </div>
+      <div class="lesson-form-errors-v922 hidden" data-lesson-form-errors></div>
       <div class="form-actions">
         <button type="button" class="secondary-btn" data-lesson-cancel>取消</button>
         <button type="submit" class="primary-btn">${mode === "edit" ? "保存" : "新增"}</button>
@@ -786,6 +787,8 @@
 
   function bindLessonFormEventsV918(form) {
     form.querySelector('[data-lesson-cancel]')?.addEventListener("click", () => closeModal());
+    form.addEventListener("input", () => clearLessonValidationErrorsV922(form));
+    form.addEventListener("change", () => clearLessonValidationErrorsV922(form));
     form.querySelector('[name="lesson_type"]')?.addEventListener("change", () => {
       syncLessonStatusOptionsV918(form);
       syncTeacherSettlementMonthV918(form);
@@ -952,44 +955,77 @@
     return payload;
   }
 
+  function clearLessonValidationErrorsV922(form) {
+    if (!form) return;
+    form.querySelectorAll(".lesson-field-error-v922").forEach(field => {
+      field.classList.remove("lesson-field-error-v922");
+      field.removeAttribute("aria-invalid");
+    });
+    const box = form.querySelector("[data-lesson-form-errors]");
+    if (box) {
+      box.classList.add("hidden");
+      box.textContent = "";
+    }
+  }
+
+  function showLessonValidationErrorsV922(form, validation) {
+    if (!form || !validation) return;
+    clearLessonValidationErrorsV922(form);
+    const errors = Array.isArray(validation.errors) ? validation.errors : [];
+    const message = validation.message || "入力内容を確認してください";
+    const box = form.querySelector("[data-lesson-form-errors]");
+    if (box) {
+      box.textContent = message;
+      box.classList.remove("hidden");
+    }
+    errors.forEach(error => {
+      const field = error?.field ? form.querySelector(`[name="${error.field}"]`) : null;
+      if (!field) return;
+      field.classList.add("lesson-field-error-v922");
+      field.setAttribute("aria-invalid", "true");
+    });
+    const firstField = errors.find(error => error?.field)?.field;
+    form.querySelector(firstField ? `[name="${firstField}"]` : "[data-lesson-form-errors]")?.focus?.();
+  }
+
   function validateLessonPayloadV918(payload) {
     console.log("[lesson-save] validate:start", payload);
     const missing = [];
-    const requireField = (ok, label) => {
-      if (!ok) missing.push(label);
+    const requireField = (ok, field, label) => {
+      if (!ok) missing.push({ field, label });
     };
     const hasNumber = value => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
 
-    requireField(payload.lesson_date, "上课日期");
-    requireField(payload.year_month, "归属月份");
-    requireField(payload.student_id, "学生");
-    requireField(payload.teacher_id, "老师");
-    requireField(payload.subject_id, "科目");
-    requireField(payload.business_entity_id, "业务归属");
-    requireField(payload.duration_hours && payload.duration_hours > 0, "时长");
-    requireField(hasNumber(payload.unit_price), "课程单价");
-    requireField(hasNumber(payload.lesson_fee), "应收课时费");
-    requireField(payload.lesson_count !== null && payload.lesson_count !== undefined && payload.lesson_count !== "", "回数");
+    requireField(payload.lesson_date, "lesson_date", "上课日期");
+    requireField(payload.year_month, "year_month", "归属月份");
+    requireField(payload.student_id, "student_id", "学生");
+    requireField(payload.teacher_id, "teacher_id", "老师");
+    requireField(payload.subject_id, "subject_id", "科目");
+    requireField(payload.business_entity_id, "business_entity_id", "业务归属");
+    requireField(payload.duration_hours && payload.duration_hours > 0, "duration_hours", "时长");
+    requireField(hasNumber(payload.unit_price), "unit_price", "课程单价");
+    requireField(hasNumber(payload.lesson_fee), "lesson_fee", "应收课时费");
+    requireField(payload.lesson_count !== null && payload.lesson_count !== undefined && payload.lesson_count !== "", "lesson_count", "回数");
 
     if (payload.lesson_type === "actual") {
-      requireField(payload.start_time, "开始时间");
-      requireField(payload.end_time, "结束时间");
-      requireField(payload.lesson_content && String(payload.lesson_content).trim(), "上课内容");
-      requireField(payload.teacher_settlement_month, "工资结算月份");
+      requireField(payload.start_time, "start_time", "开始时间");
+      requireField(payload.end_time, "end_time", "结束时间");
+      requireField(payload.lesson_content && String(payload.lesson_content).trim(), "lesson_content", "上课内容");
+      requireField(payload.teacher_settlement_month, "teacher_settlement_month", "工资结算月份");
     }
 
     if (missing.length) {
-      const message = `请补全以下项目：\n${missing.map(label => `- ${label}`).join("\n")}`;
+      const message = `请补全以下项目：\n${missing.map(error => `- ${error.label}`).join("\n")}`;
       console.warn("[lesson-save] validate:failed", message);
-      return message;
+      return { message, errors: missing };
     }
     if (payload.lesson_type === "planned" && !["planned", "pending_makeup"].includes(payload.status)) {
       console.warn("[lesson-save] validate:failed", "预定课时状态不合法。");
-      return "预定课时状态不合法。";
+      return { message: "预定课时状态不合法。", errors: [{ field: "status", label: "状态" }] };
     }
     if (payload.lesson_type === "actual" && !["completed", "cancelled", "makeup_completed"].includes(payload.status)) {
       console.warn("[lesson-save] validate:failed", "实际课时状态不合法。");
-      return "实际课时状态不合法。";
+      return { message: "实际课时状态不合法。", errors: [{ field: "status", label: "状态" }] };
     }
     console.log("[lesson-save] validate:return", "");
     return "";
@@ -1029,13 +1065,14 @@
 
       form.dataset.lessonSavingV918 = "true";
       form.querySelector('button[type="submit"]')?.setAttribute("disabled", "disabled");
+      clearLessonValidationErrorsV922(form);
 
       const payload = collectLessonFormPayloadV918(form);
       if (!payload) console.warn("[lesson-save] payload collected empty", payload);
       const validateResult = validateLessonPayloadV918(payload);
       if (validateResult) {
         console.warn("[lesson-save] submit:validate-failed", validateResult);
-        showMessage?.(validateResult, "error");
+        showLessonValidationErrorsV922(form, validateResult);
         return;
       }
 

@@ -935,25 +935,6 @@ function getFields(type) {
     { name: "note", label: "备注", type: "textarea", full: true },
   ];
 
-  if (type === "lesson") return [
-    { name: "lesson_type", label: "课时类型", type: "select", default: "actual", options: lessonTypeOptions(), required: true },
-    { name: "lesson_date", label: "上课日期", type: "date", default: todayStr(), required: true },
-    { name: "year_month", label: "归属月份", type: "month", default: currentYearMonth(), required: true },
-    { name: "student_id", label: "学生", type: "select", options: studentOptions(), required: true },
-    { name: "teacher_id", label: "老师", type: "select", options: teacherOptions(), required: true },
-    { name: "subject_id", label: "科目", type: "select", options: lessonSubjectOptions(), required: true },
-    { name: "business_entity_id", label: "业务归属", type: "select", options: businessOptions, required: true },
-    { name: "start_time", label: "开始时间", type: "time" },
-    { name: "end_time", label: "结束时间", type: "time" },
-    { name: "duration_hours", label: "时长（H）", type: "number", default: 2, required: true },
-    { name: "unit_price", label: "课程单价", type: "number", default: "" },
-    { name: "lesson_fee", label: "应收课时费", type: "number", default: "" },
-    { name: "status", label: "状态", type: "select", default: "completed", options: lessonStatusOptions() },
-    { name: "is_billable", label: "计费", type: "checkbox", default: true },
-    { name: "lesson_content", label: "上课内容", type: "textarea", full: true },
-    { name: "note", label: "备注", type: "textarea", full: true },
-  ];
-
   if (type === "teacher") return [
     { name: "name", label: "老师姓名", required: true },
     { name: "display_name", label: "显示名" },
@@ -1371,66 +1352,8 @@ function syncFinanceFilterAfterSave(type, record) {
 }
 
 
-function findMatchingPlannedLesson(payload) {
-  if (!payload || payload.lesson_type !== "actual") return null;
-  const same = (a, b) => String(a || "") === String(b || "");
-  return (state.lessonRecords || []).find(x =>
-    x.lesson_type === "planned" &&
-    same(x.student_id, payload.student_id) &&
-    same(x.teacher_id, payload.teacher_id) &&
-    same(x.subject_id, payload.subject_id) &&
-    same(x.lesson_date, payload.lesson_date) &&
-    same(x.start_time, payload.start_time) &&
-    same(x.end_time, payload.end_time)
-  ) || null;
-}
-
 function normalizeLessonPayload(payload, type) {
-  if (type !== "lesson") return payload;
-
-  if (payload.lesson_date && !payload.year_month) {
-    payload.year_month = String(payload.lesson_date).slice(0, 7);
-  }
-
-  if (payload.lesson_type === "planned") {
-    payload.planned_lesson_id = null;
-    return payload;
-  }
-
-  if (payload.planned_lesson_id === "") {
-    payload.planned_lesson_id = null;
-  }
-
-  if (payload.lesson_type === "actual" && !payload.planned_lesson_id && state.pendingActualPlanId) {
-    payload.planned_lesson_id = state.pendingActualPlanId;
-  }
-
-  if (payload.lesson_type === "actual" && !payload.planned_lesson_id) {
-    const matched = findMatchingPlannedLesson(payload);
-    if (matched) payload.planned_lesson_id = matched.id;
-  }
-
   return payload;
-}
-
-
-async function repairLessonPlannedLinkAfterSave(type, payload, saved) {
-  if (type !== "lesson") return;
-  if (payload.lesson_type !== "actual") return;
-  if (!payload.planned_lesson_id) return;
-  if (!saved?.id) return;
-
-  // Ensure the relation is definitely written even if insert payload was affected by older form handling.
-  if (saved.planned_lesson_id !== payload.planned_lesson_id) {
-    const { error } = await db
-      .from(tables.lessons)
-      .update({ planned_lesson_id: payload.planned_lesson_id })
-      .eq("id", saved.id);
-
-    if (error) {
-      console.warn("Failed to repair planned_lesson_id", error);
-    }
-  }
 }
 
 
@@ -1448,22 +1371,6 @@ function schoolStableFindMatchingPlannedLessonV70(payload) {
     same(x.end_time, payload.end_time)
   ) || null;
 }
-
-async function schoolStableRepairLessonPairV70(type, payload, saved) {
-  if (type !== "lesson" || payload.lesson_type !== "actual" || !saved?.id) return;
-
-  let planId = payload.planned_lesson_id || state.pendingActualPlanId || null;
-  if (!planId) {
-    const matched = schoolStableFindMatchingPlannedLessonV70(payload);
-    if (matched) planId = matched.id;
-  }
-
-  if (planId && saved.planned_lesson_id !== planId) {
-    const { error } = await db.from(tables.lessons).update({ planned_lesson_id: planId }).eq("id", saved.id);
-    if (error) console.warn("v7.0 lesson pair repair failed", error);
-  }
-}
-
 
 function resetFormSavingStateV71(form, submitButton) {
   state.isSavingForm = false;
@@ -1687,9 +1594,6 @@ async function saveForm(e) {
     }
   }
 
-  normalizeLessonPayload(payload, type);
-
-
   if (type === "reimbursement" && !state.editing.id) {
     payload.status = payload.status || "paid";
 
@@ -1734,10 +1638,6 @@ async function saveForm(e) {
     showModalSaveErrorV944(result.error.message);
     return;
   }
-
-  await repairLessonPlannedLinkAfterSave(type, payload, result.data);
-
-  await schoolStableRepairLessonPairV70(type, payload, result.data);
 
   if (type === "expense") {
     await uploadPendingExpenseAttachment(result.data);
@@ -4385,11 +4285,6 @@ function renderSettlementPairedLessonsV834(planned, actual) {
       const matched = schoolStableFindMatchingPlannedLessonV70(row);
       if (matched) planId = matched.id;
     }
-    if (!planId && typeof findMatchingPlannedLesson === "function") {
-      const matched = findMatchingPlannedLesson(row);
-      if (matched) planId = matched.id;
-    }
-
     if (planId) {
       if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
       actualByPlan.get(planId).push(row);
@@ -4764,11 +4659,6 @@ function renderSettlementPairedLessonsV8310(planned, actual) {
       const matched = schoolStableFindMatchingPlannedLessonV70(row);
       if (matched) planId = matched.id;
     }
-    if (!planId && typeof findMatchingPlannedLesson === "function") {
-      const matched = findMatchingPlannedLesson(row);
-      if (matched) planId = matched.id;
-    }
-
     if (planId) {
       if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
       actualByPlan.get(planId).push(row);
@@ -5488,11 +5378,6 @@ function renderSettlementPairedLessonsV852(planned, actual) {
       const matched = schoolStableFindMatchingPlannedLessonV70(row);
       if (matched) planId = matched.id;
     }
-    if (!planId && typeof findMatchingPlannedLesson === "function") {
-      const matched = findMatchingPlannedLesson(row);
-      if (matched) planId = matched.id;
-    }
-
     if (planId) {
       if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
       actualByPlan.get(planId).push(row);
@@ -5582,11 +5467,6 @@ function renderSettlementPairedLessonsV853(planned, actual) {
       const matched = schoolStableFindMatchingPlannedLessonV70(row);
       if (matched) planId = matched.id;
     }
-    if (!planId && typeof findMatchingPlannedLesson === "function") {
-      const matched = findMatchingPlannedLesson(row);
-      if (matched) planId = matched.id;
-    }
-
     if (planId) {
       if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
       actualByPlan.get(planId).push(row);
@@ -5717,11 +5597,6 @@ function buildLessonPairGroupsV854(rows) {
       const matched = schoolStableFindMatchingPlannedLessonV70(actual);
       if (matched) planId = matched.id;
     }
-    if (!planId && typeof findMatchingPlannedLesson === "function") {
-      const matched = findMatchingPlannedLesson(actual);
-      if (matched) planId = matched.id;
-    }
-
     if (planId) {
       if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
       actualByPlan.get(planId).push(actual);
@@ -8066,11 +7941,6 @@ function normalizeLessonCountV886(value) {
   return Number.isFinite(n) ? n : null;
 }
 
-function lessonCountTextV886(item) {
-  const count = normalizeLessonCountV886(item?.lesson_count);
-  return count === null ? "" : `第${count}回`;
-}
-
 // Add lesson_count to completed import common payload.
 const importCompletedLessonExcelBeforeV886 = typeof importCompletedLessonExcelV885 === "function" ? importCompletedLessonExcelV885 : null;
 
@@ -8165,23 +8035,6 @@ function summarizeTeacherSubjectMinutesV887(rows) {
     value.rounded_hours = floorHoursBy15MinV887(value.total_minutes);
   });
   return Array.from(map.values());
-}
-
-function hideCancelHolidayStatV887() {
-  document.querySelectorAll(".stat-card, .summary-card, .card, .metric-card").forEach(card => {
-    const text = card.textContent || "";
-    if (/取消\/放假数量|取消放假数量|取消|放假/.test(text) && /数量/.test(text)) {
-      card.style.display = "none";
-    }
-  });
-}
-
-function updateMakeupStatLabelV887() {
-  document.querySelectorAll(".stat-card, .summary-card, .card, .metric-card").forEach(card => {
-    const label = card.querySelector(".label, .stat-label, small, span") || card.firstElementChild;
-    if (!label) return;
-    if (/已上课数量/.test(card.textContent || "")) return;
-  });
 }
 
 // Header support:
@@ -8815,59 +8668,3 @@ document.addEventListener("DOMContentLoaded", () => {
   setTimeout(bindIncomeTuitionValidationV8811, 1000);
 });
 
-
-
-// === v8.8.12 lesson statistics scope fix ===
-function lessonStatusV8812(row) {
-  return String(row?.status || "").trim();
-}
-
-function lessonIsPendingMakeupV8812(row) {
-  const s = lessonStatusV8812(row);
-  return s === "pending_makeup" || s === "待补课" || s === "待补";
-}
-
-function lessonIsCancelledV8812(row) {
-  const s = lessonStatusV8812(row);
-  return s === "cancelled" || s === "取消课" || s === "取消";
-}
-
-function nV8812(value) {
-  const n = Number(value || 0);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function lessonCalcFeeV8812(row, hours = nV8812(row?.duration_hours)) {
-  return nV8812(row?.unit_price) * nV8812(hours);
-}
-
-function formatHoursV8812(value) {
-  const n = Number(value || 0);
-  if (!Number.isFinite(n)) return "0";
-  return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
-}
-
-// === v8.8.13 planned fee and lesson_count ordering fix ===
-// 1. 预定课时费合计：按全部预定课时的 单价 × 预定时长 计算，包括取消课。
-// 2. 同一天/同周同科目课程排序加入 lesson_count，回数小的在上。
-
-function normalizeLessonCountV8813(value) {
-  if (value === null || value === undefined || value === "") return null;
-  const n = Number(String(value).replace(/[^\d.-]/g, ""));
-  return Number.isFinite(n) ? n : null;
-}
-
-function lessonSubjectNameV8813(row) {
-  return row?.subject?.name || row?.subject_name || "";
-}
-
-function subjectPriorityV8813(row) {
-  const name = lessonSubjectNameV8813(row);
-  const order = ["日语", "数学", "物理", "化学", "生物", "文综"];
-  const idx = order.findIndex(x => name.includes(x));
-  return idx < 0 ? 99 : idx;
-}
-
-function lessonSortKeyDateV8813(row) {
-  return String(row?.lesson_date || "");
-}

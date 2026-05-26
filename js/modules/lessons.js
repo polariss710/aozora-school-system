@@ -563,7 +563,7 @@
     if (lessonType === "planned") {
       return ["planned", "pending_makeup"].includes(text) ? text : "planned";
     }
-    return ["completed", "cancelled", "makeup_completed", "makeup"].includes(text) ? text : "completed";
+    return ["completed", "cancelled", "makeup_completed"].includes(text) ? text : "completed";
   }
 
   function numberOrNullV918(value) {
@@ -954,39 +954,40 @@
 
   function validateLessonPayloadV918(payload) {
     console.log("[lesson-save] validate:start", payload);
-    if (!payload.lesson_date) {
-      console.warn("[lesson-save] validate:failed", "请填写上课日期。");
-      return "请填写上课日期。";
+    const missing = [];
+    const requireField = (ok, label) => {
+      if (!ok) missing.push(label);
+    };
+    const hasNumber = value => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+
+    requireField(payload.lesson_date, "上课日期");
+    requireField(payload.year_month, "归属月份");
+    requireField(payload.student_id, "学生");
+    requireField(payload.teacher_id, "老师");
+    requireField(payload.subject_id, "科目");
+    requireField(payload.business_entity_id, "业务归属");
+    requireField(payload.duration_hours && payload.duration_hours > 0, "时长");
+    requireField(hasNumber(payload.unit_price), "课程单价");
+    requireField(hasNumber(payload.lesson_fee), "应收课时费");
+    requireField(payload.lesson_count !== null && payload.lesson_count !== undefined && payload.lesson_count !== "", "回数");
+
+    if (payload.lesson_type === "actual") {
+      requireField(payload.start_time, "开始时间");
+      requireField(payload.end_time, "结束时间");
+      requireField(payload.lesson_content && String(payload.lesson_content).trim(), "上课内容");
+      requireField(payload.teacher_settlement_month, "工资结算月份");
     }
-    if (!payload.year_month) {
-      console.warn("[lesson-save] validate:failed", "请填写归属月份。");
-      return "请填写归属月份。";
-    }
-    if (!payload.student_id) {
-      console.warn("[lesson-save] validate:failed", "请选择学生。");
-      return "请选择学生。";
-    }
-    if (!payload.teacher_id) {
-      console.warn("[lesson-save] validate:failed", "请选择老师。");
-      return "请选择老师。";
-    }
-    if (!payload.subject_id) {
-      console.warn("[lesson-save] validate:failed", "请选择科目。");
-      return "请选择科目。";
-    }
-    if (!payload.business_entity_id) {
-      console.warn("[lesson-save] validate:failed", "请选择业务归属。");
-      return "请选择业务归属。";
-    }
-    if (!payload.duration_hours || payload.duration_hours <= 0) {
-      console.warn("[lesson-save] validate:failed", "请填写有效时长。");
-      return "请填写有效时长。";
+
+    if (missing.length) {
+      const message = `请补全以下项目：\n${missing.map(label => `- ${label}`).join("\n")}`;
+      console.warn("[lesson-save] validate:failed", message);
+      return message;
     }
     if (payload.lesson_type === "planned" && !["planned", "pending_makeup"].includes(payload.status)) {
       console.warn("[lesson-save] validate:failed", "预定课时状态不合法。");
       return "预定课时状态不合法。";
     }
-    if (payload.lesson_type === "actual" && !["completed", "cancelled", "makeup_completed", "makeup"].includes(payload.status)) {
+    if (payload.lesson_type === "actual" && !["completed", "cancelled", "makeup_completed"].includes(payload.status)) {
       console.warn("[lesson-save] validate:failed", "实际课时状态不合法。");
       return "实际课时状态不合法。";
     }

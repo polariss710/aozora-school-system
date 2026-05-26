@@ -6854,43 +6854,6 @@ async function voidStudentCarryoverV987(client, lock) {
   }
 }
 
-async function unlockSettlementV932() {
-  const lock = await getCurrentStudentSettlementLockV932();
-  if (!lock) {
-    alert("当前学生月份尚未锁定。");
-    await fetchSettlementLockHistoryV871();
-    await refreshStudentSettlementButtonStateV932();
-    return;
-  }
-
-  const ok = confirm(`确定撤销 ${lock.year_month} 的学生月度结算锁定吗？\n\n撤销后可重新修改课时和学费收入记录。`);
-  if (!ok) return;
-
-  const client = dbClientV871();
-  if (!client) {
-    alert("撤销锁定失败：数据库客户端未初始化");
-    return;
-  }
-
-  try {
-    const { error } = await client
-      .from(SETTLEMENTS_TABLE_V87)
-      .update({
-        settlement_status: "unlocked",
-        locked_at: null
-      })
-      .eq("id", lock.id);
-
-    if (error) throw error;
-    await voidStudentCarryoverV987(client, lock);
-    alert("学生月度结算锁定已撤销。");
-    await fetchSettlementLockHistoryV871();
-    await refreshStudentSettlementButtonStateV932();
-  } catch (error) {
-    alert(`撤销锁定失败：${error.message || error}`);
-  }
-}
-
 // Add import fields into lesson whitelist if previous code has whitelist sanitizer.
 const normalizePayloadBeforeImportBatchV871 = typeof normalizePayload === "function" ? normalizePayload : null;
 if (normalizePayloadBeforeImportBatchV871) {

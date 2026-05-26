@@ -257,6 +257,57 @@ async function lockSettlementV87() {
   }
 }
 
+async function unlockSettlementV932() {
+  const { month, studentId } = settlementLockContext();
+  if (!studentId || !month) {
+    alert("请先选择学生和月份。");
+    return;
+  }
+
+  const lock = await getCurrentStudentSettlementLockV932();
+  if (!lock) {
+    alert("当前学生月份尚未锁定。");
+    await fetchSettlementLockHistoryV871();
+    await refreshStudentSettlementButtonStateV932();
+    return;
+  }
+
+  const ok = confirm(`确定撤销 ${lock.year_month} 的学生月度结算锁定吗？\n\n撤销后可重新修改课时和学费收入记录。`);
+  if (!ok) return;
+
+  const client = settlementLockDbClient();
+  if (!client) {
+    alert("撤销锁定失败：数据库客户端未初始化");
+    return;
+  }
+
+  try {
+    const { error } = await client
+      .from(STUDENT_SETTLEMENT_LOCK_TABLE)
+      .update({
+        settlement_status: "unlocked",
+        locked_at: null,
+      })
+      .eq("id", lock.id);
+
+    if (error) throw error;
+    if (typeof voidStudentCarryoverV987 === "function") {
+      await voidStudentCarryoverV987(client, lock);
+    }
+
+    alert("学生月度结算锁定已撤销。");
+    await refreshSettlementLockSummaryFromRpc();
+    updateSettlementLockPreviewV87();
+    await fetchSettlementLockHistoryV871();
+    await refreshStudentSettlementButtonStateV932();
+    if (window.SchoolStudentSettlementClean?.render) {
+      await window.SchoolStudentSettlementClean.render();
+    }
+  } catch (error) {
+    alert(`撤销锁定失败：${error.message || error}`);
+  }
+}
+
 function ensureSettlementPanelV87() {
   const page = document.getElementById("page-student-settlement") || document.querySelector("[data-page='student-settlement']");
   if (!page) return;
@@ -470,9 +521,7 @@ function bindSettlementLockPanelV87() {
   }
   if (unlock && unlock.dataset.boundSettlementLock !== "true") {
     unlock.dataset.boundSettlementLock = "true";
-    unlock.addEventListener("click", () => {
-      if (typeof unlockSettlementV932 === "function") unlockSettlementV932();
-    });
+    unlock.addEventListener("click", unlockSettlementV932);
   }
   if (mode && mode.dataset.boundSettlementLock !== "true") {
     mode.dataset.boundSettlementLock = "true";

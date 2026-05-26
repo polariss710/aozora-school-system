@@ -1352,11 +1352,6 @@ function syncFinanceFilterAfterSave(type, record) {
 }
 
 
-function normalizeLessonPayload(payload, type) {
-  return payload;
-}
-
-
 // === v7.0 stable lesson pairing fallback ===
 function schoolStableFindMatchingPlannedLessonV70(payload) {
   if (!payload || payload.lesson_type !== "actual") return null;
@@ -7740,8 +7735,6 @@ function headerMap88(h) {
   return m;
 }
 function findHeader88(rows) { for (let i = 0; i < Math.min(rows.length, 25); i++) { const t = (rows[i] || []).map(tx88).join("|"); if (/科目/.test(t) && (/日期|予定|预定|上课|実際|实际/.test(t)) && (/时长|時間|单价|课时费|金额/.test(t))) return i; } return -1; }
-function status88(v) { const t = tx88(v); if (/休|取消|キャンセル|请假|欠席/.test(t)) return "cancelled"; if (/预|予定|未/.test(t)) return "planned"; return "completed"; }
-
 function ensureCompletedImportButtonV88() {
   const btn = document.getElementById("lessonImportCompletedExcelBtnV88");
   const input = document.getElementById("lessonImportCompletedExcelInputV88");
@@ -7813,22 +7806,6 @@ if (typeof lessonStatusLabel === "function") {
   };
 }
 
-function buildCompletedLessonNoteV885(baseNote, count, normalNote, salaryNote) {
-  const parts = [];
-  if (count !== "" && count !== null && count !== undefined) parts.push(`回数：${count}`);
-  if (normalNote) parts.push(`备注：${normalNote}`);
-  if (salaryNote) parts.push(`工资结算备注：${salaryNote}`);
-  if (baseNote) parts.push(baseNote);
-  return parts.join(" / ");
-}
-
-function isActualGeneratedFromStatusV885(status, actualDate) {
-  if (!actualDate) return false;
-  if (status === "pending_makeup") return false;
-  if (!status) return true;
-  return status === "completed" || status === "makeup_completed";
-}
-
 // Header map override: support 回数 and 工资结算备注
 const headerMapBeforeV885 = typeof headerMap88 === "function" ? headerMap88 : null;
 if (headerMapBeforeV885) {
@@ -7861,33 +7838,6 @@ function selectedStudentFallbackV9810() {
   const id = normalizeLessonSelectedStudentFilterV9812();
   return id ? (state.students || []).find(s => s.id === id) || null : null;
 }
-// Duplicate check includes lesson_count.
-// If both rows have count and count differs, they are not duplicates.
-function plannedDuplicateKeyV886(item) {
-  return [
-    item.student_id || "",
-    item.lesson_date || "",
-    item.teacher_id || "",
-    item.subject_id || "",
-    item.start_time || "",
-    item.end_time || "",
-    normalizeLessonCountV886(item.lesson_count) ?? "",
-  ].join("|");
-}
-
-plannedDuplicateKeyV872 = plannedDuplicateKeyV886;
-
-function plannedDuplicateCountMapV886(rows) {
-  const map = new Map();
-  rows.filter(x => x.lesson_type === "planned").forEach(item => {
-    const key = plannedDuplicateKeyV886(item);
-    map.set(key, (map.get(key) || 0) + 1);
-  });
-  return map;
-}
-
-plannedDuplicateCountMapV872 = plannedDuplicateCountMapV886;
-
 const ensureCompletedImportButtonBeforeV886 = typeof ensureCompletedImportButtonV884 === "function" ? ensureCompletedImportButtonV884 : (typeof ensureCompletedImportButtonV88 === "function" ? ensureCompletedImportButtonV88 : null);
 if (ensureCompletedImportButtonBeforeV886) {
   ensureCompletedImportButtonV884 = function () {
@@ -7968,123 +7918,6 @@ if (headerMapBeforeV887) {
   };
 }
 
-function buildCompletedImportRecordsV887(file, rows, sheetName, col, context) {
-  const {
-    studentId,
-    studentName,
-    businessEntityId,
-    batchId,
-    importedAt,
-    baseYear,
-  } = context;
-
-  const records = [];
-  let curT = "";
-  let curS = "";
-  let skipped = 0;
-  let actualSkipped = 0;
-
-  for (let r = context.headerIndex + 1; r < rows.length; r++) {
-    const row = rows[r] || [];
-    const line = row.map(x => String(x || "").trim()).join("");
-    if (!line || /合计|总计|總計|小计|小計/.test(line)) continue;
-
-    const teacherCell = col.teacher !== undefined ? String(row[col.teacher] || "").trim() : "";
-    const subjectCell = col.subject !== undefined ? String(row[col.subject] || "").trim() : "";
-    if (teacherCell) curT = teacherCell;
-    if (subjectCell) curS = subjectCell;
-
-    const plannedDate = dt88(col.plannedDate !== undefined ? row[col.plannedDate] : row[col.actualDate], baseYear);
-    const rawActualDate = col.actualDate !== undefined ? row[col.actualDate] : "";
-    const actualDate = dt88(rawActualDate, baseYear);
-
-    const duration = num88(col.duration !== undefined ? row[col.duration] : "");
-    const subjectId = subjectIdFromExcelName(curS) || document.getElementById("lessonSubjectFilter")?.value || "";
-    const teacherId = teacherIdFromExcelName(curT) || document.getElementById("lessonTeacherFilter")?.value || "";
-
-    if (!plannedDate || !duration || !subjectId || !teacherId) {
-      skipped++;
-      continue;
-    }
-
-    const tr = timeRange88(col.timeRange !== undefined ? row[col.timeRange] : "");
-    const start = col.start !== undefined ? String(row[col.start] || "") : tr.start;
-    const end = col.end !== undefined ? String(row[col.end] || "") : tr.end;
-    const actualMinutes = minutesBetweenV887(start, end);
-    const actualDuration = actualMinutes ? hoursFromMinutesExactV887(actualMinutes) : duration;
-
-    const unit = num88(col.unitPrice !== undefined ? row[col.unitPrice] : "");
-    const plannedFee = num88(col.lessonFee !== undefined ? row[col.lessonFee] : "") || (unit && duration ? unit * duration : 0);
-    const actualFee = unit && actualDuration ? Math.round(unit * actualDuration) : plannedFee;
-
-    const plannedContent = String((col.plannedContent !== undefined ? row[col.plannedContent] : row[col.content]) || "");
-    const actualContent = String((col.actualContent !== undefined ? row[col.actualContent] : row[col.content]) || "");
-    const count = normalizeLessonCountV886(col.count !== undefined ? row[col.count] : null);
-    const normalNote = String(col.note !== undefined ? row[col.note] || "" : "");
-    const salaryNote = String(col.salaryNote !== undefined ? row[col.salaryNote] || "" : "");
-    const status = normalizeLessonStatusTextV885(col.status !== undefined ? row[col.status] : "");
-
-    const plannedId = crypto.randomUUID();
-
-    const actualId = crypto.randomUUID();
-    const plannedYm = plannedDate.slice(0, 7);
-    const baseNote = `完整课时导入：${sheetName}`;
-    const mergedNote = buildCompletedLessonNoteV885(baseNote, "", normalNote, salaryNote);
-
-    const common = {
-      student_id: studentId,
-      teacher_id: teacherId,
-      subject_id: subjectId,
-      business_entity_id: businessEntityId,
-      start_time: start || "",
-      end_time: end || "",
-      unit_price: unit || 0,
-      lesson_count: count,
-      is_billable: true,
-      note: mergedNote,
-      import_batch_id: batchId,
-      import_source: file.name || sheetName,
-      imported_at: importedAt,
-    };
-
-    records.push({
-      id: plannedId,
-      lesson_type: "planned",
-      lesson_date: plannedDate,
-      year_month: plannedYm,
-      lesson_content: plannedContent,
-      status: status || "completed",
-      planned_lesson_id: null,
-      duration_hours: duration,
-      lesson_fee: plannedFee || 0,
-      actual_minutes: null,
-      ...common,
-    });
-
-    if (isActualGeneratedFromStatusV885(status, actualDate)) {
-      records.push({
-        id: actualId,
-        lesson_type: "actual",
-        planned_lesson_id: plannedId,
-        lesson_date: actualDate,
-        year_month: plannedYm,
-        lesson_content: actualContent,
-        status: status || "completed",
-        duration_hours: actualDuration || duration,
-        lesson_fee: actualFee || 0,
-        actual_minutes: actualMinutes,
-        ...common,
-      });
-    } else {
-      actualSkipped++;
-    }
-  }
-
-  return { records, skipped, actualSkipped };
-}
-
-
-
 // === v8.8.8 Excel time parse/display fix ===
 function excelTimeToHHMMV888(value) {
   if (value === null || value === undefined || value === "") return "";
@@ -8120,38 +7953,6 @@ timeRange88 = parseTimeRangeSmartV888;
 
 function cleanTimeForDisplayV888(value) {
   return excelTimeToHHMMV888(value) || "";
-}
-
-function patchBrokenExcelDateTimeTextV888() {
-  const root = document.body;
-  if (!root) return;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  const nodes = [];
-  while (walker.nextNode()) {
-    const node = walker.currentNode;
-    if (/Sat Dec 30 1899|GMT|日本標準時/.test(node.nodeValue || "")) nodes.push(node);
-  }
-  nodes.forEach(node => {
-    node.nodeValue = node.nodeValue.replace(/Sat Dec 30 1899\s+(\d{1,2}):(\d{2}):\d{2}\s+GMT[^\s)]*(?:\s*\([^)]*\))?/g, (_, h, m) => `${String(Number(h)).padStart(2, "0")}:${m}`);
-  });
-}
-
-const buildCompletedImportRecordsBeforeV888 = typeof buildCompletedImportRecordsV887 === "function" ? buildCompletedImportRecordsV887 : null;
-if (buildCompletedImportRecordsBeforeV888) {
-  buildCompletedImportRecordsV887 = function (file, rows, sheetName, col, context) {
-    const result = buildCompletedImportRecordsBeforeV888(file, rows, sheetName, col, context);
-    (result.records || []).forEach(row => {
-      row.start_time = cleanTimeForDisplayV888(row.start_time);
-      row.end_time = cleanTimeForDisplayV888(row.end_time);
-      const minutes = minutesBetweenV887(row.start_time, row.end_time);
-      if (row.lesson_type === "actual" && minutes) {
-        row.actual_minutes = minutes;
-        row.duration_hours = hoursFromMinutesExactV887(minutes);
-        row.lesson_fee = Math.round(Number(row.unit_price || 0) * Number(row.duration_hours || 0));
-      }
-    });
-    return result;
-  };
 }
 
 async function repairLessonTimeStringsV888() {

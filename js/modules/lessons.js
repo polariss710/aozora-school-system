@@ -1653,7 +1653,6 @@ function lessonPairDateText(item) {
 
   function formatJpyV916(value) {
     const n = Number(value || 0);
-    if (typeof formatJpyV83 === "function") return formatJpyV83(n);
     return `${Math.round(n).toLocaleString()} JPY`;
   }
 

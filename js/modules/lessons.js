@@ -139,11 +139,49 @@
     return `第${String(raw).trim()}回`;
   }
 
+  function isoDateTextV920(value) {
+    const text = textV920(value).slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+    return "";
+  }
+
+  function formatDateV920(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function mondayOfDateTextV920(dateText) {
+    const iso = isoDateTextV920(dateText);
+    if (!iso) return "";
+    const [y, m, d] = iso.split("-").map(Number);
+    const date = new Date(y, m - 1, d);
+    const diff = date.getDay() === 0 ? -6 : 1 - date.getDay();
+    date.setDate(date.getDate() + diff);
+    return formatDateV920(date);
+  }
+
+  function lessonWeekMondayTextV920(item, dateText) {
+    const count = Number(textV920(item?.lesson_count).replace(/[^\d.-]/g, ""));
+    const yearMonth = textV920(item?.year_month).slice(0, 7);
+    if (Number.isFinite(count) && count > 0 && /^\d{4}-\d{2}$/.test(yearMonth)) {
+      const firstMonday = mondayOfDateTextV920(`${yearMonth}-01`);
+      if (firstMonday) {
+        const [y, m, d] = firstMonday.split("-").map(Number);
+        const date = new Date(y, m - 1, d);
+        date.setDate(date.getDate() + (Math.floor(count) - 1) * 7);
+        return formatDateV920(date);
+      }
+    }
+    return mondayOfDateTextV920(dateText);
+  }
+
   function datePartsV920(item) {
-    const date = item?.lesson_date || item?.created_at || "";
-    const main = date ? `${date}${String(date).endsWith("周") ? "" : "周"}` : "";
+    const date = isoDateTextV920(item?.lesson_date || item?.created_at);
+    const monday = lessonWeekMondayTextV920(item, date);
     return {
-      main,
+      main: monday ? `${monday} 周一` : "",
       sub: date,
       count: lessonCountTextV920(item),
     };

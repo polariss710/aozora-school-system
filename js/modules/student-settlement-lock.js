@@ -628,3 +628,10 @@ if (document.readyState === "loading") {
 } else {
   installStudentSettlementLockReadonly();
 }
+
+window.SchoolStudentSettlementLock = {
+  refreshReadonly: refreshStudentSettlementLockReadonly,
+  ensurePanel: ensureSettlementPanelV87,
+  updatePreview: updateSettlementLockPreviewV87,
+  fetchHistory: fetchSettlementLockHistoryV871,
+};

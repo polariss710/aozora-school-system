@@ -470,10 +470,10 @@
     applySummary(summary);
     renderLessonDetails();
 
-    if (typeof ensureSettlementPanelV87 === "function") ensureSettlementPanelV87();
-    if (typeof updateSettlementLockPreviewV87 === "function") updateSettlementLockPreviewV87();
-    if (typeof fetchSettlementLockHistoryV871 === "function") fetchSettlementLockHistoryV871();
-    else if (typeof fetchSettlementLockHistoryV87 === "function") fetchSettlementLockHistoryV87();
+    const settlementLock = window.SchoolStudentSettlementLock;
+    if (settlementLock?.ensurePanel) settlementLock.ensurePanel();
+    if (settlementLock?.updatePreview) settlementLock.updatePreview();
+    if (settlementLock?.fetchHistory) settlementLock.fetchHistory();
   }
 
   function bindCleanEvents() {

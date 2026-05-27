@@ -110,11 +110,41 @@
     setOptionalText("paymentRecordCount", String(rows.length));
   }
 
+  async function renderPaymentSummaryFromRpc() {
+    const month = document.getElementById("paymentMonthFilter")?.value || null;
+    const status = document.getElementById("paymentStatusFilter")?.value || null;
+    const sourceType = document.getElementById("paymentSourceTypeFilter")?.value || null;
+    const businessId = document.getElementById("paymentBusinessFilter")?.value || null;
+    const currency = document.getElementById("paymentCurrencyFilter")?.value || null;
+
+    const { data, error } = await db.rpc("school_get_payment_management_summary", {
+      p_request_month: month,
+      p_status: status,
+      p_source_type: sourceType,
+      p_business_entity_id: businessId,
+      p_currency: currency,
+    });
+
+    if (error) {
+      console.warn("payment summary rpc failed", error);
+      showMessage(`支付汇总读取失败：${error.message}`, "error");
+      return;
+    }
+
+    const summary = Array.isArray(data) ? data[0] : data;
+    if (!summary) return;
+
+    setOptionalText("paymentPendingTotal", `${fmtAmount(summary.pending_amount_jpy, "JPY")} / ${fmtAmount(summary.pending_amount_cny, "CNY")}`);
+    setOptionalText("paymentPaidTotal", `${fmtAmount(summary.paid_amount_jpy, "JPY")} / ${fmtAmount(summary.paid_amount_cny, "CNY")}`);
+    setOptionalText("paymentFilteredTotal", `${fmtAmount(summary.filtered_amount_jpy, "JPY")} / ${fmtAmount(summary.filtered_amount_cny, "CNY")}`);
+    setOptionalText("paymentRecordCount", String(summary.record_count || 0));
+  }
+
   function renderPayments() {
     fillFilters();
 
     const rows = filteredRows();
-    renderSummary(rows);
+    renderPaymentSummaryFromRpc();
 
     const tbody = document.getElementById("paymentRequestsTable");
     if (!tbody) return;

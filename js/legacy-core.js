@@ -6701,14 +6701,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // === v9.4.2 student settlement switch lock display fix ===
 const SETTLEMENTS_TABLE_V87 = "school_student_monthly_settlements";
-const STUDENT_CARRYOVERS_TABLE_V987 = "school_student_settlement_carryovers";
-
-function nextMonthV987(ym) {
-  const [y, m] = String(ym || "").split("-").map(Number);
-  if (!y || !m) return "";
-  const d = new Date(y, m, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
 
 function currentSettlementCarryoverAmountV987(studentId, month, student) {
   const cached = window.__studentSettlementCarryoverV987;
@@ -6804,54 +6796,6 @@ function adjustmentFromPanelV87() {
 // === v8.7.1 fixes: db client, stable actual link, import batch undo ===
 function dbClientV871() {
   return (typeof db !== "undefined" && db?.from) ? db : ((typeof supabase !== "undefined" && supabase?.from) ? supabase : null);
-}
-
-async function upsertStudentCarryoverV987(client, snapshot, settlementId = null) {
-  if (!client || !snapshot) return;
-  const toMonth = nextMonthV987(snapshot.year_month);
-  if (!toMonth) return;
-
-  const payload = {
-    student_id: snapshot.student_id,
-    from_year_month: snapshot.year_month,
-    to_year_month: toMonth,
-    amount_cny: Number(snapshot.carryover_amount_cny || 0),
-    source_settlement_id: settlementId || null,
-    source_settlement_month: snapshot.year_month,
-    status: "active",
-    note: snapshot.adjustment_reason || "",
-    updated_at: new Date().toISOString(),
-  };
-
-  const { error } = await client
-    .from(STUDENT_CARRYOVERS_TABLE_V987)
-    .upsert(payload, { onConflict: "student_id,from_year_month,to_year_month" });
-
-  if (error) throw error;
-}
-
-async function voidStudentCarryoverV987(client, lock) {
-  if (!client || !lock) return;
-  const toMonth = nextMonthV987(lock.year_month);
-  if (!toMonth) return;
-
-  const { error } = await client
-    .from(STUDENT_CARRYOVERS_TABLE_V987)
-    .update({
-      status: "void",
-      updated_at: new Date().toISOString(),
-      note: "来源学生月度结算已撤销",
-    })
-    .eq("student_id", lock.student_id)
-    .eq("from_year_month", lock.year_month)
-    .eq("to_year_month", toMonth);
-
-  if (error) throw error;
-  if (window.__studentSettlementCarryoverV987 &&
-    window.__studentSettlementCarryoverV987.month === toMonth &&
-    window.__studentSettlementCarryoverV987.studentId === lock.student_id) {
-    window.__studentSettlementCarryoverV987 = null;
-  }
 }
 
 // Add import fields into lesson whitelist if previous code has whitelist sanitizer.

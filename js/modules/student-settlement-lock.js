@@ -2,6 +2,7 @@
 // Owns the lock panel display, preview, lock-state history, and button state.
 
 const STUDENT_SETTLEMENT_LOCK_TABLE = "school_student_monthly_settlements";
+const STUDENT_SETTLEMENT_CARRYOVER_TABLE = "school_student_settlement_carryovers";
 const STUDENT_SETTLEMENT_SUMMARY_RPC = "school_get_student_monthly_settlement_summary";
 let studentSettlementLockHistoryRequest = 0;
 
@@ -52,6 +53,61 @@ function settlementLockContext() {
   const month = document.getElementById("settlementMonthFilter")?.value || (typeof currentYearMonth === "function" ? currentYearMonth() : new Date().toISOString().slice(0, 7));
   const studentId = document.getElementById("settlementStudentFilter")?.value || "";
   return { month, studentId };
+}
+
+function nextSettlementMonth(ym) {
+  const [y, m] = String(ym || "").split("-").map(Number);
+  if (!y || !m) return "";
+  const d = new Date(y, m, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+async function upsertStudentCarryover(client, snapshot, settlementId = null) {
+  if (!client || !snapshot) return;
+  const toMonth = nextSettlementMonth(snapshot.year_month);
+  if (!toMonth) return;
+
+  const payload = {
+    student_id: snapshot.student_id,
+    from_year_month: snapshot.year_month,
+    to_year_month: toMonth,
+    amount_cny: Number(snapshot.carryover_amount_cny || 0),
+    source_settlement_id: settlementId || null,
+    source_settlement_month: snapshot.year_month,
+    status: "active",
+    note: snapshot.adjustment_reason || "",
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await client
+    .from(STUDENT_SETTLEMENT_CARRYOVER_TABLE)
+    .upsert(payload, { onConflict: "student_id,from_year_month,to_year_month" });
+
+  if (error) throw error;
+}
+
+async function voidStudentCarryover(client, lock) {
+  if (!client || !lock) return;
+  const toMonth = nextSettlementMonth(lock.year_month);
+  if (!toMonth) return;
+
+  const { error } = await client
+    .from(STUDENT_SETTLEMENT_CARRYOVER_TABLE)
+    .update({
+      status: "void",
+      updated_at: new Date().toISOString(),
+      note: "来源学生月度结算已撤销",
+    })
+    .eq("student_id", lock.student_id)
+    .eq("from_year_month", lock.year_month)
+    .eq("to_year_month", toMonth);
+
+  if (error) throw error;
+  if (window.__studentSettlementCarryoverV987 &&
+    window.__studentSettlementCarryoverV987.month === toMonth &&
+    window.__studentSettlementCarryoverV987.studentId === lock.student_id) {
+    window.__studentSettlementCarryoverV987 = null;
+  }
 }
 
 function settlementLockNormalizeSummary(row) {
@@ -233,16 +289,12 @@ async function lockSettlementV87() {
       .single();
     if (error) throw error;
 
-    if (typeof upsertStudentCarryoverV987 === "function") {
-      await upsertStudentCarryoverV987(client, snapshot, saved?.id || null);
-    }
-    if (typeof nextMonthV987 === "function") {
-      window.__studentSettlementCarryoverV987 = {
-        month: nextMonthV987(snapshot.year_month),
-        studentId: snapshot.student_id,
-        amount: Number(snapshot.carryover_amount_cny || 0),
-      };
-    }
+    await upsertStudentCarryover(client, snapshot, saved?.id || null);
+    window.__studentSettlementCarryoverV987 = {
+      month: nextSettlementMonth(snapshot.year_month),
+      studentId: snapshot.student_id,
+      amount: Number(snapshot.carryover_amount_cny || 0),
+    };
 
     alert("结算已锁定，并已写入下月结转记录。");
     await refreshSettlementLockSummaryFromRpc();
@@ -291,9 +343,7 @@ async function unlockSettlementV932() {
       .eq("id", lock.id);
 
     if (error) throw error;
-    if (typeof voidStudentCarryoverV987 === "function") {
-      await voidStudentCarryoverV987(client, lock);
-    }
+    await voidStudentCarryover(client, lock);
 
     alert("学生月度结算锁定已撤销。");
     await refreshSettlementLockSummaryFromRpc();

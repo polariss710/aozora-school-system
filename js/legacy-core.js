@@ -3900,10 +3900,6 @@ function feeOfLessonV83(item) {
   return Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0);
 }
 
-function sumLessonHoursV83(rows) {
-  return rows.reduce((sum, x) => sum + Number(x.duration_hours || 0), 0);
-}
-
 function sumLessonFeeV83(rows) {
   return rows.reduce((sum, x) => sum + feeOfLessonV83(x), 0);
 }
@@ -6083,11 +6079,6 @@ function adjustmentFromPanelV87() {
   if (mode === "custom") return { adjustment: Number(document.getElementById("settlementAdjustmentAmountV87")?.value || 0), reason: document.getElementById("settlementAdjustmentReasonV87")?.value || "手动调整" };
   return { adjustment: 0, reason: document.getElementById("settlementAdjustmentReasonV87")?.value || "" };
 }
-// === v8.7.1 fixes: db client, stable actual link, import batch undo ===
-function dbClientV871() {
-  return (typeof db !== "undefined" && db?.from) ? db : ((typeof supabase !== "undefined" && supabase?.from) ? supabase : null);
-}
-
 // Add import fields into lesson whitelist if previous code has whitelist sanitizer.
 const normalizePayloadBeforeImportBatchV871 = typeof normalizePayload === "function" ? normalizePayload : null;
 if (normalizePayloadBeforeImportBatchV871) {
@@ -6313,17 +6304,6 @@ sumLessonsForSettlementV87 = function (studentId, month, type) {
     : settlementActualLessonsV889(studentId, month);
   return sumLessonFeeForSettlementV889(rows);
 };
-
-function debugSettlementLessonsV889(studentId, month) {
-  const planned = settlementPlannedLessonsV889(studentId, month);
-  const actual = settlementActualLessonsV889(studentId, month);
-  console.log("settlement planned", planned);
-  console.log("settlement actual", actual);
-  console.log("planned fee", sumLessonFeeForSettlementV889(planned), "actual fee", sumLessonFeeForSettlementV889(actual));
-  return { planned, actual };
-}
-
-
 
 // === v8.8.10 lesson billing/status + tuition income validation + settlement reason fix ===
 

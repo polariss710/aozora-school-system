@@ -298,8 +298,8 @@ async function lockSettlementV87() {
 
     alert("结算已锁定，并已写入下月结转记录。");
     await refreshSettlementLockSummaryFromRpc();
-    updateSettlementLockPreviewV87();
-    await fetchSettlementLockHistoryV871();
+    updateSettlementLockPreview();
+    await fetchSettlementLockHistory();
     await refreshStudentSettlementButtonStateV932();
     if (window.SchoolStudentSettlementClean?.render) {
       await window.SchoolStudentSettlementClean.render();
@@ -319,7 +319,7 @@ async function unlockSettlementV932() {
   const lock = await getCurrentStudentSettlementLockV932();
   if (!lock) {
     alert("当前学生月份尚未锁定。");
-    await fetchSettlementLockHistoryV871();
+    await fetchSettlementLockHistory();
     await refreshStudentSettlementButtonStateV932();
     return;
   }
@@ -347,8 +347,8 @@ async function unlockSettlementV932() {
 
     alert("学生月度结算锁定已撤销。");
     await refreshSettlementLockSummaryFromRpc();
-    updateSettlementLockPreviewV87();
-    await fetchSettlementLockHistoryV871();
+    updateSettlementLockPreview();
+    await fetchSettlementLockHistory();
     await refreshStudentSettlementButtonStateV932();
     if (window.SchoolStudentSettlementClean?.render) {
       await window.SchoolStudentSettlementClean.render();
@@ -358,7 +358,7 @@ async function unlockSettlementV932() {
   }
 }
 
-function ensureSettlementPanelV87() {
+function ensureSettlementLockPanel() {
   const page = document.getElementById("page-student-settlement") || document.querySelector("[data-page='student-settlement']");
   if (!page) return;
 
@@ -394,8 +394,8 @@ function ensureSettlementPanelV87() {
   bindSettlementLockPanelV87();
 }
 
-function updateSettlementLockPreviewV87() {
-  ensureSettlementPanelV87();
+function updateSettlementLockPreview() {
+  ensureSettlementLockPanel();
 
   const base = settlementLockSnapshot(0, "");
   if (!base) {
@@ -481,7 +481,7 @@ async function refreshStudentSettlementButtonStateV932() {
   setStudentSettlementLockButtonStateV932(!!lock);
 }
 
-async function fetchSettlementLockHistoryV871() {
+async function fetchSettlementLockHistory() {
   const requestId = ++studentSettlementLockHistoryRequest;
   const { month, studentId } = settlementLockContext();
   const history = document.getElementById("settlementLockHistoryV87");
@@ -556,14 +556,14 @@ function bindSettlementLockPanelV87() {
   if (refresh && refresh.dataset.boundSettlementLock !== "true") {
     refresh.dataset.boundSettlementLock = "true";
     refresh.addEventListener("click", () => {
-      updateSettlementLockPreviewV87();
-      fetchSettlementLockHistoryV871();
+      updateSettlementLockPreview();
+      fetchSettlementLockHistory();
       refreshStudentSettlementButtonStateV932();
     });
   }
   if (preview && preview.dataset.boundSettlementLock !== "true") {
     preview.dataset.boundSettlementLock = "true";
-    preview.addEventListener("click", updateSettlementLockPreviewV87);
+    preview.addEventListener("click", updateSettlementLockPreview);
   }
   if (lock && lock.dataset.boundSettlementLock !== "true") {
     lock.dataset.boundSettlementLock = "true";
@@ -575,7 +575,7 @@ function bindSettlementLockPanelV87() {
   }
   if (mode && mode.dataset.boundSettlementLock !== "true") {
     mode.dataset.boundSettlementLock = "true";
-    mode.addEventListener("change", updateSettlementLockPreviewV87);
+    mode.addEventListener("change", updateSettlementLockPreview);
   }
   if (amount && amount.dataset.boundSettlementLock !== "true") {
     amount.dataset.boundSettlementLock = "true";
@@ -583,7 +583,7 @@ function bindSettlementLockPanelV87() {
       if (event.target?.disabled) return;
       const currentMode = document.getElementById("settlementAdjustModeV87");
       if (currentMode) currentMode.value = "custom";
-      updateSettlementLockPreviewV87();
+      updateSettlementLockPreview();
     });
     amount.addEventListener("focus", () => {
       if (settlementLockMode() === "custom" && amount.value === "0") amount.value = "";
@@ -591,16 +591,16 @@ function bindSettlementLockPanelV87() {
   }
   if (reason && reason.dataset.boundSettlementLock !== "true") {
     reason.dataset.boundSettlementLock = "true";
-    reason.addEventListener("input", updateSettlementLockPreviewV87);
+    reason.addEventListener("input", updateSettlementLockPreview);
   }
 
   settlementLockNormalizeAdjustmentInput(settlementLockSnapshot(0, ""));
 }
 
 function refreshStudentSettlementLockReadonly() {
-  ensureSettlementPanelV87();
-  updateSettlementLockPreviewV87();
-  fetchSettlementLockHistoryV871();
+  ensureSettlementLockPanel();
+  updateSettlementLockPreview();
+  fetchSettlementLockHistory();
   refreshStudentSettlementButtonStateV932();
 }
 
@@ -631,7 +631,7 @@ if (document.readyState === "loading") {
 
 window.SchoolStudentSettlementLock = {
   refreshReadonly: refreshStudentSettlementLockReadonly,
-  ensurePanel: ensureSettlementPanelV87,
-  updatePreview: updateSettlementLockPreviewV87,
-  fetchHistory: fetchSettlementLockHistoryV871,
+  ensurePanel: ensureSettlementLockPanel,
+  updatePreview: updateSettlementLockPreview,
+  fetchHistory: fetchSettlementLockHistory,
 };

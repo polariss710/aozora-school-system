@@ -177,11 +177,18 @@
     return mondayOfDateTextV920(dateText);
   }
 
+  function mondayWeekLabelV920(dateText) {
+    const iso = isoDateTextV920(dateText);
+    if (!iso) return "";
+    const [, month, day] = iso.split("-");
+    return `${Number(month)}月${Number(day)} 周`;
+  }
+
   function datePartsV920(item) {
     const date = isoDateTextV920(item?.lesson_date || item?.created_at);
     const monday = lessonWeekMondayTextV920(item, date);
     return {
-      main: monday ? `${monday} 周一` : "",
+      main: mondayWeekLabelV920(monday),
       sub: date,
       count: lessonCountTextV920(item),
     };

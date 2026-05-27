@@ -12,3 +12,4 @@ v*_cleanup_notes.sql
 codex_lesson_stats_analysis.md
 school_lesson_management_stats_rpc.sql
 school_payment_management_summary_rpc.sql
+school_confirm_payment_request_rpc.sql

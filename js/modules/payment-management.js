@@ -236,50 +236,50 @@
     document.body.insertAdjacentHTML("beforeend", `
       <div class="modal hidden" id="paymentConfirmModal">
         <div class="modal-backdrop" id="paymentConfirmBackdrop"></div>
-        <div class="modal-card payment-confirm-card">
+        <div class="modal-panel payment-confirm-card">
           <div class="modal-header">
             <h3>确认支付</h3>
             <button type="button" class="icon-btn" id="paymentConfirmCloseBtn">×</button>
           </div>
-          <form id="paymentConfirmForm" class="form-grid">
+          <form id="paymentConfirmForm" class="modal-form">
             <input type="hidden" id="paymentConfirmId" />
-            <label>
+            <label class="form-row">
               <span>支付对象</span>
               <input id="paymentConfirmPayee" type="text" readonly />
             </label>
-            <label>
+            <label class="form-row">
               <span>业务归属</span>
               <input id="paymentConfirmBusiness" type="text" readonly />
             </label>
-            <label>
+            <label class="form-row">
               <span>支付账户</span>
               <select id="paymentConfirmAccount" required></select>
             </label>
-            <label>
+            <label class="form-row">
               <span>支付日期</span>
               <input id="paymentConfirmDate" type="date" required />
             </label>
-            <label>
+            <label class="form-row">
               <span>币种</span>
               <input id="paymentConfirmCurrency" type="text" readonly />
             </label>
-            <label>
+            <label class="form-row">
               <span>支付金额</span>
               <input id="paymentConfirmAmount" type="number" step="0.01" required />
             </label>
-            <label>
+            <label class="form-row">
               <span>日元金额</span>
               <input id="paymentConfirmAmountJpy" type="number" step="1" readonly />
             </label>
-            <label>
+            <label class="form-row">
               <span>人民币金额</span>
               <input id="paymentConfirmAmountCny" type="number" step="0.01" readonly />
             </label>
-            <label class="full">
+            <label class="form-row full">
               <span>备注</span>
               <textarea id="paymentConfirmNote" rows="3"></textarea>
             </label>
-            <div class="modal-actions full">
+            <div class="form-actions">
               <button type="button" class="secondary-btn" id="paymentConfirmCancelBtn">取消</button>
               <button type="submit" class="primary-btn">确认支付并生成支出记录</button>
             </div>

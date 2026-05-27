@@ -162,18 +162,7 @@
     return formatDateV920(date);
   }
 
-  function lessonWeekMondayTextV920(item, dateText) {
-    const count = Number(textV920(item?.lesson_count).replace(/[^\d.-]/g, ""));
-    const yearMonth = textV920(item?.year_month).slice(0, 7);
-    if (Number.isFinite(count) && count > 0 && /^\d{4}-\d{2}$/.test(yearMonth)) {
-      const firstMonday = mondayOfDateTextV920(`${yearMonth}-01`);
-      if (firstMonday) {
-        const [y, m, d] = firstMonday.split("-").map(Number);
-        const date = new Date(y, m - 1, d);
-        date.setDate(date.getDate() + (Math.floor(count) - 1) * 7);
-        return formatDateV920(date);
-      }
-    }
+  function lessonWeekMondayTextV920(dateText) {
     return mondayOfDateTextV920(dateText);
   }
 
@@ -186,7 +175,7 @@
 
   function datePartsV920(item) {
     const date = isoDateTextV920(item?.lesson_date || item?.created_at);
-    const monday = lessonWeekMondayTextV920(item, date);
+    const monday = lessonWeekMondayTextV920(date);
     return {
       main: mondayWeekLabelV920(monday),
       sub: date,

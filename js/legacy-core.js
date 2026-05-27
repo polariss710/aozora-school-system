@@ -3900,23 +3900,6 @@ function feeOfLessonV83(item) {
   return Number(item.lesson_fee || (Number(item.unit_price || 0) * Number(item.duration_hours || 0)) || 0);
 }
 
-function settlementRowsV83() {
-  const month = document.getElementById("settlementMonthFilter")?.value || currentYearMonth();
-  const studentId = document.getElementById("settlementStudentFilter")?.value || "";
-  const lessons = (state.lessonRecords || []).filter(x =>
-    x.student_id === studentId &&
-    x.year_month === month &&
-    x.is_billable !== false
-  );
-  const planned = lessons.filter(x => x.lesson_type === "planned");
-  const actual = lessons.filter(x =>
-    x.lesson_type === "actual" &&
-    x.status !== "cancelled" &&
-    x.status !== "holiday"
-  );
-  return { month, studentId, lessons, planned, actual };
-}
-
 function sumLessonHoursV83(rows) {
   return rows.reduce((sum, x) => sum + Number(x.duration_hours || 0), 0);
 }
@@ -3943,88 +3926,6 @@ function rateErrorTextV834(student) {
   const rate = Number(student?.preset_exchange_rate || 0);
   if (rate > 0) return "";
   return "该学生预设汇率为 0，请先到「学生管理」编辑学生，填写预设汇率。";
-}
-
-function settlementLessonCellsV834(item, side) {
-  if (!item) {
-    return `<td colspan="6" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const fee = feeOfLessonV83(item);
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = [item.start_time, item.end_time].filter(Boolean).join(" - ");
-  const studentName = item.student?.display_name || item.student?.name || "";
-  const teacherName = item.teacher?.display_name || item.teacher?.name || "";
-  const subjectName = item.subject?.name || "";
-
-  return `
-    <td class="lesson-date-cell">
-      <div>${esc(displayRecordDate(item.lesson_date || ""))}</div>
-      <span class="muted-small">${esc(item.year_month || "")}</span>
-    </td>
-    <td class="lesson-name-cell">${esc(studentName)}</td>
-    <td class="lesson-teacher-cell">${esc(teacherName)}</td>
-    <td class="lesson-subject-cell">
-      <div>${esc(subjectName)}</div>
-      <span class="muted-small">${esc(timeText || "时间未定")} / ${money(item.duration_hours)}H / ${formatJpyV83(fee)}</span>
-    </td>
-    <td class="lesson-status-cell">
-      ${badge(lessonStatusLabel(item.status), statusClass)}
-      ${item.is_billable !== false ? badge("计费") : badge("不计费", "gray")}
-    </td>
-    <td class="lesson-content-actions-cell">
-      <div class="lesson-content-cell">${esc(short(item.lesson_content || item.note, 36))}</div>
-    </td>
-  `;
-}
-
-function renderSettlementPairedLessonsV834(planned, actual) {
-  const tbody = document.getElementById("settlementLessonsTable");
-  if (!tbody) return;
-
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actual.forEach(row => {
-    let planId = row.planned_lesson_id;
-
-    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
-      const matched = schoolStableFindMatchingPlannedLessonV70(row);
-      if (matched) planId = matched.id;
-    }
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(row);
-    } else {
-      unlinkedActual.push(row);
-    }
-  });
-
-  const html = [];
-  const plannedSorted = planned.slice().sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
-
-  plannedSorted.forEach(plan => {
-    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row">${settlementLessonCellsV834(plan, "planned")}${settlementLessonCellsV834(null, "actual")}</tr>`);
-    } else {
-      actuals.forEach((act, index) => {
-        const left = index === 0
-          ? settlementLessonCellsV834(plan, "planned")
-          : `<td colspan="6" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row">${left}${settlementLessonCellsV834(act, "actual")}</tr>`);
-      });
-    }
-  });
-
-  unlinkedActual
-    .slice()
-    .sort(typeof compareLessonsV78 === "function" ? compareLessonsV78 : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")))
-    .forEach(act => {
-      html.push(`<tr class="lesson-pair-row">${settlementLessonCellsV834(null, "planned")}${settlementLessonCellsV834(act, "actual")}</tr>`);
-    });
-
-  tbody.innerHTML = html.length ? html.join("") : `<tr><td colspan="12" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
 }
 
 // === v8.3.5 lesson list final compact layout ===
@@ -4214,89 +4115,6 @@ function settlementActionButtonsV8310(item) {
       <button class="danger-btn settlement-row-btn" data-delete="${escAttr(item.id)}" data-type="lesson">删除</button>
     </div>
   `;
-}
-
-function settlementLessonCellsV8310(item, side) {
-  if (!item) {
-    return `<td colspan="7" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const fee = feeOfLessonV83(item);
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = [item.start_time, item.end_time].filter(Boolean).join("-");
-  const studentName = item.student?.display_name || item.student?.name || "";
-  const teacherName = item.teacher?.display_name || item.teacher?.name || "";
-  const subjectName = item.subject?.name || "";
-
-  return `
-    <td class="col-date"><div>${esc(displayRecordDate(item.lesson_date || ""))}</div><span>${esc(item.year_month || "")}</span></td>
-    <td class="col-student">${esc(studentName)}</td>
-    <td class="col-teacher">${esc(teacherName)}</td>
-    <td class="col-subject">
-      <strong>${esc(subjectName)}</strong>
-      <span>${esc(timeText || "时间未定")} / ${money(item.duration_hours)}H</span>
-      <span>${formatJpyV83(fee)}</span>
-    </td>
-    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable !== false ? badge("计费") : badge("不计费", "gray")}</td>
-    <td class="col-content"><div class="settlement-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${esc(short(item.lesson_content || item.note || "", 28))}</div></td>
-    <td class="col-actions">${settlementActionButtonsV8310(item)}</td>
-  `;
-}
-
-function renderSettlementPairedLessonsV8310(planned, actual) {
-  const tbody = document.getElementById("settlementLessonsTable");
-  if (!tbody) return;
-
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actual.forEach(row => {
-    let planId = row.planned_lesson_id;
-    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
-      const matched = schoolStableFindMatchingPlannedLessonV70(row);
-      if (matched) planId = matched.id;
-    }
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(row);
-    } else {
-      unlinkedActual.push(row);
-    }
-  });
-
-  const sortFn = typeof compareLessonsV78 === "function"
-    ? compareLessonsV78
-    : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
-
-  const html = [];
-  html.push(`<tr class="lesson-sub-head-body settlement-v8310">
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-  </tr>`);
-
-  planned.slice().sort(sortFn).forEach(plan => {
-    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV8310(plan, "planned")}${settlementLessonCellsV8310(null, "actual")}</tr>`);
-    } else {
-      actuals.forEach((act, index) => {
-        const left = index === 0
-          ? settlementLessonCellsV8310(plan, "planned")
-          : `<td colspan="7" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row settlement-v8310">${left}${settlementLessonCellsV8310(act, "actual")}</tr>`);
-      });
-    }
-  });
-
-  unlinkedActual.slice().sort(sortFn).forEach(act => {
-    html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV8310(null, "planned")}${settlementLessonCellsV8310(act, "actual")}</tr>`);
-  });
-
-  tbody.innerHTML = html.length > 1 ? html.join("") : `<tr><td colspan="14" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
-}
-
-if (typeof renderSettlementPairedLessonsV834 === "function") {
-  renderSettlementPairedLessonsV834 = renderSettlementPairedLessonsV8310;
 }
 
 // === v8.3.10 settlement received JPY restore ===
@@ -4935,92 +4753,6 @@ function lessonDateWithWeekLabelV852(item) {
   return base;
 }
 
-function settlementLessonCellsV852(item, side) {
-  if (!item) {
-    return `<td colspan="7" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const fee = feeOfLessonV83(item);
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = [item.start_time, item.end_time].filter(Boolean).join("-");
-  const studentName = item.student?.display_name || item.student?.name || "";
-  const teacherName = item.teacher?.display_name || item.teacher?.name || "";
-  const subjectName = item.subject?.name || "";
-
-  return `
-    <td class="col-date"><div>${esc(item.lesson_type === "planned" ? `${displayRecordDate(item.lesson_date || "")}周` : displayRecordDate(item.lesson_date || ""))}</div><span>${esc(item.year_month || "")}</span></td>
-    <td class="col-student">${esc(studentName)}</td>
-    <td class="col-teacher">${esc(teacherName)}</td>
-    <td class="col-subject">
-      <strong>${esc(subjectName)}</strong>
-      <span>${esc(timeText || "时间未定")} / ${money(item.duration_hours)}H</span>
-      <span>${formatJpyV83(fee)}</span>
-    </td>
-    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable !== false ? badge("计费") : badge("不计费", "gray")}</td>
-    <td class="col-content"><div class="settlement-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${esc(short(item.lesson_content || item.note || "", 28))}</div></td>
-    <td class="col-actions">${typeof settlementActionButtonsV8310 === "function" ? settlementActionButtonsV8310(item) : ""}</td>
-  `;
-}
-
-function renderSettlementPairedLessonsV852(planned, actual) {
-  const tbody = document.getElementById("settlementLessonsTable");
-  if (!tbody) return;
-
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actual.forEach(row => {
-    let planId = row.planned_lesson_id;
-    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
-      const matched = schoolStableFindMatchingPlannedLessonV70(row);
-      if (matched) planId = matched.id;
-    }
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(row);
-    } else {
-      unlinkedActual.push(row);
-    }
-  });
-
-  const sortFn = typeof compareLessonsV78 === "function"
-    ? compareLessonsV78
-    : (a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""));
-
-  const html = [];
-  html.push(`<tr class="lesson-sub-head-body settlement-v8310">
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-  </tr>`);
-
-  planned.slice().sort(sortFn).forEach(plan => {
-    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(sortFn);
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV852(plan, "planned")}${settlementLessonCellsV852(null, "actual")}</tr>`);
-    } else {
-      actuals.forEach((act, index) => {
-        const left = index === 0
-          ? settlementLessonCellsV852(plan, "planned")
-          : `<td colspan="7" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row settlement-v8310">${left}${settlementLessonCellsV852(act, "actual")}</tr>`);
-      });
-    }
-  });
-
-  unlinkedActual.slice().sort(sortFn).forEach(act => {
-    html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV852(null, "planned")}${settlementLessonCellsV852(act, "actual")}</tr>`);
-  });
-
-  tbody.innerHTML = html.length > 1 ? html.join("") : `<tr><td colspan="14" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
-}
-
-if (typeof renderSettlementPairedLessonsV834 === "function") {
-  renderSettlementPairedLessonsV834 = renderSettlementPairedLessonsV852;
-}
-if (typeof renderSettlementPairedLessonsV8310 === "function") {
-  renderSettlementPairedLessonsV8310 = renderSettlementPairedLessonsV852;
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
@@ -5049,68 +4781,6 @@ function compareLessonDateTimeAscV853(a, b) {
   if (end !== 0) return end;
 
   return String(a.created_at || "").localeCompare(String(b.created_at || ""));
-}
-
-function renderSettlementPairedLessonsV853(planned, actual) {
-  const tbody = document.getElementById("settlementLessonsTable");
-  if (!tbody) return;
-
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actual.forEach(row => {
-    let planId = row.planned_lesson_id;
-    if (!planId && typeof schoolStableFindMatchingPlannedLessonV70 === "function") {
-      const matched = schoolStableFindMatchingPlannedLessonV70(row);
-      if (matched) planId = matched.id;
-    }
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(row);
-    } else {
-      unlinkedActual.push(row);
-    }
-  });
-
-  const plannedSortFn = typeof compareLessonsV78 === "function"
-    ? compareLessonsV78
-    : compareLessonDateTimeAscV853;
-
-  const html = [];
-  html.push(`<tr class="lesson-sub-head-body settlement-v8310">
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-  </tr>`);
-
-  planned.slice().sort(plannedSortFn).forEach(plan => {
-    const actuals = (actualByPlan.get(plan.id) || []).slice().sort(compareLessonDateTimeAscV853);
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV852(plan, "planned")}${settlementLessonCellsV852(null, "actual")}</tr>`);
-    } else {
-      actuals.forEach((act, index) => {
-        const left = index === 0
-          ? settlementLessonCellsV852(plan, "planned")
-          : `<td colspan="7" class="lesson-empty-side">同一预定课时</td>`;
-        html.push(`<tr class="lesson-pair-row settlement-v8310">${left}${settlementLessonCellsV852(act, "actual")}</tr>`);
-      });
-    }
-  });
-
-  unlinkedActual.slice().sort(compareLessonDateTimeAscV853).forEach(act => {
-    html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV852(null, "planned")}${settlementLessonCellsV852(act, "actual")}</tr>`);
-  });
-
-  tbody.innerHTML = html.length > 1 ? html.join("") : `<tr><td colspan="14" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
-}
-
-if (typeof renderSettlementPairedLessonsV834 === "function") {
-  renderSettlementPairedLessonsV834 = renderSettlementPairedLessonsV853;
-}
-if (typeof renderSettlementPairedLessonsV8310 === "function") {
-  renderSettlementPairedLessonsV8310 = renderSettlementPairedLessonsV853;
-}
-if (typeof renderSettlementPairedLessonsV852 === "function") {
-  renderSettlementPairedLessonsV852 = renderSettlementPairedLessonsV853;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -5213,45 +4883,6 @@ function buildLessonPairGroupsV854(rows) {
   return { pairs, unlinkedActual };
 }
 
-function renderSettlementPairedLessonsV854(planned, actual) {
-  const tbody = document.getElementById("settlementLessonsTable");
-  if (!tbody) return;
-
-  const rows = [...planned, ...actual];
-  const { pairs, unlinkedActual } = buildLessonPairGroupsV854(rows);
-
-  const html = [];
-  html.push(`<tr class="lesson-sub-head-body settlement-v8310">
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-  </tr>`);
-
-  pairs.forEach(pair => {
-    if (!pair.actuals.length) {
-      html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV852(pair.plan, "planned")}${settlementLessonCellsV852(null, "actual")}</tr>`);
-      return;
-    }
-
-    pair.actuals.forEach((act, index) => {
-      const left = index === 0
-        ? settlementLessonCellsV852(pair.plan, "planned")
-        : `<td colspan="7" class="lesson-empty-side">同一预定课时</td>`;
-      html.push(`<tr class="lesson-pair-row settlement-v8310">${left}${settlementLessonCellsV852(act, "actual")}</tr>`);
-    });
-  });
-
-  unlinkedActual.forEach(act => {
-    html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV852(null, "planned")}${settlementLessonCellsV852(act, "actual")}</tr>`);
-  });
-
-  tbody.innerHTML = html.length > 1 ? html.join("") : `<tr><td colspan="14" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
-}
-
-if (typeof renderSettlementPairedLessonsV834 === "function") renderSettlementPairedLessonsV834 = renderSettlementPairedLessonsV854;
-if (typeof renderSettlementPairedLessonsV8310 === "function") renderSettlementPairedLessonsV8310 = renderSettlementPairedLessonsV854;
-if (typeof renderSettlementPairedLessonsV852 === "function") renderSettlementPairedLessonsV852 = renderSettlementPairedLessonsV854;
-if (typeof renderSettlementPairedLessonsV853 === "function") renderSettlementPairedLessonsV853 = renderSettlementPairedLessonsV854;
-
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
@@ -5315,48 +4946,6 @@ function comparePlannedRowsByCourseDateV855(a, b) {
   return String(a.id || "").localeCompare(String(b.id || ""));
 }
 
-function renderSettlementPairedLessonsV855(planned, actual) {
-  const tbody = document.getElementById("settlementLessonsTable");
-  if (!tbody) return;
-
-  const { actualByPlan, unlinkedActual } = buildActualByExplicitPlanV855(actual);
-
-  const html = [];
-  html.push(`<tr class="lesson-sub-head-body settlement-v8310">
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-  </tr>`);
-
-  planned.slice().sort(comparePlannedRowsByCourseDateV855).forEach(plan => {
-    const actuals = (actualByPlan.get(lessonIdTextV855(plan.id)) || []).slice()
-      .sort(compareDateTimeAscV854 || compareDateTimeAscV853 || ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""))));
-
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV852(plan, "planned")}${settlementLessonCellsV852(null, "actual")}</tr>`);
-      return;
-    }
-
-    actuals.forEach((act, index) => {
-      const left = index === 0
-        ? settlementLessonCellsV852(plan, "planned")
-        : `<td colspan="7" class="lesson-empty-side">同一预定课时</td>`;
-      html.push(`<tr class="lesson-pair-row settlement-v8310">${left}${settlementLessonCellsV852(act, "actual")}</tr>`);
-    });
-  });
-
-  unlinkedActual.forEach(act => {
-    html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV852(null, "planned")}${settlementLessonCellsV852(act, "actual")}</tr>`);
-  });
-
-  tbody.innerHTML = html.length > 1 ? html.join("") : `<tr><td colspan="14" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
-}
-
-if (typeof renderSettlementPairedLessonsV834 === "function") renderSettlementPairedLessonsV834 = renderSettlementPairedLessonsV855;
-if (typeof renderSettlementPairedLessonsV8310 === "function") renderSettlementPairedLessonsV8310 = renderSettlementPairedLessonsV855;
-if (typeof renderSettlementPairedLessonsV852 === "function") renderSettlementPairedLessonsV852 = renderSettlementPairedLessonsV855;
-if (typeof renderSettlementPairedLessonsV853 === "function") renderSettlementPairedLessonsV853 = renderSettlementPairedLessonsV855;
-if (typeof renderSettlementPairedLessonsV854 === "function") renderSettlementPairedLessonsV854 = renderSettlementPairedLessonsV855;
-
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
@@ -5416,45 +5005,6 @@ function yearMonthDateDisplayV856(item) {
   return iso || item?.year_month || "";
 }
 
-function settlementLessonCellsV856(item, side) {
-  if (!item) {
-    return `<td colspan="7" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const fee = feeOfLessonV83(item);
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = [item.start_time, item.end_time].filter(Boolean).join("-");
-  const studentName = item.student?.display_name || item.student?.name || "";
-  const teacherName = item.teacher?.display_name || item.teacher?.name || "";
-  const subjectName = item.subject?.name || "";
-  const dateDisplay = item.lesson_type === "planned" ? plannedWeekDateDisplayV856(item) : actualDateDisplayV856(item);
-
-  return `
-    <td class="col-date"><div>${esc(dateDisplay)}</div><span>${esc(yearMonthDateDisplayV856(item))}</span></td>
-    <td class="col-student">${esc(studentName)}</td>
-    <td class="col-teacher">${esc(teacherName)}</td>
-    <td class="col-subject">
-      <strong>${esc(subjectName)}</strong>
-      <span>${esc(timeText || "时间未定")} / ${money(item.duration_hours)}H</span>
-      <span>${formatJpyV83(fee)}</span>
-    </td>
-    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable !== false ? badge("计费") : badge("不计费", "gray")}</td>
-    <td class="col-content"><div class="settlement-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${esc(short(item.lesson_content || item.note || "", 28))}</div></td>
-    <td class="col-actions">${typeof settlementActionButtonsV8310 === "function" ? settlementActionButtonsV8310(item) : ""}</td>
-  `;
-}
-
-if (typeof renderSettlementPairedLessonsV855 === "function") {
-  const renderSettlementBeforeV856 = renderSettlementPairedLessonsV855;
-  renderSettlementPairedLessonsV855 = function (planned, actual) {
-    const oldCells = settlementLessonCellsV852;
-    settlementLessonCellsV852 = settlementLessonCellsV856;
-    const result = renderSettlementBeforeV856(planned, actual);
-    settlementLessonCellsV852 = settlementLessonCellsV856;
-    return result;
-  };
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     if (typeof renderStudentSettlement === "function") renderStudentSettlement();
@@ -5503,93 +5053,6 @@ function dateCellDisplayV857(item) {
     sub: actual || item?.year_month || "",
   };
 }
-
-function settlementLessonCellsV857(item, side) {
-  if (!item) {
-    return `<td colspan="7" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const fee = feeOfLessonV83(item);
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = [item.start_time, item.end_time].filter(Boolean).join("-");
-  const studentName = item.student?.display_name || item.student?.name || "";
-  const teacherName = item.teacher?.display_name || item.teacher?.name || "";
-  const subjectName = item.subject?.name || "";
-  const d = dateCellDisplayV857(item);
-
-  return `
-    <td class="col-date"><div>${esc(d.main)}</div><span>${esc(d.sub)}</span></td>
-    <td class="col-student">${esc(studentName)}</td>
-    <td class="col-teacher">${esc(teacherName)}</td>
-    <td class="col-subject">
-      <strong>${esc(subjectName)}</strong>
-      <span>${esc(timeText || "时间未定")} / ${money(item.duration_hours)}H</span>
-      <span>${formatJpyV83(fee)}</span>
-    </td>
-    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable !== false ? badge("计费") : badge("不计费", "gray")}</td>
-    <td class="col-content"><div class="settlement-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${esc(short(item.lesson_content || item.note || "", 28))}</div></td>
-    <td class="col-actions">${typeof settlementActionButtonsV8310 === "function" ? settlementActionButtonsV8310(item) : ""}</td>
-  `;
-}
-
-function renderSettlementPairedLessonsV857(planned, actual) {
-  const tbody = document.getElementById("settlementLessonsTable");
-  if (!tbody) return;
-
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actual.forEach(row => {
-    const planId = String(row.planned_lesson_id || "").trim();
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(row);
-    } else {
-      unlinkedActual.push(row);
-    }
-  });
-
-  const dateSort = typeof compareDateTimeAscV854 === "function"
-    ? compareDateTimeAscV854
-    : ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
-  const planSort = typeof comparePlannedRowsByCourseDateV855 === "function"
-    ? comparePlannedRowsByCourseDateV855
-    : (typeof compareLessonsV78 === "function" ? compareLessonsV78 : dateSort);
-
-  const html = [];
-  html.push(`<tr class="lesson-sub-head-body settlement-v8310">
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-  </tr>`);
-
-  planned.slice().sort(planSort).forEach(plan => {
-    const actuals = (actualByPlan.get(String(plan.id || "").trim()) || []).slice().sort(dateSort);
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV857(plan, "planned")}${settlementLessonCellsV857(null, "actual")}</tr>`);
-      return;
-    }
-
-    actuals.forEach((act, index) => {
-      const left = index === 0
-        ? settlementLessonCellsV857(plan, "planned")
-        : `<td colspan="7" class="lesson-empty-side">同一预定课时</td>`;
-      html.push(`<tr class="lesson-pair-row settlement-v8310">${left}${settlementLessonCellsV857(act, "actual")}</tr>`);
-    });
-  });
-
-  unlinkedActual.slice().sort(dateSort).forEach(act => {
-    html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV857(null, "planned")}${settlementLessonCellsV857(act, "actual")}</tr>`);
-  });
-
-  tbody.innerHTML = html.length > 1 ? html.join("") : `<tr><td colspan="14" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
-}
-
-if (typeof renderSettlementPairedLessonsV834 === "function") renderSettlementPairedLessonsV834 = renderSettlementPairedLessonsV857;
-if (typeof renderSettlementPairedLessonsV8310 === "function") renderSettlementPairedLessonsV8310 = renderSettlementPairedLessonsV857;
-if (typeof renderSettlementPairedLessonsV852 === "function") renderSettlementPairedLessonsV852 = renderSettlementPairedLessonsV857;
-if (typeof renderSettlementPairedLessonsV853 === "function") renderSettlementPairedLessonsV853 = renderSettlementPairedLessonsV857;
-if (typeof renderSettlementPairedLessonsV854 === "function") renderSettlementPairedLessonsV854 = renderSettlementPairedLessonsV857;
-if (typeof renderSettlementPairedLessonsV855 === "function") renderSettlementPairedLessonsV855 = renderSettlementPairedLessonsV857;
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
@@ -5649,94 +5112,6 @@ function dateCellDisplayV858(item) {
     sub: lessonDate || item?.year_month || "",
   };
 }
-
-function settlementLessonCellsV858(item, side) {
-  if (!item) {
-    return `<td colspan="7" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-
-  const fee = feeOfLessonV83(item);
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = [item.start_time, item.end_time].filter(Boolean).join("-");
-  const studentName = item.student?.display_name || item.student?.name || "";
-  const teacherName = item.teacher?.display_name || item.teacher?.name || "";
-  const subjectName = item.subject?.name || "";
-  const d = dateCellDisplayV858(item);
-
-  return `
-    <td class="col-date"><div>${esc(d.main)}</div><span>${esc(d.sub)}</span></td>
-    <td class="col-student">${esc(studentName)}</td>
-    <td class="col-teacher">${esc(teacherName)}</td>
-    <td class="col-subject">
-      <strong>${esc(subjectName)}</strong>
-      <span>${esc(timeText || "时间未定")} / ${money(item.duration_hours)}H</span>
-      <span>${formatJpyV83(fee)}</span>
-    </td>
-    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable !== false ? badge("计费") : badge("不计费", "gray")}</td>
-    <td class="col-content"><div class="settlement-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${esc(short(item.lesson_content || item.note || "", 28))}</div></td>
-    <td class="col-actions">${typeof settlementActionButtonsV8310 === "function" ? settlementActionButtonsV8310(item) : ""}</td>
-  `;
-}
-
-function renderSettlementPairedLessonsV858(planned, actual) {
-  const tbody = document.getElementById("settlementLessonsTable");
-  if (!tbody) return;
-
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-
-  actual.forEach(row => {
-    const planId = String(row.planned_lesson_id || "").trim();
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(row);
-    } else {
-      unlinkedActual.push(row);
-    }
-  });
-
-  const dateSort = typeof compareDateTimeAscV854 === "function"
-    ? compareDateTimeAscV854
-    : ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || "")));
-  const planSort = typeof comparePlannedRowsByCourseDateV855 === "function"
-    ? comparePlannedRowsByCourseDateV855
-    : (typeof compareLessonsV78 === "function" ? compareLessonsV78 : dateSort);
-
-  const html = [];
-  html.push(`<tr class="lesson-sub-head-body settlement-v8310">
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-  </tr>`);
-
-  planned.slice().sort(planSort).forEach(plan => {
-    const actuals = (actualByPlan.get(String(plan.id || "").trim()) || []).slice().sort(dateSort);
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV858(plan, "planned")}${settlementLessonCellsV858(null, "actual")}</tr>`);
-      return;
-    }
-
-    actuals.forEach((act, index) => {
-      const left = index === 0
-        ? settlementLessonCellsV858(plan, "planned")
-        : `<td colspan="7" class="lesson-empty-side">同一预定课时</td>`;
-      html.push(`<tr class="lesson-pair-row settlement-v8310">${left}${settlementLessonCellsV858(act, "actual")}</tr>`);
-    });
-  });
-
-  unlinkedActual.slice().sort(dateSort).forEach(act => {
-    html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementLessonCellsV858(null, "planned")}${settlementLessonCellsV858(act, "actual")}</tr>`);
-  });
-
-  tbody.innerHTML = html.length > 1 ? html.join("") : `<tr><td colspan="14" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
-}
-
-if (typeof renderSettlementPairedLessonsV834 === "function") renderSettlementPairedLessonsV834 = renderSettlementPairedLessonsV858;
-if (typeof renderSettlementPairedLessonsV8310 === "function") renderSettlementPairedLessonsV8310 = renderSettlementPairedLessonsV858;
-if (typeof renderSettlementPairedLessonsV852 === "function") renderSettlementPairedLessonsV852 = renderSettlementPairedLessonsV858;
-if (typeof renderSettlementPairedLessonsV853 === "function") renderSettlementPairedLessonsV853 = renderSettlementPairedLessonsV858;
-if (typeof renderSettlementPairedLessonsV854 === "function") renderSettlementPairedLessonsV854 = renderSettlementPairedLessonsV858;
-if (typeof renderSettlementPairedLessonsV855 === "function") renderSettlementPairedLessonsV855 = renderSettlementPairedLessonsV858;
-if (typeof renderSettlementPairedLessonsV857 === "function") renderSettlementPairedLessonsV857 = renderSettlementPairedLessonsV858;
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
@@ -5824,33 +5199,6 @@ function lessonFeeV86(item) {
   return Number(item?.lesson_fee || (Number(item?.unit_price || 0) * Number(item?.duration_hours || 0)) || 0);
 }
 
-function buildLessonPairsV86(rows) {
-  const plannedSortV86 =
-    typeof comparePlannedLessonsV86 === "function"
-      ? comparePlannedLessonsV86
-      : (typeof compareLessonsV78 === "function"
-        ? compareLessonsV78
-        : ((a, b) => String(a.lesson_date || "").localeCompare(String(b.lesson_date || ""))));
-
-  const planned = rows.filter(x => x.lesson_type === "planned").slice().sort(plannedSortV86);
-
-  const actual = rows.filter(x => x.lesson_type === "actual");
-  const actualByPlan = new Map();
-  const unlinkedActual = [];
-  actual.forEach(row => {
-    const planId = String(row.planned_lesson_id || "").trim();
-    if (planId) {
-      if (!actualByPlan.has(planId)) actualByPlan.set(planId, []);
-      actualByPlan.get(planId).push(row);
-    } else {
-      unlinkedActual.push(row);
-    }
-  });
-  actualByPlan.forEach(list => list.sort(compareDateTimeV86));
-  unlinkedActual.sort(compareDateTimeV86);
-  return { planned, actualByPlan, unlinkedActual };
-}
-
 function settlementActionsV86(item) {
   if (!item) return "";
   return `
@@ -5859,55 +5207,6 @@ function settlementActionsV86(item) {
       <button class="danger-btn settlement-row-btn" data-delete="${escAttr(item.id)}" data-type="lesson">删除</button>
     </div>
   `;
-}
-
-function settlementCellV86(item, side) {
-  if (!item) {
-    return `<td colspan="7" class="lesson-empty-side">${side === "actual" ? "未登录实际课时" : "未关联预定课时"}</td>`;
-  }
-  const d = lessonDateDisplayV86(item);
-  const statusClass = item.status === "cancelled" || item.status === "holiday" ? "red" : "";
-  const timeText = [item.start_time, item.end_time].filter(Boolean).join("-");
-  const fee = lessonFeeV86(item);
-  return `
-    <td class="col-date"><div>${esc(d.main)}</div><span>${esc(d.sub)}</span></td>
-    <td class="col-student">${esc(item.student?.display_name || item.student?.name || "")}</td>
-    <td class="col-teacher">${esc(item.teacher?.display_name || item.teacher?.name || "")}</td>
-    <td class="col-subject">
-      <strong>${esc(item.subject?.name || "")}</strong>
-      <span>${esc(timeText || "时间未定")} / ${money(item.duration_hours)}H</span>
-      <span>${formatJpyV83(fee)}</span>
-    </td>
-    <td class="col-status">${badge(lessonStatusLabel(item.status), statusClass)}${item.is_billable !== false ? badge("计费") : badge("不计费", "gray")}</td>
-    <td class="col-content"><div class="settlement-content-text" title="${escAttr(item.lesson_content || item.note || "")}">${esc(short(item.lesson_content || item.note || "", 28))}</div></td>
-    <td class="col-actions">${settlementActionsV86(item)}</td>
-  `;
-}
-
-function renderSettlementPairsV86(planned, actual) {
-  const tbody = document.getElementById("settlementLessonsTable");
-  if (!tbody) return;
-  const { planned: plans, actualByPlan, unlinkedActual } = buildLessonPairsV86([...planned, ...actual]);
-  const html = [];
-  html.push(`<tr class="lesson-sub-head-body settlement-v8310">
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-    <th>日期</th><th>姓名</th><th>担当老师</th><th>科目</th><th>状态</th><th>内容</th><th>操作</th>
-  </tr>`);
-  plans.forEach(plan => {
-    const actuals = (actualByPlan.get(String(plan.id || "").trim()) || []).slice().sort(compareDateTimeV86);
-    if (!actuals.length) {
-      html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementCellV86(plan, "planned")}${settlementCellV86(null, "actual")}</tr>`);
-      return;
-    }
-    actuals.forEach((act, index) => {
-      const left = index === 0 ? settlementCellV86(plan, "planned") : `<td colspan="7" class="lesson-empty-side">同一预定课时</td>`;
-      html.push(`<tr class="lesson-pair-row settlement-v8310">${left}${settlementCellV86(act, "actual")}</tr>`);
-    });
-  });
-  unlinkedActual.forEach(act => {
-    html.push(`<tr class="lesson-pair-row settlement-v8310">${settlementCellV86(null, "planned")}${settlementCellV86(act, "actual")}</tr>`);
-  });
-  tbody.innerHTML = html.length > 1 ? html.join("") : `<tr><td colspan="14" class="empty-row">当前学生和月份没有课时记录</td></tr>`;
 }
 
 function incomeSettlementMonthV86(item) {
@@ -5934,15 +5233,6 @@ function sumIncomeV86(studentId, month, currency) {
 
 // Final ownership.
 sumIncomeV83 = sumIncomeV86;
-
-if (typeof renderSettlementPairedLessonsV834 === "function") renderSettlementPairedLessonsV834 = renderSettlementPairsV86;
-if (typeof renderSettlementPairedLessonsV8310 === "function") renderSettlementPairedLessonsV8310 = renderSettlementPairsV86;
-if (typeof renderSettlementPairedLessonsV852 === "function") renderSettlementPairedLessonsV852 = renderSettlementPairsV86;
-if (typeof renderSettlementPairedLessonsV853 === "function") renderSettlementPairedLessonsV853 = renderSettlementPairsV86;
-if (typeof renderSettlementPairedLessonsV854 === "function") renderSettlementPairedLessonsV854 = renderSettlementPairsV86;
-if (typeof renderSettlementPairedLessonsV855 === "function") renderSettlementPairedLessonsV855 = renderSettlementPairsV86;
-if (typeof renderSettlementPairedLessonsV857 === "function") renderSettlementPairedLessonsV857 = renderSettlementPairsV86;
-if (typeof renderSettlementPairedLessonsV858 === "function") renderSettlementPairedLessonsV858 = renderSettlementPairsV86;
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {

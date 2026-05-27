@@ -386,34 +386,18 @@
     const ok = confirm("确定支付并生成支出记录吗？\n\n保存后会减少所选账户余额。");
     if (!ok) return;
 
-    const expensePayload = buildTeacherWageExpensePayload(payment, accountId, payDate, amount, note);
-    const expenseResult = await db
-      .from(tables.expenses)
-      .insert(expensePayload)
-      .select("*")
-      .single();
-
-    if (expenseResult.error) {
-      showMessage(`生成支出记录失败：${expenseResult.error.message}`, "error");
-      return;
-    }
-
-    if (typeof syncFinanceAccountEffect === "function") {
-      await syncFinanceAccountEffect("expense", null, expenseResult.data);
-    }
-
-    const { error } = await db
-      .from(TABLE)
-      .update({
-        status: "paid",
-        paid_at: new Date(payDate + "T00:00:00").toISOString(),
-        note: note || payment.note || "",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", payment.id);
+    const { error } = await db.rpc("school_confirm_payment_request", {
+      p_payment_request_id: id,
+      p_account_id: accountId,
+      p_pay_date: payDate,
+      p_amount: amount,
+      p_note: note || null,
+      p_payment_method: "bank_transfer",
+    });
 
     if (error) {
-      showMessage(`支付状态更新失败：${error.message}`, "error");
+      console.error("payment confirm rpc failed", error);
+      showMessage(`支付失败：${error.message}`, "error");
       await loadAll();
       await loadPaymentRequests();
       return;

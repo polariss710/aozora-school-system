@@ -223,13 +223,6 @@
     return matched.length ? matched : active.filter(x => !currency || x.currency === currency);
   }
 
-  function inferExchangeRateForPayment(payment) {
-    const jpy = n(payment?.amount_jpy);
-    const cny = n(payment?.amount_cny);
-    if (jpy > 0 && cny > 0) return Math.round((cny / jpy) * 1000000) / 1000000;
-    return 0;
-  }
-
   function ensurePaymentConfirmModal() {
     if (document.getElementById("paymentConfirmModal")) return;
 
@@ -327,36 +320,6 @@
 
   function closePaymentConfirmModal() {
     document.getElementById("paymentConfirmModal")?.classList.add("hidden");
-  }
-
-  function buildTeacherWageExpensePayload(payment, accountId, payDate, amount, note) {
-    const currency = payment.currency || "JPY";
-    const amountJpy = currency === "JPY" ? n(amount) : n(payment.amount_jpy);
-    const amountCny = currency === "CNY" ? n(amount) : n(payment.amount_cny);
-    const exchangeRate = inferExchangeRateForPayment(payment);
-
-    return {
-      expense_date: payDate,
-      year_month: payment.request_month || payDate.slice(0, 7),
-      settlement_month: payment.request_month || payDate.slice(0, 7),
-      payment_currency: currency,
-      include_in_student_settlement: false,
-      business_entity_id: payment.business_entity_id || null,
-      account_id: accountId,
-      expense_category: "teacher_wage",
-      description: `${payment.request_month || ""} ${payment.payee_name || ""} 老师工资`.trim(),
-      currency,
-      amount: n(amount),
-      amount_jpy: Math.round(amountJpy),
-      amount_cny: Math.round(amountCny * 100) / 100,
-      exchange_rate: exchangeRate,
-      payment_method: "bank_transfer",
-      status: "paid",
-      is_business_expense: true,
-      tax_category: "給与",
-      receipt_status: "无需收据",
-      note: `${note || ""}\n支付要求ID：${payment.id}`.trim(),
-    };
   }
 
   async function submitPaymentConfirm(e) {

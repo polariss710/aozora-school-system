@@ -1084,6 +1084,8 @@
   }
 
   async function submitLessonFormV918(e) {
+    if (state.editing?.type !== "lesson") return;
+
     console.log("[lesson-save] submit:start");
     let form = null;
     try {

@@ -25,6 +25,7 @@
       pending: "待支付",
       paid: "已支付",
       cancelled: "已取消",
+      reversed: "已撤销",
       void: "已作废",
     };
     return map[value] || value || "";
@@ -41,6 +42,7 @@
     if (value === "paid") return badge("已支付");
     if (value === "pending") return badge("待支付", "yellow");
     if (value === "cancelled") return badge("已取消", "gray");
+    if (value === "reversed") return badge("已撤销", "gray");
     if (value === "void") return badge("已作废", "gray");
     return badge(value || "", "gray");
   }
@@ -166,7 +168,8 @@
           <div class="table-actions">
             ${row.status === "pending" ? `<button class="primary-btn payment-mini-btn" data-payment-paid="${escAttr(row.id)}">标记已支付</button>` : ""}
             ${row.status === "pending" ? `<button class="danger-btn payment-mini-btn" data-payment-cancel="${escAttr(row.id)}">取消</button>` : ""}
-            ${row.status === "paid" || row.status === "cancelled" ? `<button class="secondary-btn payment-mini-btn" data-payment-pending="${escAttr(row.id)}">恢复待支付</button>` : ""}
+            ${row.status === "paid" ? `<button class="danger-btn payment-mini-btn" data-payment-reverse="${escAttr(row.id)}">撤销支付</button>` : ""}
+            ${row.status === "cancelled" ? `<button class="secondary-btn payment-mini-btn" data-payment-pending="${escAttr(row.id)}">恢复待支付</button>` : ""}
           </div>
         </td>
       </tr>
@@ -192,6 +195,12 @@
       if (btn.dataset.boundPayment === "true") return;
       btn.dataset.boundPayment = "true";
       btn.addEventListener("click", () => restorePaymentPending(btn.dataset.paymentPending));
+    });
+
+    document.querySelectorAll("[data-payment-reverse]").forEach(btn => {
+      if (btn.dataset.boundPayment === "true") return;
+      btn.dataset.boundPayment = "true";
+      btn.addEventListener("click", () => reversePaidPayment(btn.dataset.paymentReverse));
     });
   }
 
@@ -387,6 +396,12 @@
   }
 
   async function restorePaymentPending(id) {
+    const payment = paymentRequests.find(x => String(x.id) === String(id));
+    if (!payment || payment.status !== "cancelled") {
+      showMessage("只有已取消的支付要求可以恢复为待支付。", "error");
+      return;
+    }
+
     const ok = confirm("确定恢复为待支付吗？");
     if (!ok) return;
 
@@ -394,6 +409,38 @@
       status: "pending",
       paid_at: null,
     }, "已恢复为待支付。");
+  }
+
+  async function reversePaidPayment(id) {
+    const payment = paymentRequests.find(x => String(x.id) === String(id));
+    if (!payment || payment.status !== "paid") {
+      showMessage("只有已支付的支付要求可以撤销。", "error");
+      return;
+    }
+
+    const ok = confirm("撤销支付会生成反向账户流水，并恢复账户余额。\n原支付记录、支出记录和原账户流水会保留作为历史。\n是否继续？");
+    if (!ok) return;
+
+    const reason = prompt("请输入撤销原因（可空）：", "");
+    if (reason === null) return;
+
+    const { error } = await db.rpc("school_reverse_paid_payment_request", {
+      p_payment_request_id: id,
+      p_reason: reason || null,
+      p_reverse_date: new Date().toISOString().slice(0, 10),
+    });
+
+    if (error) {
+      console.error("payment reverse rpc failed", error);
+      showMessage(`撤销支付失败：${error.message}`, "error");
+      await loadAll();
+      await loadPaymentRequests();
+      return;
+    }
+
+    await loadAll();
+    await loadPaymentRequests();
+    showMessage("支付已撤销，账户余额已恢复。", "ok");
   }
 
   function bindPayments() {

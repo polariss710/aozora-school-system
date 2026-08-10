@@ -3077,13 +3077,6 @@ function teacherStatusBadge(status) {
   return badge(text, cls);
 }
 
-if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js").catch(() => { });
-  });
-}
-
-
 // === v3.0 hard override: finance summary by record currency + amount ===
 function schoolV30ParseAmount(value) {
   const n = Number(value || 0);
